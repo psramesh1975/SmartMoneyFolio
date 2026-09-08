@@ -1,0 +1,15 @@
+export const RELATIONSHIPS = [
+  "Self",
+  "Spouse",
+  "Son",
+  "Daughter",
+  "Father",
+  "Mother",
+  "Brother",
+  "Sister",
+  "Grandfather",
+  "Grandmother",
+  "Father-in-law",
+  "Mother-in-law",
+  "Other",
+] as const;

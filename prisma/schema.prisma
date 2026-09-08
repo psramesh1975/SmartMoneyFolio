@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum Residency {
+  NRI
+  RESIDENT_INDIAN
+  OTHER
+}
+
+// The tenant. Everything in the platform is scoped to a Household.
+// Each self-signup customer gets exactly one Household of their own.
+model Household {
+  id                   String        @id @default(cuid())
+  name                 String
+  baseCurrency         String        @default("USD")
+  operationalCurrency  String        @default("USD")
+  isSuspended          Boolean       @default(false) // platform admin can suspend a client's access
+  subscriptionStatus   String        @default("FREE") // FREE | TRIAL | PAID — plain data, no billing logic yet
+  subscriptionExpiresAt DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  users         User[]
+  familyMembers FamilyMember[]
+  accounts          Account[]
+  allocationTargets AllocationTarget[]
+  goals             Goal[]
+
+  @@map("households")
+}
+
+// An authenticated login. Regular clients belong to exactly one Household.
+// The platform Super Admin (isPlatformOwner = true) has no household at all —
+// it's purely an administrative account.
+model User {
+  id             String    @id @default(cuid())
+  householdId    String?
+  household      Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  email          String    @unique
+  passwordHash   String
+  role           Role      @default(ADMIN)
+  isPlatformOwner Boolean  @default(false)
+  status         String    @default("active") // active | disabled
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  familyMember   FamilyMember? // optional link — the "Self" member for this login, if any
+
+  @@index([householdId])
+  @@map("users")
+}
+
+// A financial entity within a Household. May or may not have a login.
+// Minors and most family members will never have a linkedUser.
+model FamilyMember {
+  id                  String     @id @default(cuid())
+  householdId         String
+  household           Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  linkedUserId        String?    @unique
+  linkedUser          User?      @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  name                String
+  relationship        String     // e.g. Self, Spouse, Son, Daughter, Other
+  operationalCurrency String     @default("USD")
+  residencyStatus     Residency  @default(NRI)
+  dateOfBirth         DateTime?
+  city                String?    // required for the "Self" member (the subscriber), optional for others
+  address             String?    // required for the "Self" member (the subscriber), optional for others
+  isMinor             Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  accounts Account[]
+
+  @@index([householdId])
+  @@map("family_members")
+}
+
+enum AssetClass {
+  CASH
+  FIXED_DEPOSIT
+  STOCKS
+  MUTUAL_FUNDS
+  BONDS
+  GOLD
+  RETIREMENT_SAVINGS
+  INSURANCE_LINKED
+  REAL_ESTATE
+  CRYPTOCURRENCY
+  OTHER
+}
+
+// A single holding — a specific FD, mutual fund, bank account, PPF, SGB, etc.
+// The asset class powers allocation charts; holdingName is free text so it
+// works for any country's specific product names.
+model Account {
+  id             String       @id @default(cuid())
+  householdId    String
+  household      Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  familyMemberId String
+  familyMember   FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  assetClass     AssetClass
+  holdingName    String       // e.g. "PFC FD", "PPF", "Nippon Small Cap Fund", "401(k)"
+  currency       String
+  currentValue   Decimal
+  lastUpdated    DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([householdId])
+  @@index([familyMemberId])
+  @@map("accounts")
+}
+
+// Household-level target allocation % per asset class, compared against
+// actual % computed live from Accounts.
+model AllocationTarget {
+  id            String     @id @default(cuid())
+  householdId   String
+  household     Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assetClass    AssetClass
+  targetPercent Decimal    // stored as a fraction, e.g. 0.30 = 30%
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([householdId, assetClass])
+  @@map("allocation_targets")
+}
+
+// A named milestone — e.g. "Retirement Corpus", "Daughter's Education".
+model Goal {
+  id            String    @id @default(cuid())
+  householdId   String
+  household     Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name          String
+  targetAmount  Decimal
+  currency      String
+  currentAmount Decimal   @default(0)
+  targetDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([householdId])
+  @@map("goals")
+}
