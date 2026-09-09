@@ -1,0 +1,721 @@
+From 5f55fe5848e9c23a35b2772f306404840b6cef6a Mon Sep 17 00:00:00 2001
+From: "Claude (Anthropic)" <noreply@anthropic.com>
+Date: Wed, 9 Sep 2026 07:54:34 +0000
+Subject: [PATCH] Remove role concept; split /platform into stats dashboard +
+ client management
+
+- Drop the Role enum/field entirely (User model, session payload, signup/login,
+  VIEWER-gated API checks, canEdit plumbing in Goals/Allocation/Accounts
+  client components). Every household login now has full read/write access
+  to its own data, consistent with the one-login-per-household model.
+- Delete app/api/platform/users/[userId]/role/route.ts and the role dropdown
+  in PlatformClientsClient.
+- Rewrite app/platform/page.tsx as a real stats dashboard (new signups,
+  clients by location, Free vs Subscription split) instead of the client
+  list.
+- Move the client list to the new app/platform/clients/page.tsx.
+- Rename the sidebar's 'User Management' link to 'Client Management',
+  fixing the 404 (the route now exists).
+---
+ app/(app)/accounts/page.tsx                   |   1 -
+ app/(app)/allocation/page.tsx                 |   1 -
+ app/(app)/dashboard/page.tsx                  |   3 +-
+ app/(app)/goals/page.tsx                      |   1 -
+ app/api/accounts/[id]/route.ts                |   4 -
+ app/api/accounts/route.ts                     |   4 -
+ app/api/allocation-targets/route.ts           |   4 -
+ app/api/auth/login/route.ts                   |   1 -
+ app/api/auth/signup/route.ts                  |   2 -
+ app/api/goals/route.ts                        |   4 -
+ app/api/platform/clients/route.ts             |   2 +-
+ app/api/platform/users/[userId]/role/route.ts |  38 -----
+ app/platform/clients/page.tsx                 |  41 +++++
+ app/platform/page.tsx                         | 156 +++++++++++++-----
+ components/AccountsClient.tsx                 |  20 +--
+ components/AllocationClient.tsx               |  19 +--
+ components/GoalsClient.tsx                    |   6 +-
+ components/PlatformClientsClient.tsx          |  34 +---
+ components/PlatformSidebar.tsx                |   2 +-
+ lib/auth.ts                                   |   1 -
+ prisma/schema.prisma                          |   7 -
+ 21 files changed, 178 insertions(+), 173 deletions(-)
+ delete mode 100644 app/api/platform/users/[userId]/role/route.ts
+ create mode 100644 app/platform/clients/page.tsx
+
+diff --git a/app/(app)/accounts/page.tsx b/app/(app)/accounts/page.tsx
+index 7376d94..47fe9b9 100644
+--- a/app/(app)/accounts/page.tsx
++++ b/app/(app)/accounts/page.tsx
+@@ -41,7 +41,6 @@ export default async function AccountsPage() {
+           currency: a.currency,
+           currentValue: a.currentValue.toString(),
+         }))}
+-        canEdit={session.role !== "VIEWER"}
+       />
+     </section>
+   );
+diff --git a/app/(app)/allocation/page.tsx b/app/(app)/allocation/page.tsx
+index b2191d9..cc8e215 100644
+--- a/app/(app)/allocation/page.tsx
++++ b/app/(app)/allocation/page.tsx
+@@ -27,7 +27,6 @@ export default async function AllocationPage() {
+       <AllocationClient
+         assetClasses={ASSET_CLASSES.map((c) => ({ value: c.value, label: c.label }))}
+         initialTargets={targetMap}
+-        canEdit={session.role !== "VIEWER"}
+       />
+     </section>
+   );
+diff --git a/app/(app)/dashboard/page.tsx b/app/(app)/dashboard/page.tsx
+index a499490..42dc87f 100644
+--- a/app/(app)/dashboard/page.tsx
++++ b/app/(app)/dashboard/page.tsx
+@@ -23,7 +23,7 @@ export default async function DashboardPage() {
+         orderBy: { createdAt: "asc" },
+         include: { accounts: true },
+       },
+-      users: { select: { id: true, email: true, role: true } },
++      users: { select: { id: true, email: true } },
+       allocationTargets: true,
+       goals: { orderBy: { createdAt: "asc" } },
+     },
+@@ -220,7 +220,6 @@ export default async function DashboardPage() {
+           {household.users.map((u) => (
+             <div key={u.id} className="flex items-center justify-between px-4 py-3">
+               <p className="text-base text-ink">{u.email}</p>
+-              <span className="text-xs uppercase tracking-wide text-folio">{u.role}</span>
+             </div>
+           ))}
+         </div>
+diff --git a/app/(app)/goals/page.tsx b/app/(app)/goals/page.tsx
+index fd26392..d1a64ba 100644
+--- a/app/(app)/goals/page.tsx
++++ b/app/(app)/goals/page.tsx
+@@ -29,7 +29,6 @@ export default async function GoalsPage() {
+           currentAmount: g.currentAmount.toString(),
+           currency: g.currency,
+         }))}
+-        canEdit={session.role !== "VIEWER"}
+       />
+     </section>
+   );
+diff --git a/app/api/accounts/[id]/route.ts b/app/api/accounts/[id]/route.ts
+index c219bf4..b504208 100644
+--- a/app/api/accounts/[id]/route.ts
++++ b/app/api/accounts/[id]/route.ts
+@@ -7,10 +7,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
+   const session = await getSession();
+   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+-  if (session.role === "VIEWER") {
+-    return NextResponse.json({ error: "Viewers can't delete accounts." }, { status: 403 });
+-  }
+-
+   const account = await prisma.account.findFirst({
+     where: { id, householdId: session.householdId },
+   });
+diff --git a/app/api/accounts/route.ts b/app/api/accounts/route.ts
+index 38228be..a23e9bd 100644
+--- a/app/api/accounts/route.ts
++++ b/app/api/accounts/route.ts
+@@ -44,10 +44,6 @@ export async function POST(req: NextRequest) {
+   const session = await getSession();
+   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+-  if (session.role === "VIEWER") {
+-    return NextResponse.json({ error: "Viewers can't add accounts." }, { status: 403 });
+-  }
+-
+   const body = await req.json().catch(() => null);
+   const parsed = createSchema.safeParse(body);
+   if (!parsed.success) {
+diff --git a/app/api/allocation-targets/route.ts b/app/api/allocation-targets/route.ts
+index 70b5e23..04e3ca4 100644
+--- a/app/api/allocation-targets/route.ts
++++ b/app/api/allocation-targets/route.ts
+@@ -42,10 +42,6 @@ export async function PUT(req: NextRequest) {
+   const session = await getSession();
+   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+-  if (session.role === "VIEWER") {
+-    return NextResponse.json({ error: "Viewers can't change allocation targets." }, { status: 403 });
+-  }
+-
+   const body = await req.json().catch(() => null);
+   const parsed = bulkSchema.safeParse(body);
+   if (!parsed.success) {
+diff --git a/app/api/auth/login/route.ts b/app/api/auth/login/route.ts
+index 4055d2e..b23a091 100644
+--- a/app/api/auth/login/route.ts
++++ b/app/api/auth/login/route.ts
+@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
+   await createSession({
+     userId: user.id,
+     householdId: user.householdId,
+-    role: user.role,
+     email: user.email,
+     isPlatformOwner: user.isPlatformOwner,
+   });
+diff --git a/app/api/auth/signup/route.ts b/app/api/auth/signup/route.ts
+index 0789842..3e21a06 100644
+--- a/app/api/auth/signup/route.ts
++++ b/app/api/auth/signup/route.ts
+@@ -69,7 +69,6 @@ export async function POST(req: NextRequest) {
+         householdId: household.id,
+         email: normalizedEmail,
+         passwordHash,
+-        role: "ADMIN",
+       },
+     });
+ 
+@@ -110,7 +109,6 @@ export async function POST(req: NextRequest) {
+   await createSession({
+     userId: result.user.id,
+     householdId: result.household.id,
+-    role: "ADMIN",
+     email: result.user.email,
+     isPlatformOwner: false,
+   });
+diff --git a/app/api/goals/route.ts b/app/api/goals/route.ts
+index feca5b1..9a08cc0 100644
+--- a/app/api/goals/route.ts
++++ b/app/api/goals/route.ts
+@@ -29,10 +29,6 @@ export async function POST(req: NextRequest) {
+   const session = await getSession();
+   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+-  if (session.role === "VIEWER") {
+-    return NextResponse.json({ error: "Viewers can't add goals." }, { status: 403 });
+-  }
+-
+   const body = await req.json().catch(() => null);
+   const parsed = createSchema.safeParse(body);
+   if (!parsed.success) {
+diff --git a/app/api/platform/clients/route.ts b/app/api/platform/clients/route.ts
+index 13aa2cf..58329d5 100644
+--- a/app/api/platform/clients/route.ts
++++ b/app/api/platform/clients/route.ts
+@@ -11,7 +11,7 @@ export async function GET() {
+ 
+   const households = await prisma.household.findMany({
+     include: {
+-      users: { select: { id: true, email: true, role: true, status: true } },
++      users: { select: { id: true, email: true, status: true } },
+       _count: { select: { familyMembers: true, accounts: true } },
+     },
+     orderBy: { createdAt: "desc" },
+diff --git a/app/api/platform/users/[userId]/role/route.ts b/app/api/platform/users/[userId]/role/route.ts
+deleted file mode 100644
+index ada43ed..0000000
+--- a/app/api/platform/users/[userId]/role/route.ts
++++ /dev/null
+@@ -1,38 +0,0 @@
+-import { NextRequest, NextResponse } from "next/server";
+-import { z } from "zod";
+-import { prisma } from "@/lib/db";
+-import { getSession } from "@/lib/auth";
+-
+-const schema = z.object({
+-  role: z.enum(["ADMIN", "EDITOR", "VIEWER"]),
+-});
+-
+-export async function PUT(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+-  const { userId } = await params;
+-  const session = await getSession();
+-  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+-  if (!session.isPlatformOwner) {
+-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+-  }
+-
+-  const body = await req.json().catch(() => null);
+-  const parsed = schema.safeParse(body);
+-  if (!parsed.success) {
+-    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+-  }
+-
+-  // Only allow this on client users, never the platform owner's own admin account.
+-  const user = await prisma.user.findFirst({
+-    where: { id: userId, isPlatformOwner: false },
+-  });
+-  if (!user) {
+-    return NextResponse.json({ error: "User not found." }, { status: 404 });
+-  }
+-
+-  const updated = await prisma.user.update({
+-    where: { id: user.id },
+-    data: { role: parsed.data.role },
+-  });
+-
+-  return NextResponse.json({ role: updated.role });
+-}
+diff --git a/app/platform/clients/page.tsx b/app/platform/clients/page.tsx
+new file mode 100644
+index 0000000..7458fa0
+--- /dev/null
++++ b/app/platform/clients/page.tsx
+@@ -0,0 +1,41 @@
++import { redirect } from "next/navigation";
++import { getSession } from "@/lib/auth";
++import { prisma } from "@/lib/db";
++import PlatformClientsClient from "@/components/PlatformClientsClient";
++
++export default async function PlatformClientsPage() {
++  const session = await getSession();
++  if (!session) redirect("/login");
++  if (!session.isPlatformOwner) redirect("/dashboard");
++
++  const households = await prisma.household.findMany({
++    include: {
++      users: { select: { id: true, email: true, status: true } },
++      _count: { select: { familyMembers: true, accounts: true } },
++    },
++    orderBy: { createdAt: "desc" },
++  });
++
++  return (
++    <section className="mx-auto max-w-5xl">
++      <h1 className="font-display text-3xl text-ink">Clients</h1>
++      <p className="mt-2 text-base text-ink-2">
++        Every client household on the platform. Suspend or reactivate a
++        client's access below.
++      </p>
++
++      <PlatformClientsClient
++        initialHouseholds={households.map((h) => ({
++          id: h.id,
++          name: h.name,
++          baseCurrency: h.baseCurrency,
++          createdAt: h.createdAt.toISOString(),
++          isSuspended: h.isSuspended,
++          familyMemberCount: h._count.familyMembers,
++          accountCount: h._count.accounts,
++          users: h.users,
++        }))}
++      />
++    </section>
++  );
++}
+diff --git a/app/platform/page.tsx b/app/platform/page.tsx
+index 850d1a5..525d218 100644
+--- a/app/platform/page.tsx
++++ b/app/platform/page.tsx
+@@ -1,54 +1,134 @@
+ import { redirect } from "next/navigation";
+-import Link from "next/link";
+ import { getSession } from "@/lib/auth";
+ import { prisma } from "@/lib/db";
+-import PlatformClientsClient from "@/components/PlatformClientsClient";
+-import LogoutButton from "@/components/LogoutButton";
+ 
+-export default async function PlatformPage() {
++const SUBSCRIPTION_LABELS: Record<string, string> = {
++  FREE: "Free",
++  TRIAL: "Trial",
++  PAID: "Paid",
++};
++
++export default async function PlatformDashboardPage() {
+   const session = await getSession();
+   if (!session) redirect("/login");
+   if (!session.isPlatformOwner) redirect("/dashboard");
+ 
+   const households = await prisma.household.findMany({
+-    include: {
+-      users: { select: { id: true, email: true, role: true, status: true } },
+-      _count: { select: { familyMembers: true, accounts: true } },
++    select: {
++      id: true,
++      createdAt: true,
++      subscriptionStatus: true,
++      familyMembers: {
++        where: { relationship: "Self" },
++        select: { city: true },
++        take: 1,
++      },
+     },
+-    orderBy: { createdAt: "desc" },
+   });
+ 
++  const now = Date.now();
++  const DAY_MS = 24 * 60 * 60 * 1000;
++  const totalClients = households.length;
++  const newLast7Days = households.filter(
++    (h) => now - h.createdAt.getTime() <= 7 * DAY_MS
++  ).length;
++  const newLast30Days = households.filter(
++    (h) => now - h.createdAt.getTime() <= 30 * DAY_MS
++  ).length;
++
++  const locationCounts = new Map<string, number>();
++  for (const h of households) {
++    const city = h.familyMembers[0]?.city?.trim() || "Unspecified";
++    locationCounts.set(city, (locationCounts.get(city) ?? 0) + 1);
++  }
++  const topLocations = [...locationCounts.entries()]
++    .sort((a, b) => b[1] - a[1])
++    .slice(0, 8);
++
++  const subscriptionCounts = new Map<string, number>();
++  for (const h of households) {
++    subscriptionCounts.set(
++      h.subscriptionStatus,
++      (subscriptionCounts.get(h.subscriptionStatus) ?? 0) + 1
++    );
++  }
++  const subscriptionBreakdown = [...subscriptionCounts.entries()].sort(
++    (a, b) => b[1] - a[1]
++  );
++
+   return (
+-    <main className="min-h-screen bg-paper">
+-      <header className="border-b border-line bg-white">
+-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+-          <Link href="/" className="font-display text-xl italic text-ink">
+-            Smart Money Folio
+-          </Link>
+-          <LogoutButton />
++    <section className="mx-auto max-w-5xl">
++      <h1 className="font-display text-3xl text-ink">Dashboard</h1>
++      <p className="mt-2 text-base text-ink-2">
++        A snapshot of the platform as a whole.
++      </p>
++
++      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
++        <div className="border border-line bg-white p-4">
++          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-2">
++            New signups
++          </h2>
++          <div className="mt-3 space-y-2">
++            <div className="flex items-baseline justify-between">
++              <span className="text-base text-ink-2">Last 7 days</span>
++              <span className="text-2xl font-medium text-ink">{newLast7Days}</span>
++            </div>
++            <div className="flex items-baseline justify-between">
++              <span className="text-base text-ink-2">Last 30 days</span>
++              <span className="text-2xl font-medium text-ink">{newLast30Days}</span>
++            </div>
++            <div className="flex items-baseline justify-between border-t border-line pt-2">
++              <span className="text-base text-ink-2">All time</span>
++              <span className="text-2xl font-medium text-ink">{totalClients}</span>
++            </div>
++          </div>
++        </div>
++
++        <div className="border border-line bg-white p-4">
++          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-2">
++            Clients by location
++          </h2>
++          {topLocations.length === 0 ? (
++            <p className="mt-3 text-base text-ink-2">No clients yet.</p>
++          ) : (
++            <div className="mt-3 divide-y divide-line">
++              {topLocations.map(([city, count]) => (
++                <div key={city} className="flex items-center justify-between py-1.5">
++                  <span className="text-base text-ink">{city}</span>
++                  <span className="text-base text-ink-2">{count}</span>
++                </div>
++              ))}
++            </div>
++          )}
++        </div>
++
++        <div className="border border-line bg-white p-4">
++          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-2">
++            Free vs. Subscription
++          </h2>
++          {subscriptionBreakdown.length === 0 ? (
++            <p className="mt-3 text-base text-ink-2">No clients yet.</p>
++          ) : (
++            <div className="mt-3 divide-y divide-line">
++              {subscriptionBreakdown.map(([status, count]) => (
++                <div key={status} className="flex items-center justify-between py-1.5">
++                  <span className="text-base text-ink">
++                    {SUBSCRIPTION_LABELS[status] ?? status}
++                  </span>
++                  <span className="text-base text-ink-2">
++                    {count}
++                    {totalClients > 0 && (
++                      <span className="ml-1 text-sm text-ink-2">
++                        ({Math.round((count / totalClients) * 100)}%)
++                      </span>
++                    )}
++                  </span>
++                </div>
++              ))}
++            </div>
++          )}
+         </div>
+-      </header>
+-
+-      <section className="mx-auto max-w-5xl px-6 py-10">
+-        <h1 className="font-display text-3xl text-ink">Clients</h1>
+-        <p className="mt-2 text-base text-ink-2">
+-          Every client household on the platform. Suspend a client's access
+-          or adjust a user's role.
+-        </p>
+-
+-        <PlatformClientsClient
+-          initialHouseholds={households.map((h) => ({
+-            id: h.id,
+-            name: h.name,
+-            baseCurrency: h.baseCurrency,
+-            createdAt: h.createdAt.toISOString(),
+-            isSuspended: h.isSuspended,
+-            familyMemberCount: h._count.familyMembers,
+-            accountCount: h._count.accounts,
+-            users: h.users,
+-          }))}
+-        />
+-      </section>
+-    </main>
++      </div>
++    </section>
+   );
+ }
+diff --git a/components/AccountsClient.tsx b/components/AccountsClient.tsx
+index 7bd66fd..b046c5c 100644
+--- a/components/AccountsClient.tsx
++++ b/components/AccountsClient.tsx
+@@ -20,11 +20,9 @@ type AccountRow = {
+ export default function AccountsClient({
+   familyMembers,
+   initialAccounts,
+-  canEdit,
+ }: {
+   familyMembers: FamilyMemberOption[];
+   initialAccounts: AccountRow[];
+-  canEdit: boolean;
+ }) {
+   const router = useRouter();
+   const [accounts, setAccounts] = useState(initialAccounts);
+@@ -87,8 +85,7 @@ export default function AccountsClient({
+ 
+   return (
+     <div className="mt-8 space-y-8">
+-      {canEdit && (
+-        <form
++      <form
+           onSubmit={handleAdd}
+           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
+         >
+@@ -165,7 +162,6 @@ export default function AccountsClient({
+             <p className="sm:col-span-2 lg:col-span-5 text-base text-amber">{error}</p>
+           )}
+         </form>
+-      )}
+ 
+       <div className="divide-y divide-line border border-line bg-white">
+         {accounts.length === 0 && (
+@@ -185,14 +181,12 @@ export default function AccountsClient({
+               <span className="text-base text-ink">
+                 {a.currency} {Number(a.currentValue).toLocaleString()}
+               </span>
+-              {canEdit && (
+-                <button
+-                  onClick={() => handleDelete(a.id)}
+-                  className="text-xs text-amber hover:underline"
+-                >
+-                  Remove
+-                </button>
+-              )}
++              <button
++                onClick={() => handleDelete(a.id)}
++                className="text-xs text-amber hover:underline"
++              >
++                Remove
++              </button>
+             </div>
+           </div>
+         ))}
+diff --git a/components/AllocationClient.tsx b/components/AllocationClient.tsx
+index 252d466..95bbe87 100644
+--- a/components/AllocationClient.tsx
++++ b/components/AllocationClient.tsx
+@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
+ export default function AllocationClient({
+   assetClasses,
+   initialTargets,
+-  canEdit,
+ }: {
+   assetClasses: { value: string; label: string }[];
+   initialTargets: Record<string, number>;
+-  canEdit: boolean;
+ }) {
+   const router = useRouter();
+   const [values, setValues] = useState<Record<string, number>>(() => {
+@@ -65,7 +63,6 @@ export default function AllocationClient({
+                 min={0}
+                 max={100}
+                 value={values[c.value]}
+-                disabled={!canEdit}
+                 onChange={(e) =>
+                   setValues((prev) => ({ ...prev, [c.value]: Number(e.target.value) }))
+                 }
+@@ -81,15 +78,13 @@ export default function AllocationClient({
+         <span className={total === 100 ? "text-growth" : "text-amber"}>
+           Total: {total}% {total !== 100 && "(should add up to 100%)"}
+         </span>
+-        {canEdit && (
+-          <button
+-            onClick={handleSave}
+-            disabled={saving}
+-            className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+-          >
+-            {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
+-          </button>
+-        )}
++        <button
++          onClick={handleSave}
++          disabled={saving}
++          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
++        >
++          {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
++        </button>
+       </div>
+       {error && <p className="mt-2 text-base text-amber">{error}</p>}
+     </div>
+diff --git a/components/GoalsClient.tsx b/components/GoalsClient.tsx
+index 93145e6..fc79774 100644
+--- a/components/GoalsClient.tsx
++++ b/components/GoalsClient.tsx
+@@ -14,10 +14,8 @@ type GoalRow = {
+ 
+ export default function GoalsClient({
+   initialGoals,
+-  canEdit,
+ }: {
+   initialGoals: GoalRow[];
+-  canEdit: boolean;
+ }) {
+   const router = useRouter();
+   const [goals, setGoals] = useState(initialGoals);
+@@ -65,8 +63,7 @@ export default function GoalsClient({
+ 
+   return (
+     <div className="mt-8 space-y-8">
+-      {canEdit && (
+-        <form
++      <form
+           onSubmit={handleAdd}
+           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
+         >
+@@ -123,7 +120,6 @@ export default function GoalsClient({
+           </div>
+           {error && <p className="lg:col-span-5 text-base text-amber">{error}</p>}
+         </form>
+-      )}
+ 
+       <div className="space-y-4">
+         {goals.length === 0 && (
+diff --git a/components/PlatformClientsClient.tsx b/components/PlatformClientsClient.tsx
+index 26ad33a..a19bdef 100644
+--- a/components/PlatformClientsClient.tsx
++++ b/components/PlatformClientsClient.tsx
+@@ -2,7 +2,7 @@
+ 
+ import { useState } from "react";
+ 
+-type UserRow = { id: string; email: string; role: string; status: string };
++type UserRow = { id: string; email: string; status: string };
+ 
+ type HouseholdRow = {
+   id: string;
+@@ -38,28 +38,6 @@ export default function PlatformClientsClient({
+     }
+   }
+ 
+-  async function changeRole(userId: string, householdId: string, role: string) {
+-    setBusyId(userId);
+-    try {
+-      const res = await fetch(`/api/platform/users/${userId}/role`, {
+-        method: "PUT",
+-        headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({ role }),
+-      });
+-      if (res.ok) {
+-        setHouseholds((prev) =>
+-          prev.map((h) =>
+-            h.id === householdId
+-              ? { ...h, users: h.users.map((u) => (u.id === userId ? { ...u, role } : u)) }
+-              : h
+-          )
+-        );
+-      }
+-    } finally {
+-      setBusyId(null);
+-    }
+-  }
+-
+   if (households.length === 0) {
+     return <p className="mt-8 text-base text-ink-2">No clients have signed up yet.</p>;
+   }
+@@ -100,16 +78,6 @@ export default function PlatformClientsClient({
+             {h.users.map((u) => (
+               <div key={u.id} className="flex items-center justify-between py-1.5 text-base">
+                 <span className="text-ink">{u.email}</span>
+-                <select
+-                  value={u.role}
+-                  disabled={busyId === u.id}
+-                  onChange={(e) => changeRole(u.id, h.id, e.target.value)}
+-                  className="focus-ring border border-line bg-white px-2 py-1 text-sm text-ink"
+-                >
+-                  <option value="ADMIN">Admin</option>
+-                  <option value="EDITOR">Editor</option>
+-                  <option value="VIEWER">Viewer</option>
+-                </select>
+               </div>
+             ))}
+           </div>
+diff --git a/components/PlatformSidebar.tsx b/components/PlatformSidebar.tsx
+index 327bd69..9be79ec 100644
+--- a/components/PlatformSidebar.tsx
++++ b/components/PlatformSidebar.tsx
+@@ -25,7 +25,7 @@ export default function PlatformSidebar() {
+           Dashboard
+         </Link>
+         <Link href="/platform/clients" className={linkClass("/platform/clients")}>
+-          User Management
++          Client Management
+         </Link>
+       </nav>
+       <div className="mt-6 px-4">
+diff --git a/lib/auth.ts b/lib/auth.ts
+index f5f2fd4..49b8d63 100644
+--- a/lib/auth.ts
++++ b/lib/auth.ts
+@@ -26,7 +26,6 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
+ export type SessionPayload = {
+   userId: string;
+   householdId: string | null;
+-  role: "ADMIN" | "EDITOR" | "VIEWER";
+   email: string;
+   isPlatformOwner: boolean;
+ };
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 0705806..c09eecc 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -8,12 +8,6 @@ datasource db {
+   directUrl = env("DIRECT_URL")
+ }
+ 
+-enum Role {
+-  ADMIN
+-  EDITOR
+-  VIEWER
+-}
+-
+ enum Residency {
+   NRI
+   RESIDENT_INDIAN
+@@ -51,7 +45,6 @@ model User {
+   household      Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
+   email          String    @unique
+   passwordHash   String
+-  role           Role      @default(ADMIN)
+   isPlatformOwner Boolean  @default(false)
+   status         String    @default("active") // active | disabled
+   createdAt      DateTime  @default(now())
+-- 
+2.43.0
+
