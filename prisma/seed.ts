@@ -43,7 +43,6 @@ async function main() {
     data: {
       email: email.toLowerCase(),
       passwordHash,
-      role: "ADMIN",
       isPlatformOwner: true,
     },
   });
