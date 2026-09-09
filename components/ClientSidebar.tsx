@@ -39,6 +39,27 @@ export default function ClientSidebar({
         <Link href="/accounts" className={linkClass("/accounts")}>
           Holdings
         </Link>
+        <p className="mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-ink-2">
+          Monthly Tracking
+        </p>
+        <Link href="/monthly/base" className={linkClass("/monthly/base")}>
+          Monthly Base
+        </Link>
+        <Link href="/monthly/previous" className={linkClass("/monthly/previous")}>
+          Previous Month
+        </Link>
+        <Link href="/monthly/current" className={linkClass("/monthly/current")}>
+          Current Month
+        </Link>
+        <Link href="/monthly/next" className={linkClass("/monthly/next")}>
+          Next Month
+        </Link>
+        <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")}>
+          Earlier Months
+        </Link>
+        <Link href="/monthly/years" className={linkClass("/monthly/years")}>
+          Earlier Years
+        </Link>
         <Link href="/settings" className={linkClass("/settings")}>
           Settings
         </Link>

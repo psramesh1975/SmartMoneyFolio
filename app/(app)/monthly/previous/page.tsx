@@ -1,0 +1,37 @@
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { getMonthPayload } from "@/lib/monthly-data";
+import { getPreviousPeriod, MONTH_LABELS } from "@/lib/monthly-periods";
+import MonthlyTrackerClient from "@/components/MonthlyTrackerClient";
+
+export default async function PreviousMonthPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
+
+  const { year, month } = getPreviousPeriod();
+  const [payload, household] = await Promise.all([
+    getMonthPayload(session.householdId, year, month),
+    prisma.household.findUnique({
+      where: { id: session.householdId },
+      select: { baseCurrency: true },
+    }),
+  ]);
+
+  return (
+    <section className="mx-auto max-w-5xl px-6 py-10">
+      <h1 className="font-display text-3xl text-ink">
+        Previous Month — {MONTH_LABELS[month - 1]} {year}
+      </h1>
+      <p className="mt-2 text-base text-ink-2">
+        Still fully editable — close out actuals you didn't get to at the time.
+      </p>
+
+      <MonthlyTrackerClient
+        initialPayload={payload}
+        currency={household?.baseCurrency ?? "USD"}
+      />
+    </section>
+  );
+}

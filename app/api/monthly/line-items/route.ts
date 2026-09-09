@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { getCurrentPeriod } from "@/lib/monthly-periods";
+
+const repeatMonthSchema = z.number().int().min(1).max(12);
+
+const createSchema = z.object({
+  categoryId: z.string().min(1),
+  name: z.string().min(1),
+  baseAmount: z.coerce.number().positive(),
+  repeatMonths: z.array(repeatMonthSchema).default([]),
+});
+
+export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+
+  const categoryId = req.nextUrl.searchParams.get("categoryId") ?? undefined;
+
+  const lineItems = await prisma.monthlyLineItem.findMany({
+    where: { householdId: session.householdId, ...(categoryId ? { categoryId } : {}) },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return NextResponse.json({ lineItems });
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
+  const body = await req.json().catch(() => null);
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Some details are missing or invalid." }, { status: 400 });
+  }
+
+  const category = await prisma.monthlyCategory.findFirst({
+    where: { id: parsed.data.categoryId, householdId: session.householdId },
+  });
+  if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
+
+  const { year, month } = getCurrentPeriod();
+
+  const lineItem = await prisma.monthlyLineItem.create({
+    data: {
+      householdId: session.householdId,
+      categoryId: category.id,
+      name: parsed.data.name,
+      baseAmount: parsed.data.baseAmount,
+      repeatMonths: parsed.data.repeatMonths,
+      startYear: year,
+      startMonth: month,
+    },
+  });
+
+  return NextResponse.json({ lineItem });
+}

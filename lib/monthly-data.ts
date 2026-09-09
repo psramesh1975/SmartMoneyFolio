@@ -1,0 +1,244 @@
+import { prisma } from "@/lib/db";
+import { ensureMonthGenerated } from "@/lib/monthly-generate";
+import { computeMonthlySummary } from "@/lib/monthly-summary";
+import type {
+  MonthlyBaseCategoryDTO,
+  MonthlyCategoryDTO,
+  MonthlyEntryDTO,
+  MonthlyMonthPayload,
+  MonthlyYearPayload,
+} from "@/lib/monthly-types";
+
+// Shared by the month API route and the server-component pages (Current/
+// Previous/Next), so both go through the exact same generation + fetch +
+// summary logic instead of the page re-fetching its own API.
+export async function getMonthPayload(
+  householdId: string,
+  year: number,
+  month: number
+): Promise<MonthlyMonthPayload> {
+  await ensureMonthGenerated(householdId, year, month);
+
+  const [categories, entries] = await Promise.all([
+    prisma.monthlyCategory.findMany({
+      where: { householdId },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.monthlyEntry.findMany({
+      where: { householdId, year, month },
+      include: { lineItem: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const entriesByCategory = new Map<string, MonthlyEntryDTO[]>();
+  for (const e of entries) {
+    const dto: MonthlyEntryDTO = {
+      id: e.id,
+      categoryId: e.categoryId,
+      lineItemId: e.lineItemId,
+      name: e.name,
+      baseAmount: e.baseAmount.toString(),
+      plannedAmount: e.plannedAmount.toString(),
+      actualAmount: e.actualAmount?.toString() ?? null,
+      isSkipped: e.isSkipped,
+      notes: e.notes,
+      lineItem: e.lineItem
+        ? {
+            id: e.lineItem.id,
+            baseAmount: e.lineItem.baseAmount.toString(),
+            repeatMonths: e.lineItem.repeatMonths,
+            isActive: e.lineItem.isActive,
+          }
+        : null,
+    };
+    const list = entriesByCategory.get(e.categoryId) ?? [];
+    list.push(dto);
+    entriesByCategory.set(e.categoryId, list);
+  }
+
+  const categoryDTOs: MonthlyCategoryDTO[] = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    sortOrder: c.sortOrder,
+    entries: entriesByCategory.get(c.id) ?? [],
+  }));
+
+  const summary = computeMonthlySummary(
+    categories.flatMap((c) =>
+      (entriesByCategory.get(c.id) ?? []).map((e) => ({
+        categoryType: c.type,
+        plannedAmount: e.plannedAmount,
+        actualAmount: e.actualAmount,
+        isSkipped: e.isSkipped,
+      }))
+    )
+  );
+
+  return { year, month, categories: categoryDTOs, summary };
+}
+
+// The Monthly Base setup page: categories with their line items (no entries,
+// no Planned/Actual — Base is the template, not a month).
+export async function getBasePayload(householdId: string): Promise<MonthlyBaseCategoryDTO[]> {
+  const categories = await prisma.monthlyCategory.findMany({
+    where: { householdId },
+    orderBy: { sortOrder: "asc" },
+    include: { lineItems: { orderBy: { createdAt: "asc" } } },
+  });
+
+  return categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    sortOrder: c.sortOrder,
+    lineItems: c.lineItems.map((li) => ({
+      id: li.id,
+      categoryId: li.categoryId,
+      name: li.name,
+      baseAmount: li.baseAmount.toString(),
+      repeatMonths: li.repeatMonths,
+      isActive: li.isActive,
+    })),
+  }));
+}
+
+// Read-only counterpart used by "Earlier Months" — deliberately does NOT call
+// ensureMonthGenerated. Only Current/Previous/Next ever create entries; a
+// month nobody visited while it was editable simply has none, and should
+// stay that way rather than backfilling with today's line-item amounts.
+// Categories with no entries that month are omitted, same as the year view.
+export async function getReadOnlyMonthPayload(
+  householdId: string,
+  year: number,
+  month: number
+): Promise<MonthlyMonthPayload> {
+  const [categories, entries] = await Promise.all([
+    prisma.monthlyCategory.findMany({
+      where: { householdId },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.monthlyEntry.findMany({
+      where: { householdId, year, month },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const entriesByCategory = new Map<string, MonthlyEntryDTO[]>();
+  for (const e of entries) {
+    const dto: MonthlyEntryDTO = {
+      id: e.id,
+      categoryId: e.categoryId,
+      lineItemId: e.lineItemId,
+      name: e.name,
+      baseAmount: e.baseAmount.toString(),
+      plannedAmount: e.plannedAmount.toString(),
+      actualAmount: e.actualAmount?.toString() ?? null,
+      isSkipped: e.isSkipped,
+      notes: e.notes,
+      lineItem: null,
+    };
+    const list = entriesByCategory.get(e.categoryId) ?? [];
+    list.push(dto);
+    entriesByCategory.set(e.categoryId, list);
+  }
+
+  const categoryDTOs: MonthlyCategoryDTO[] = categories
+    .filter((c) => entriesByCategory.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      sortOrder: c.sortOrder,
+      entries: entriesByCategory.get(c.id) ?? [],
+    }));
+
+  const summary = computeMonthlySummary(
+    categories.flatMap((c) =>
+      (entriesByCategory.get(c.id) ?? []).map((e) => ({
+        categoryType: c.type,
+        plannedAmount: e.plannedAmount,
+        actualAmount: e.actualAmount,
+        isSkipped: e.isSkipped,
+      }))
+    )
+  );
+
+  return { year, month, categories: categoryDTOs, summary };
+}
+
+// Read-only: no generation here — an archived year's entries are exactly
+// whatever existed when those months were current/previous/next.
+export async function getYearPayload(
+  householdId: string,
+  year: number
+): Promise<MonthlyYearPayload> {
+  const [categories, entries] = await Promise.all([
+    prisma.monthlyCategory.findMany({
+      where: { householdId },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.monthlyEntry.findMany({
+      where: { householdId, year },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  const categoryType = new Map(categories.map((c) => [c.id, c.type] as const));
+
+  const months: MonthlyMonthPayload[] = [];
+  for (let month = 1; month <= 12; month++) {
+    const monthEntries = entries.filter((e) => e.month === month);
+    const entriesByCategory = new Map<string, MonthlyEntryDTO[]>();
+    for (const e of monthEntries) {
+      const dto: MonthlyEntryDTO = {
+        id: e.id,
+        categoryId: e.categoryId,
+        lineItemId: e.lineItemId,
+        name: e.name,
+        baseAmount: e.baseAmount.toString(),
+        plannedAmount: e.plannedAmount.toString(),
+        actualAmount: e.actualAmount?.toString() ?? null,
+        isSkipped: e.isSkipped,
+        notes: e.notes,
+        lineItem: null, // read-only view — recurring-line editing isn't offered here
+      };
+      const list = entriesByCategory.get(e.categoryId) ?? [];
+      list.push(dto);
+      entriesByCategory.set(e.categoryId, list);
+    }
+
+    const monthCategories: MonthlyCategoryDTO[] = categories
+      .filter((c) => entriesByCategory.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        sortOrder: c.sortOrder,
+        entries: entriesByCategory.get(c.id) ?? [],
+      }));
+
+    const summary = computeMonthlySummary(
+      monthEntries.map((e) => ({
+        categoryType: categoryType.get(e.categoryId) ?? "OUTFLOW",
+        plannedAmount: e.plannedAmount.toString(),
+        actualAmount: e.actualAmount?.toString() ?? null,
+        isSkipped: e.isSkipped,
+      }))
+    );
+
+    months.push({ year, month, categories: monthCategories, summary });
+  }
+
+  const yearlySummary = computeMonthlySummary(
+    entries.map((e) => ({
+      categoryType: categoryType.get(e.categoryId) ?? "OUTFLOW",
+      plannedAmount: e.plannedAmount.toString(),
+      actualAmount: e.actualAmount?.toString() ?? null,
+      isSkipped: e.isSkipped,
+    }))
+  );
+
+  return { year, months, yearlySummary };
+}

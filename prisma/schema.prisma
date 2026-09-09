@@ -32,6 +32,9 @@ model Household {
   accounts          Account[]
   allocationTargets AllocationTarget[]
   goals             Goal[]
+  monthlyCategories MonthlyCategory[]
+  monthlyLineItems  MonthlyLineItem[]
+  monthlyEntries    MonthlyEntry[]
 
   @@map("households")
 }
@@ -146,4 +149,86 @@ model Goal {
 
   @@index([householdId])
   @@map("goals")
+}
+
+enum MonthlyCategoryType {
+  INCOME
+  OUTFLOW
+}
+
+// A household-defined bucket (Income, EMI/Debt, Expenses, Subscriptions, Savings, ...).
+// type determines whether it adds to or subtracts from Net Surplus.
+model MonthlyCategory {
+  id          String              @id @default(cuid())
+  householdId String
+  household   Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  type        MonthlyCategoryType
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  lineItems MonthlyLineItem[]
+  entries   MonthlyEntry[]
+
+  @@index([householdId])
+  @@map("monthly_categories")
+}
+
+// The recurring "plan" — e.g. "Home Loan EMI", "Netflix", "Daughter's SIP".
+// baseAmount is the steady reference figure, set once on the Monthly Base
+// page; it's snapshotted onto each MonthlyEntry's own baseAmount when that
+// month is generated, so edits here never rewrite history — they only
+// change what future months pick up.
+model MonthlyLineItem {
+  id             String          @id @default(cuid())
+  householdId    String
+  household      Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       MonthlyCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name           String
+  baseAmount     Decimal
+  // Which calendar months (1-12) this line applies to. Empty array = every month.
+  // e.g. quarterly rent = [1,4,7,10]; annual insurance = [7].
+  repeatMonths   Int[]           @default([])
+  startYear      Int             // don't generate entries before this year/month —
+  startMonth     Int             // i.e. whenever the line item was created.
+  isActive       Boolean         @default(true) // "stopped" lines don't generate new entries but keep history
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  entries MonthlyEntry[]
+
+  @@index([householdId])
+  @@index([categoryId])
+  @@map("monthly_line_items")
+}
+
+// One row in one month's sheet. Either generated from a MonthlyLineItem
+// (lineItemId set, name/baseAmount snapshotted at generation time) or a
+// standalone one-off entry added directly into a specific month (lineItemId
+// null, baseAmount == plannedAmount at creation since there's no separate
+// "base" for something one-time).
+model MonthlyEntry {
+  id             String           @id @default(cuid())
+  householdId    String
+  household      Household        @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       MonthlyCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  lineItemId     String?
+  lineItem       MonthlyLineItem? @relation(fields: [lineItemId], references: [id], onDelete: SetNull)
+  year           Int
+  month          Int              // 1-12
+  name           String           // copied from line item at generation, or set directly for one-offs
+  baseAmount     Decimal          // reference snapshot from the line item — shown, not directly editable
+  plannedAmount  Decimal          // this month's actual plan — defaults to baseAmount, freely editable
+  actualAmount   Decimal?         // null until the user fills it in
+  isSkipped      Boolean          @default(false) // skips this one occurrence without touching the line item
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([lineItemId, year, month])
+  @@index([householdId, year, month])
+  @@map("monthly_entries")
 }
