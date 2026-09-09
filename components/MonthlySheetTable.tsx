@@ -150,7 +150,7 @@ export default function MonthlySheetTable({
         </tbody>
         <tfoot>
           <tr className="bg-sheet-header text-paper font-semibold">
-            <td className="border border-sheet-border px-2 py-1">-</td>
+            <td className="border border-sheet-border px-2 py-1">Total</td>
             {ALL_COLUMNS.map((col) => {
               const total = totalFor(col);
               return (

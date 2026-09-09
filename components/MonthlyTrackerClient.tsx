@@ -6,6 +6,7 @@ import Link from "next/link";
 import { computeMonthlySummary } from "@/lib/monthly-summary";
 import type {
   MonthlyCategoryDTO,
+  MonthlyCategoryOptionDTO,
   MonthlyEntryDTO,
   MonthlyMonthPayload,
 } from "@/lib/monthly-types";
@@ -38,18 +39,19 @@ async function patchJSON(url: string, body: unknown) {
 // --- Add-one-off mini form, per category ---
 
 function AddOneOffForm({
-  categoryId,
+  categories,
   year,
   month,
   onCreated,
   onCancel,
 }: {
-  categoryId: string;
+  categories: MonthlyCategoryOptionDTO[];
   year: number;
   month: number;
-  onCreated: (entry: MonthlyEntryDTO) => void;
+  onCreated: (categoryId: string, entry: MonthlyEntryDTO) => void;
   onCancel: () => void;
 }) {
+  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
   const [name, setName] = useState("");
   const [plannedAmount, setPlannedAmount] = useState("");
   const [actualAmount, setActualAmount] = useState("");
@@ -58,6 +60,10 @@ function AddOneOffForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!categoryId) {
+      setError("Choose a category.");
+      return;
+    }
     if (!name.trim() || !plannedAmount) {
       setError("Give it a name and a planned amount.");
       return;
@@ -77,7 +83,7 @@ function AddOneOffForm({
       setError(data.error ?? "Couldn't add that.");
       return;
     }
-    onCreated({
+    onCreated(categoryId, {
       id: data.entry.id,
       categoryId,
       lineItemId: null,
@@ -93,6 +99,22 @@ function AddOneOffForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border border-line bg-paper-2 p-3">
+      {categories.length > 1 && (
+        <div>
+          <label className="block text-xs font-medium text-ink-2">Category</label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} — {c.type === "INCOME" ? "Income" : "Outflow"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <label className="block text-xs font-medium text-ink-2">Name</label>
         <input
@@ -152,7 +174,7 @@ function CategorySection({
   onEntryUpdated,
   onEntryDeleted,
 }: {
-  category: MonthlyCategoryDTO;
+  category: MonthlyCategoryDTO; // always has entries.length > 0 — the parent filters out empty ones
   year: number;
   month: number;
   onEntryAdded: (categoryId: string, entry: MonthlyEntryDTO) => void;
@@ -209,12 +231,12 @@ function CategorySection({
 
   const oneOffControl = showAddOneOff ? (
     <AddOneOffForm
-      categoryId={category.id}
+      categories={[{ id: category.id, name: category.name, type: category.type }]}
       year={year}
       month={month}
-      onCreated={(entry) => {
+      onCreated={(categoryId, entry) => {
         setShowAddOneOff(false);
-        onEntryAdded(category.id, entry);
+        onEntryAdded(categoryId, entry);
       }}
       onCancel={() => setShowAddOneOff(false)}
     />
@@ -234,28 +256,58 @@ function CategorySection({
         {category.name} — {category.type === "INCOME" ? "Income" : "Outflow"}
       </p>
 
-      {category.entries.length === 0 ? (
-        <>
-          <p className="mt-1 text-sm text-ink-2">
-            Nothing set up in Monthly Base yet for this category —{" "}
-            <Link href="/monthly/base" className="text-folio underline">
-              set it up there
-            </Link>
-            , or add a one-off below.
-          </p>
-          <div className="mt-2">{oneOffControl}</div>
-        </>
-      ) : (
-        <MonthlySheetTable
-          categoryName={category.name}
-          rows={rows}
-          enabledColumns={["planned", "actual"]}
-          showSkipColumn={true}
-          onCellChange={handleCellChange}
-          footerSlot={oneOffControl}
-        />
-      )}
+      <MonthlySheetTable
+        categoryName={category.name}
+        rows={rows}
+        enabledColumns={["planned", "actual"]}
+        showSkipColumn={true}
+        onCellChange={handleCellChange}
+        footerSlot={oneOffControl}
+      />
     </div>
+  );
+}
+
+// --- Bottom-of-page one-off control, for any category (including ones with
+// nothing showing above). Distinct from CategorySection's own "+ One-off",
+// which stays the fastest path for a category you're already looking at.
+
+function BottomOneOff({
+  categories,
+  year,
+  month,
+  onCreated,
+}: {
+  categories: MonthlyCategoryOptionDTO[];
+  year: number;
+  month: number;
+  onCreated: (categoryId: string, entry: MonthlyEntryDTO) => void;
+}) {
+  const [showAddOneOff, setShowAddOneOff] = useState(false);
+
+  if (!showAddOneOff) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShowAddOneOff(true)}
+        className="text-sm text-folio underline decoration-dotted"
+      >
+        + One-off
+      </button>
+    );
+  }
+
+  return (
+    <AddOneOffForm
+      categories={categories}
+      year={year}
+      month={month}
+      onCreated={(categoryId, entry) => {
+        setShowAddOneOff(false);
+        onCreated(categoryId, entry);
+      }}
+      onCancel={() => setShowAddOneOff(false)}
+    />
   );
 }
 
@@ -357,6 +409,8 @@ export default function MonthlyTrackerClient({
     router.refresh();
   }
 
+  const categoriesWithData = categories.filter((c) => c.entries.length > 0);
+
   return (
     <div className="mt-8 space-y-6">
       <SummaryBar summary={summary} currency={currency} />
@@ -371,17 +425,38 @@ export default function MonthlyTrackerClient({
             .
           </p>
         ) : (
-          categories.map((category) => (
-            <CategorySection
-              key={category.id}
-              category={category}
-              year={year}
-              month={month}
-              onEntryAdded={handleEntryAdded}
-              onEntryUpdated={handleEntryUpdated}
-              onEntryDeleted={handleEntryDeleted}
-            />
-          ))
+          <>
+            {categoriesWithData.map((category) => (
+              <CategorySection
+                key={category.id}
+                category={category}
+                year={year}
+                month={month}
+                onEntryAdded={handleEntryAdded}
+                onEntryUpdated={handleEntryUpdated}
+                onEntryDeleted={handleEntryDeleted}
+              />
+            ))}
+
+            {categoriesWithData.length === 0 && (
+              <p className="text-base text-ink-2">
+                Nothing set up yet this month — add items on{" "}
+                <Link href="/monthly/base" className="text-folio underline">
+                  Monthly Base
+                </Link>
+                , or log a one-off below.
+              </p>
+            )}
+
+            <div className="mt-8">
+              <BottomOneOff
+                categories={categories.map((c) => ({ id: c.id, name: c.name, type: c.type }))}
+                year={year}
+                month={month}
+                onCreated={handleEntryAdded}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>
