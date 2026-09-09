@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ImportExcelModal from "@/components/ImportExcelModal";
 
 export default function AllocationClient({
   assetClasses,
@@ -19,8 +20,14 @@ export default function AllocationClient({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
-  const total = Object.values(values).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const rawTotal = Object.values(values).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  // Round for display and for the "is this 100%" check — imported targets
+  // can carry decimal percentages, and floating-point summation of those
+  // (e.g. 64.18 + 6.9 + 28.92) doesn't always land on exactly 100.
+  const total = Math.round(rawTotal * 10) / 10;
+  const isComplete = Math.abs(total - 100) < 0.05;
 
   async function handleSave() {
     setSaving(true);
@@ -53,6 +60,15 @@ export default function AllocationClient({
 
   return (
     <div className="mt-8 max-w-lg">
+      <div className="mb-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light"
+        >
+          Import from Excel
+        </button>
+      </div>
       <div className="divide-y divide-line border border-line bg-white">
         {assetClasses.map((c) => (
           <div key={c.value} className="flex items-center justify-between px-4 py-2.5">
@@ -75,8 +91,8 @@ export default function AllocationClient({
       </div>
 
       <div className="mt-3 flex items-center justify-between text-base">
-        <span className={total === 100 ? "text-growth" : "text-amber"}>
-          Total: {total}% {total !== 100 && "(should add up to 100%)"}
+        <span className={isComplete ? "text-growth" : "text-amber"}>
+          Total: {total}% {!isComplete && "(should add up to 100%)"}
         </span>
         <button
           onClick={handleSave}
@@ -87,6 +103,26 @@ export default function AllocationClient({
         </button>
       </div>
       {error && <p className="mt-2 text-base text-amber">{error}</p>}
+
+      <ImportExcelModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import targets from Excel"
+        resourceLabelPlural="allocation targets"
+        templateHref="/templates/targets-import-template.xlsx"
+        validateUrl="/api/allocation-targets/import/validate"
+        importUrl="/api/allocation-targets/import"
+        hideModeChoice
+        onImported={(result) => {
+          const targets = (result as { targets: { assetClass: string; targetPercent: number }[] }).targets;
+          setValues((prev) => {
+            const next = { ...prev };
+            for (const t of targets) next[t.assetClass] = Math.round(t.targetPercent * 1000) / 10;
+            return next;
+          });
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

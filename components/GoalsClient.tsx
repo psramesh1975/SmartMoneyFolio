@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CURRENCIES } from "@/lib/currencies";
+import ImportExcelModal from "@/components/ImportExcelModal";
+import type { ImportMode } from "@/lib/import/types";
 
 type GoalRow = {
   id: string;
@@ -21,6 +23,7 @@ export default function GoalsClient({
   const [goals, setGoals] = useState(initialGoals);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -63,6 +66,15 @@ export default function GoalsClient({
 
   return (
     <div className="mt-8 space-y-8">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light"
+        >
+          Import from Excel
+        </button>
+      </div>
       <form
           onSubmit={handleAdd}
           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -144,6 +156,21 @@ export default function GoalsClient({
           );
         })}
       </div>
+
+      <ImportExcelModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import goals from Excel"
+        resourceLabelPlural="goals"
+        templateHref="/templates/goals-import-template.xlsx"
+        validateUrl="/api/goals/import/validate"
+        importUrl="/api/goals/import"
+        onImported={(result, mode: ImportMode) => {
+          const items = (result as { items: typeof goals }).items;
+          setGoals((prev) => (mode === "replace" ? items : [...prev, ...items]));
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

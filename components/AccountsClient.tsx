@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CURRENCIES } from "@/lib/currencies";
 import { ASSET_CLASSES, assetClassLabel } from "@/lib/asset-classes";
+import ImportExcelModal from "@/components/ImportExcelModal";
+import type { ImportMode } from "@/lib/import/types";
 
 type FamilyMemberOption = { id: string; name: string };
 
@@ -28,6 +30,7 @@ export default function AccountsClient({
   const [accounts, setAccounts] = useState(initialAccounts);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const [familyMemberId, setFamilyMemberId] = useState(familyMembers[0]?.id ?? "");
   const [assetClass, setAssetClass] = useState(ASSET_CLASSES[0].value);
@@ -85,6 +88,15 @@ export default function AccountsClient({
 
   return (
     <div className="mt-8 space-y-8">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light"
+        >
+          Import from Excel
+        </button>
+      </div>
       <form
           onSubmit={handleAdd}
           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -191,6 +203,21 @@ export default function AccountsClient({
           </div>
         ))}
       </div>
+
+      <ImportExcelModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import holdings from Excel"
+        resourceLabelPlural="accounts"
+        templateHref="/templates/holdings-import-template.xlsx"
+        validateUrl="/api/accounts/import/validate"
+        importUrl="/api/accounts/import"
+        onImported={(result, mode: ImportMode) => {
+          const items = (result as { items: typeof accounts }).items;
+          setAccounts((prev) => (mode === "replace" ? items : [...prev, ...items]));
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

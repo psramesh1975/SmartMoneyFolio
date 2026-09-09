@@ -14,6 +14,15 @@ export const ASSET_CLASSES = [
 
 export type AssetClassValue = (typeof ASSET_CLASSES)[number]["value"];
 
+// Same values as AssetClassValue, shaped for z.enum() — the one place the
+// enum's literal values are spelled out, so the import routes (and anything
+// else validating a raw asset-class string) derive from this instead of
+// re-typing the list.
+export const ASSET_CLASS_VALUES = ASSET_CLASSES.map((c) => c.value) as [
+  AssetClassValue,
+  ...AssetClassValue[],
+];
+
 export function assetClassLabel(value: string): string {
   return ASSET_CLASSES.find((a) => a.value === value)?.label ?? value;
 }
