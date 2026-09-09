@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
+import CategoryCombobox from "@/components/CategoryCombobox";
+import ManageCategoriesPanel from "@/components/ManageCategoriesPanel";
 
 async function postJSON(url: string, body: unknown) {
   const res = await fetch(url, {
@@ -43,135 +45,6 @@ function makeTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function CategoryCell({
-  categories,
-  value,
-  onChange,
-  onRequestAddCategory,
-}: {
-  categories: MonthlyCategoryOptionDTO[];
-  value: string | null;
-  onChange: (categoryId: string) => void;
-  onRequestAddCategory: () => void;
-}) {
-  if (categories.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-ink-2">
-        No categories yet
-        <button
-          type="button"
-          onClick={onRequestAddCategory}
-          className="text-folio underline decoration-dotted"
-        >
-          + Category
-        </button>
-      </div>
-    );
-  }
-
-  const selected = categories.find((c) => c.id === value);
-  const tone =
-    selected?.type === "INCOME"
-      ? "bg-growth/15 text-growth"
-      : selected
-        ? "bg-coral/15 text-coral"
-        : "bg-paper-2 text-ink-2";
-
-  return (
-    <select
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      className={`focus-ring rounded px-2 py-1 text-xs font-semibold ${tone}`}
-    >
-      {!value && (
-        <option value="" disabled>
-          Choose…
-        </option>
-      )}
-      {categories.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function AddCategoryForm({
-  onCreated,
-  onCancel,
-}: {
-  onCreated: (category: MonthlyCategoryOptionDTO) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<"INCOME" | "OUTFLOW">("OUTFLOW");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError("Name the category.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    const { ok, data } = await postJSON("/api/monthly/categories", { name, type });
-    setSaving(false);
-    if (!ok) {
-      setError(data.error ?? "Couldn't add that.");
-      return;
-    }
-    onCreated({ id: data.category.id, name, type });
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-wrap items-end gap-3 border border-line bg-paper-2 px-6 py-4"
-    >
-      <div>
-        <label className="block text-xs font-medium text-ink-2">Category name</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Subscriptions"
-          className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-ink-2">Type</label>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as "INCOME" | "OUTFLOW")}
-          className="focus-ring mt-1 border border-line bg-white px-2 py-1 text-sm text-ink"
-        >
-          <option value="INCOME">Income</option>
-          <option value="OUTFLOW">Outflow</option>
-        </select>
-      </div>
-      {error && <p className="w-full text-xs text-coral">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="focus-ring bg-sheet-header px-3 py-1 text-xs font-semibold text-paper hover:opacity-90 disabled:opacity-60"
-        >
-          {saving ? "Adding…" : "Add category"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="focus-ring border border-line bg-white px-3 py-1 text-xs text-ink-2"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
 export default function MonthlyBaseClient({
   initialLineItems,
   initialCategories,
@@ -190,7 +63,7 @@ export default function MonthlyBaseClient({
       persisted: true,
     }))
   );
-  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showManageCategories, setShowManageCategories] = useState(false);
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const total = rows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
@@ -306,16 +179,21 @@ export default function MonthlyBaseClient({
     }
   }
 
-  async function handleCategoryCreated(category: MonthlyCategoryOptionDTO) {
-    setShowAddCategory(false);
-    setCategories((prev) => [...prev, category]);
-    const waiting = rows.filter((r) => r.categoryId === null);
-    setRows((prev) => prev.map((r) => (r.categoryId === null ? { ...r, categoryId: category.id } : r)));
-    for (const r of waiting) {
-      if (!r.persisted && r.name.trim()) {
-        await createRow(r, { categoryId: category.id });
-      }
-    }
+  // Shared by the row-level CategoryCombobox (creating inline while typing)
+  // and the Manage Categories panel's own "+ Add category" form — either
+  // path just appends to the one shared list, deduped by id.
+  function handleCategoryCreated(category: MonthlyCategoryOptionDTO) {
+    setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
+    router.refresh();
+  }
+
+  function handleCategoryUpdated(category: MonthlyCategoryOptionDTO) {
+    setCategories((prev) => prev.map((c) => (c.id === category.id ? category : c)));
+    router.refresh();
+  }
+
+  function handleCategoryDeleted(categoryId: string) {
+    setCategories((prev) => prev.filter((c) => c.id !== categoryId));
     router.refresh();
   }
 
@@ -323,17 +201,31 @@ export default function MonthlyBaseClient({
     <div className="overflow-hidden rounded-lg border border-line bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-sheet-header px-6 py-4">
         <h1 className="font-display text-xl font-bold text-sheet-header">Monthly Base</h1>
-        <button
-          type="button"
-          onClick={handleAddRow}
-          className="focus-ring rounded bg-sheet-header px-4 py-2 text-sm font-semibold text-paper hover:opacity-90"
-        >
-          + Add Line Item
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setShowManageCategories((s) => !s)}
+            className="focus-ring text-sm font-medium text-folio underline decoration-dotted"
+          >
+            {showManageCategories ? "Hide Categories" : "Manage Categories"}
+          </button>
+          <button
+            type="button"
+            onClick={handleAddRow}
+            className="focus-ring rounded bg-sheet-header px-4 py-2 text-sm font-semibold text-paper hover:opacity-90"
+          >
+            + Add Line Item
+          </button>
+        </div>
       </div>
 
-      {showAddCategory && (
-        <AddCategoryForm onCreated={handleCategoryCreated} onCancel={() => setShowAddCategory(false)} />
+      {showManageCategories && (
+        <ManageCategoriesPanel
+          categories={categories}
+          onCategoryCreated={handleCategoryCreated}
+          onCategoryUpdated={handleCategoryUpdated}
+          onCategoryDeleted={handleCategoryDeleted}
+        />
       )}
 
       <div className="overflow-x-auto">
@@ -366,12 +258,12 @@ export default function MonthlyBaseClient({
                     className="w-full border-0 bg-transparent px-3 py-2 text-ink focus:bg-white/80 focus:outline-none"
                   />
                 </td>
-                <td className="border border-sheet-border px-2 py-1.5">
-                  <CategoryCell
+                <td className="relative border border-sheet-border p-0">
+                  <CategoryCombobox
                     categories={categories}
                     value={row.categoryId}
                     onChange={(categoryId) => handleCategoryChange(row.id, categoryId)}
-                    onRequestAddCategory={() => setShowAddCategory(true)}
+                    onCreated={handleCategoryCreated}
                   />
                 </td>
                 <td className="border border-sheet-border p-0">

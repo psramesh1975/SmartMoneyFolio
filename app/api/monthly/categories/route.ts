@@ -31,6 +31,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Some details are missing or invalid." }, { status: 400 });
   }
 
+  // Case-insensitive duplicate guard — lets the Monthly Base combobox recover
+  // cleanly from a race (two rows creating the same new category at once)
+  // by just re-fetching and selecting the one that won, instead of erroring.
+  const existing = await prisma.monthlyCategory.findFirst({
+    where: {
+      householdId: session.householdId,
+      name: { equals: parsed.data.name, mode: "insensitive" },
+    },
+  });
+  if (existing) {
+    return NextResponse.json(
+      { error: "A category with that name already exists." },
+      { status: 409 }
+    );
+  }
+
   const last = await prisma.monthlyCategory.findFirst({
     where: { householdId: session.householdId },
     orderBy: { sortOrder: "desc" },
