@@ -3,7 +3,7 @@ import { z } from "zod";
 import * as XLSX from "xlsx";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
-import { cleanNumber, normalizeRow } from "@/lib/import/parse";
+import { cleanNumber, excelSerialToDate, isBlankRow, normalizeRow } from "@/lib/import/parse";
 import type { ValidateRowResult } from "@/lib/import/types";
 
 const rowSchema = z.object({
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: "", blankrows: true });
   } catch {
     return NextResponse.json(
       { error: "Couldn't read that file. Make sure it's a valid .xlsx file." },
@@ -48,17 +48,19 @@ export async function POST(req: NextRequest) {
     const row = i + 2; // header is row 1
     const cell = normalizeRow(raw);
 
+    if (isBlankRow(Object.values(cell))) {
+      return; // fully blank row — skip silently
+    }
+
     const nameRaw = String(cell["name"] ?? "").trim();
-    const currencyRaw = String(cell["currency"] ?? "").trim();
+    const currencyRaw = String(cell["currency"] ?? "")
+      .trim()
+      .toUpperCase();
     const targetAmountRaw = cell["target amount"];
     const targetAmountBlank =
       targetAmountRaw === "" || targetAmountRaw === null || targetAmountRaw === undefined;
     const currentAmountRaw = cell["current amount"];
     const targetDateRaw = cell["target date"];
-
-    if (!nameRaw && !currencyRaw && targetAmountBlank && !(targetDateRaw instanceof Date) && !currentAmountRaw) {
-      return; // fully blank row — skip silently
-    }
 
     if (!nameRaw) {
       results.push({ row, status: "error", error: `Row ${row}: 'Name' is required.` });
@@ -78,6 +80,11 @@ export async function POST(req: NextRequest) {
       targetDateValue = targetDateRaw;
     } else if (typeof targetDateRaw === "string" && targetDateRaw.trim() !== "") {
       targetDateValue = targetDateRaw.trim();
+    } else if (typeof targetDateRaw === "number") {
+      // A date-looking cell that isn't Excel-date-formatted comes back as a
+      // raw serial (days since 1899-12-30) instead of a Date — convert it
+      // rather than silently dropping the value.
+      targetDateValue = excelSerialToDate(targetDateRaw);
     }
 
     const parsed = rowSchema.safeParse({

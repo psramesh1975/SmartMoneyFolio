@@ -4,23 +4,9 @@ import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
-import { ASSET_CLASSES, assetClassLabel } from "@/lib/asset-classes";
-import { cleanNumber, matchAssetClass, normalizeRow } from "@/lib/import/parse";
+import { ASSET_CLASS_VALUES, assetClassLabel } from "@/lib/asset-classes";
+import { cleanNumber, isBlankRow, matchAssetClass, normalizeRow } from "@/lib/import/parse";
 import type { ValidateRowResult } from "@/lib/import/types";
-
-const ASSET_CLASS_VALUES = [
-  "CASH",
-  "FIXED_DEPOSIT",
-  "STOCKS",
-  "MUTUAL_FUNDS",
-  "BONDS",
-  "GOLD",
-  "RETIREMENT_SAVINGS",
-  "INSURANCE_LINKED",
-  "REAL_ESTATE",
-  "CRYPTOCURRENCY",
-  "OTHER",
-] as const;
 
 const rowSchema = z.object({
   familyMemberId: z.string().min(1),
@@ -51,7 +37,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    sheetRows = XLSX.utils.sheet_to_json(sheet, { defval: "", blankrows: true });
   } catch {
     return NextResponse.json(
       { error: "Couldn't read that file. Make sure it's a valid .xlsx file." },
@@ -70,16 +56,18 @@ export async function POST(req: NextRequest) {
     const row = i + 2; // header is row 1
     const cell = normalizeRow(raw);
 
+    if (isBlankRow(Object.values(cell))) {
+      return; // fully blank row — skip silently
+    }
+
     const memberNameRaw = String(cell["family member"] ?? "").trim();
     const assetClassRaw = String(cell["asset class"] ?? "").trim();
     const holdingNameRaw = String(cell["holding name"] ?? "").trim();
-    const currencyRaw = String(cell["currency"] ?? "").trim();
+    const currencyRaw = String(cell["currency"] ?? "")
+      .trim()
+      .toUpperCase();
     const valueRaw = cell["current value"];
     const valueBlank = valueRaw === "" || valueRaw === null || valueRaw === undefined;
-
-    if (!memberNameRaw && !assetClassRaw && !holdingNameRaw && !currencyRaw && valueBlank) {
-      return; // fully blank row — skip silently
-    }
 
     if (!memberNameRaw) {
       results.push({ row, status: "error", error: `Row ${row}: 'Family Member' is required.` });

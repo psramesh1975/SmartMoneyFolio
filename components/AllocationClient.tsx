@@ -22,7 +22,12 @@ export default function AllocationClient({
   const [saved, setSaved] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  const total = Object.values(values).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const rawTotal = Object.values(values).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  // Round for display and for the "is this 100%" check — imported targets
+  // can carry decimal percentages, and floating-point summation of those
+  // (e.g. 64.18 + 6.9 + 28.92) doesn't always land on exactly 100.
+  const total = Math.round(rawTotal * 10) / 10;
+  const isComplete = Math.abs(total - 100) < 0.05;
 
   async function handleSave() {
     setSaving(true);
@@ -86,8 +91,8 @@ export default function AllocationClient({
       </div>
 
       <div className="mt-3 flex items-center justify-between text-base">
-        <span className={total === 100 ? "text-growth" : "text-amber"}>
-          Total: {total}% {total !== 100 && "(should add up to 100%)"}
+        <span className={isComplete ? "text-growth" : "text-amber"}>
+          Total: {total}% {!isComplete && "(should add up to 100%)"}
         </span>
         <button
           onClick={handleSave}

@@ -22,14 +22,31 @@ export function isBlankRow(cells: unknown[]): boolean {
 }
 
 /** Strips commas/currency symbols from a number pasted out of a spreadsheet
- * (e.g. "$1,200.50" -> "1200.50") before it reaches z.coerce.number(). */
+ * (e.g. "$1,200.50" -> "1200.50") before it reaches z.coerce.number().
+ * Recognizes accounting-style negatives ("(500)" -> "-500") and preserves
+ * scientific notation ("1.5e6") instead of mangling it into "1.56". */
 export function cleanNumber(raw: unknown): unknown {
   if (typeof raw === "number") return raw;
   if (typeof raw !== "string") return raw;
   const trimmed = raw.trim();
   if (trimmed === "") return trimmed;
-  const cleaned = trimmed.replace(/[^0-9.\-]/g, "");
+
+  const parenMatch = trimmed.match(/^\((.*)\)$/);
+  const inner = parenMatch ? parenMatch[1] : trimmed;
+
+  let cleaned = inner.replace(/[^0-9.\-eE+]/g, "");
+  if (parenMatch && cleaned && !cleaned.startsWith("-")) {
+    cleaned = `-${cleaned}`;
+  }
   return cleaned === "" ? trimmed : cleaned;
+}
+
+/** Converts a raw Excel date serial number (from a cell that isn't
+ * date-formatted, so SheetJS's `cellDates: true` didn't convert it) into a
+ * real Date, using the same days-since-epoch math SheetJS itself documents
+ * for manual serial conversion. */
+export function excelSerialToDate(serial: number): Date {
+  return new Date(Math.round((serial - 25569) * 86400 * 1000));
 }
 
 /** Matches a typed asset class against its enum value ("STOCKS"), its full

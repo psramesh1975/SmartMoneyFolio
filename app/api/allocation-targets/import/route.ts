@@ -2,20 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-
-const ASSET_CLASS_VALUES = [
-  "CASH",
-  "FIXED_DEPOSIT",
-  "STOCKS",
-  "MUTUAL_FUNDS",
-  "BONDS",
-  "GOLD",
-  "RETIREMENT_SAVINGS",
-  "INSURANCE_LINKED",
-  "REAL_ESTATE",
-  "CRYPTOCURRENCY",
-  "OTHER",
-] as const;
+import { ASSET_CLASS_VALUES } from "@/lib/asset-classes";
 
 const rowSchema = z.object({
   assetClass: z.enum(ASSET_CLASS_VALUES),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ImportMode, ValidateRowResult } from "@/lib/import/types";
 
 type Step = "mode" | "upload" | "validating" | "review" | "importing" | "done";
@@ -35,7 +35,15 @@ export default function ImportExcelModal({
   const [importError, setImportError] = useState<string | null>(null);
   const [importedCount, setImportedCount] = useState<number | null>(null);
 
+  // Bumped on every reset and every new validate/import request. A fetch's
+  // continuation only applies its result if this hasn't moved on since it
+  // started — otherwise a slow response from a request the user has already
+  // abandoned (closed the modal, picked a different file) can't clobber
+  // whatever's on screen now.
+  const requestId = useRef(0);
+
   function reset() {
+    requestId.current += 1;
     setStep(hideModeChoice ? "upload" : "mode");
     setMode("append");
     setFileName(null);
@@ -56,6 +64,7 @@ export default function ImportExcelModal({
     e.target.value = ""; // allow re-selecting the same file later
     if (!file) return;
 
+    const thisRequest = ++requestId.current;
     setFileName(file.name);
     setValidateError(null);
     setStep("validating");
@@ -65,6 +74,7 @@ export default function ImportExcelModal({
       form.append("file", file);
       const res = await fetch(validateUrl, { method: "POST", body: form });
       const data = await res.json();
+      if (requestId.current !== thisRequest) return; // abandoned since this started
       if (!res.ok) {
         setValidateError(data.error ?? "Couldn't read that file. Try again.");
         setStep("upload");
@@ -74,6 +84,7 @@ export default function ImportExcelModal({
       setWarning(data.warning ?? null);
       setStep("review");
     } catch {
+      if (requestId.current !== thisRequest) return;
       setValidateError("Couldn't reach the server. Try again.");
       setStep("upload");
     }
@@ -82,6 +93,7 @@ export default function ImportExcelModal({
   const okRows = rows.filter((r) => r.status === "ok");
 
   async function handleConfirm() {
+    const thisRequest = ++requestId.current;
     setImportError(null);
     setStep("importing");
     try {
@@ -91,6 +103,7 @@ export default function ImportExcelModal({
         body: JSON.stringify({ mode, rows: okRows.map((r) => r.data) }),
       });
       const data = await res.json();
+      if (requestId.current !== thisRequest) return; // abandoned since this started
       if (!res.ok) {
         setImportError(data.error ?? "The import failed. No changes were made.");
         setStep("review");
@@ -100,6 +113,7 @@ export default function ImportExcelModal({
       onImported(data, mode);
       setStep("done");
     } catch {
+      if (requestId.current !== thisRequest) return;
       setImportError("Couldn't reach the server. No changes were made.");
       setStep("review");
     }
@@ -223,6 +237,7 @@ export default function ImportExcelModal({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
+                  requestId.current += 1;
                   setStep(hideModeChoice ? "upload" : "mode");
                   setFileName(null);
                   setRows([]);

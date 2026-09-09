@@ -4,20 +4,7 @@ import type { AssetClass } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
-
-const ASSET_CLASS_VALUES = [
-  "CASH",
-  "FIXED_DEPOSIT",
-  "STOCKS",
-  "MUTUAL_FUNDS",
-  "BONDS",
-  "GOLD",
-  "RETIREMENT_SAVINGS",
-  "INSURANCE_LINKED",
-  "REAL_ESTATE",
-  "CRYPTOCURRENCY",
-  "OTHER",
-] as const;
+import { ASSET_CLASS_VALUES } from "@/lib/asset-classes";
 
 const rowSchema = z.object({
   familyMemberId: z.string().min(1),
