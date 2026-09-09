@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
         relationship: "Self",
         operationalCurrency: selfDraft.operationalCurrency,
         residencyStatus: selfDraft.residencyStatus,
-        dateOfBirth: new Date(selfDraft.dateOfBirth),
+        dateOfBirth: new Date(selfDraft.dateOfBirth!),
         city: selfDraft.city,
         address: selfDraft.address,
         isMinor: false,
