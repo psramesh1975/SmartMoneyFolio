@@ -2,8 +2,9 @@ import { prisma } from "@/lib/db";
 import { ensureMonthGenerated } from "@/lib/monthly-generate";
 import { computeMonthlySummary } from "@/lib/monthly-summary";
 import type {
-  MonthlyBaseCategoryDTO,
+  MonthlyBaseRowDTO,
   MonthlyCategoryDTO,
+  MonthlyCategoryOptionDTO,
   MonthlyEntryDTO,
   MonthlyMonthPayload,
   MonthlyYearPayload,
@@ -79,30 +80,34 @@ export async function getMonthPayload(
   return { year, month, categories: categoryDTOs, summary };
 }
 
-// The Monthly Base setup page: categories with their line items (no entries,
-// no Planned/Actual — Base is the template, not a month).
-export async function getBasePayload(householdId: string): Promise<MonthlyBaseCategoryDTO[]> {
-  const categories = await prisma.monthlyCategory.findMany({
-    where: { householdId },
-    orderBy: { sortOrder: "asc" },
-    include: { lineItems: { orderBy: { createdAt: "asc" } } },
-  });
+// The Monthly Base setup page: one flat list of active line items (no
+// grouping by category — that's just a column here), plus the household's
+// categories for the row-level category picker. No entries, no Planned or
+// Actual — Base is the template, not a month.
+export async function getFlatBasePayload(householdId: string): Promise<{
+  lineItems: MonthlyBaseRowDTO[];
+  categories: MonthlyCategoryOptionDTO[];
+}> {
+  const [lineItems, categories] = await Promise.all([
+    prisma.monthlyLineItem.findMany({
+      where: { householdId, isActive: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.monthlyCategory.findMany({
+      where: { householdId },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
 
-  return categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-    type: c.type,
-    sortOrder: c.sortOrder,
-    lineItems: c.lineItems.map((li) => ({
+  return {
+    lineItems: lineItems.map((li) => ({
       id: li.id,
-      categoryId: li.categoryId,
       name: li.name,
       baseAmount: li.baseAmount.toString(),
-      repeatMonths: li.repeatMonths,
-      isActive: li.isActive,
-      notes: li.notes,
+      categoryId: li.categoryId,
     })),
-  }));
+    categories: categories.map((c) => ({ id: c.id, name: c.name, type: c.type })),
+  };
 }
 
 // Read-only counterpart used by "Earlier Months" — deliberately does NOT call

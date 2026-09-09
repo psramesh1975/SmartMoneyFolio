@@ -7,7 +7,9 @@ const repeatMonthSchema = z.number().int().min(1).max(12);
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
-  baseAmount: z.coerce.number().positive().optional(),
+  categoryId: z.string().min(1).optional(),
+  // nonnegative, not positive — Monthly Base allows a row to sit at 0.00.
+  baseAmount: z.coerce.number().nonnegative().optional(),
   repeatMonths: z.array(repeatMonthSchema).optional(),
   isActive: z.boolean().optional(),
   notes: z.string().nullable().optional(),
@@ -28,6 +30,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Some details are missing or invalid." }, { status: 400 });
+  }
+
+  if (parsed.data.categoryId) {
+    const category = await prisma.monthlyCategory.findFirst({
+      where: { id: parsed.data.categoryId, householdId: session.householdId },
+    });
+    if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
   }
 
   // Only affects entries not yet generated — existing MonthlyEntry rows for

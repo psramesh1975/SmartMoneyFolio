@@ -15,9 +15,9 @@ const config: Config = {
         paper: "#FFFFFF",
         "paper-2": "#F4F6FB",  // faint blue-white — section backgrounds, subtle separation
         line: "#E2E6F0",
-        "sheet-header": "#375623",  // dark green header/totals row
-        "sheet-row": "#C6E0B4",     // light green body row
-        "sheet-border": "#000000", // cell borders
+        "sheet-header": "#275216",  // dark green header/totals row
+        "sheet-row": "#b9e0a5",     // light green body row
+        "sheet-border": "#8cb878", // cell/row borders
       },
       fontFamily: {
         display: ["var(--font-fraunces)", "serif"],

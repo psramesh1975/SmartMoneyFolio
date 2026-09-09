@@ -36,24 +36,21 @@ export type MonthlyCategoryDTO = {
   entries: MonthlyEntryDTO[];
 };
 
-// --- Monthly Base (the setup page) ---
+// --- Monthly Base (the setup page): one flat table, Expense | Category | Base.
+// Repeat-months/stop/rename live on the line item but aren't surfaced here —
+// this page only edits name, category, and base amount.
 
-export type MonthlyLineItemDTO = {
+export type MonthlyBaseRowDTO = {
   id: string;
-  categoryId: string;
   name: string;
   baseAmount: string;
-  repeatMonths: number[];
-  isActive: boolean;
-  notes: string | null;
+  categoryId: string | null;
 };
 
-export type MonthlyBaseCategoryDTO = {
+export type MonthlyCategoryOptionDTO = {
   id: string;
   name: string;
   type: MonthlyCategoryTypeValue;
-  sortOrder: number;
-  lineItems: MonthlyLineItemDTO[];
 };
 
 export type MonthlyMonthPayload = {

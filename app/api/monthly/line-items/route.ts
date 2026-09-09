@@ -9,7 +9,9 @@ const repeatMonthSchema = z.number().int().min(1).max(12);
 const createSchema = z.object({
   categoryId: z.string().min(1),
   name: z.string().min(1),
-  baseAmount: z.coerce.number().positive(),
+  // nonnegative, not positive — Monthly Base rows start at 0.00 (the amount
+  // may genuinely be unknown yet), same as a freshly added spreadsheet row.
+  baseAmount: z.coerce.number().nonnegative(),
   repeatMonths: z.array(repeatMonthSchema).default([]),
 });
 
@@ -21,7 +23,12 @@ export async function GET(req: NextRequest) {
   const categoryId = req.nextUrl.searchParams.get("categoryId") ?? undefined;
 
   const lineItems = await prisma.monthlyLineItem.findMany({
-    where: { householdId: session.householdId, ...(categoryId ? { categoryId } : {}) },
+    where: {
+      householdId: session.householdId,
+      isActive: true,
+      ...(categoryId ? { categoryId } : {}),
+    },
+    include: { category: { select: { name: true, type: true } } },
     orderBy: { createdAt: "asc" },
   });
 
