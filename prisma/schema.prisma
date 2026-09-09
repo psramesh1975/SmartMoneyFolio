@@ -194,6 +194,7 @@ model MonthlyLineItem {
   startYear      Int             // don't generate entries before this year/month —
   startMonth     Int             // i.e. whenever the line item was created.
   isActive       Boolean         @default(true) // "stopped" lines don't generate new entries but keep history
+  notes          String?         // the "Remark" column on Monthly Base — not copied onto generated entries
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 

@@ -22,11 +22,11 @@ export default async function MonthlyBasePage() {
       <h1 className="font-display text-3xl text-ink">Monthly Base</h1>
       <p className="mt-2 text-base text-ink-2">
         Set up categories and recurring lines once — home loan, school fees, SIPs, rent,
-        subscriptions — with their steady Base amount. This is the template months are
-        generated from; it holds no Planned or Actual figures itself.
+        subscriptions — with their steady Base amount, in {household?.baseCurrency ?? "USD"}. This
+        is the template months are generated from; it holds no Planned or Actual figures itself.
       </p>
 
-      <MonthlyBaseClient initialCategories={categories} currency={household?.baseCurrency ?? "USD"} />
+      <MonthlyBaseClient initialCategories={categories} />
     </section>
   );
 }

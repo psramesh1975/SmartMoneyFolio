@@ -3,20 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { MonthlyBaseCategoryDTO, MonthlyLineItemDTO } from "@/lib/monthly-types";
+import MonthlySheetTable, { type SheetRow } from "@/components/MonthlySheetTable";
 
 const MONTH_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-function fmt(n: number) {
-  return Math.round(n).toLocaleString();
-}
-
-function repeatLabel(months: number[]) {
-  if (months.length === 0) return "Every month";
-  return months.map((m) => MONTH_SHORT[m - 1]).join(", ");
-}
 
 async function postJSON(url: string, body: unknown) {
   const res = await fetch(url, {
@@ -79,16 +71,18 @@ function MonthPicker({
   );
 }
 
-function EditLineItemRow({
+// Repeat months / stop / rename don't fit the sheet's fixed column set, so
+// they live in a small panel below the table instead, opened via the
+// "Edit" action riding along with the row's name cell.
+function EditLineItemPanel({
   lineItem,
-  currency,
-  onUpdated,
+  onSaved,
+  onCancel,
 }: {
   lineItem: MonthlyLineItemDTO;
-  currency: string;
-  onUpdated: (lineItem: MonthlyLineItemDTO) => void;
+  onSaved: (lineItem: MonthlyLineItemDTO) => void;
+  onCancel: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
   const [name, setName] = useState(lineItem.name);
   const [baseAmount, setBaseAmount] = useState(lineItem.baseAmount);
   const [everyMonth, setEveryMonth] = useState(lineItem.repeatMonths.length === 0);
@@ -119,89 +113,62 @@ function EditLineItemRow({
       setError(data.error ?? "Couldn't save that.");
       return;
     }
-    onUpdated({
+    onSaved({
       ...lineItem,
       name,
       baseAmount: String(baseAmount),
       repeatMonths: everyMonth ? [] : months,
       isActive: active,
     });
-    setEditing(false);
-  }
-
-  if (!editing) {
-    return (
-      <tr className={`border-t border-line ${lineItem.isActive ? "text-ink" : "text-ink-2"}`}>
-        <td className="py-2 pr-2">
-          {lineItem.name}
-          {!lineItem.isActive && <span className="ml-2 text-xs text-coral">(stopped)</span>}
-        </td>
-        <td className="py-2 pr-2 text-right whitespace-nowrap">
-          {currency} {fmt(Number(lineItem.baseAmount))}
-        </td>
-        <td className="py-2 pr-2 text-sm text-ink-2">{repeatLabel(lineItem.repeatMonths)}</td>
-        <td className="py-2 text-right">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-xs text-folio underline decoration-dotted"
-          >
-            Edit
-          </button>
-        </td>
-      </tr>
-    );
   }
 
   return (
-    <tr className="border-t border-line bg-paper-2">
-      <td colSpan={4} className="p-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-xs font-medium text-ink-2">Name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ink-2">Base amount</label>
-            <input
-              type="number"
-              value={baseAmount}
-              onChange={(e) => setBaseAmount(e.target.value)}
-              className="focus-ring mt-1 w-32 border border-line bg-white px-2 py-1 text-sm text-ink"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={!active} onChange={(e) => setActive(!e.target.checked)} />
-            Stop this recurring line
-          </label>
+    <div className="border border-line bg-paper-2 p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="block text-xs font-medium text-ink-2">Name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
+          />
         </div>
-        <div className="mt-2">
-          <MonthPicker everyMonth={everyMonth} setEveryMonth={setEveryMonth} months={months} toggleMonth={toggleMonth} />
+        <div>
+          <label className="block text-xs font-medium text-ink-2">Base amount</label>
+          <input
+            type="number"
+            value={baseAmount}
+            onChange={(e) => setBaseAmount(e.target.value)}
+            className="focus-ring mt-1 w-32 border border-line bg-white px-2 py-1 text-sm text-ink"
+          />
         </div>
-        {error && <p className="mt-2 text-xs text-coral">{error}</p>}
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="focus-ring bg-ink px-3 py-1 text-xs text-paper hover:bg-ink-2 disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="focus-ring border border-line bg-white px-3 py-1 text-xs text-ink-2"
-          >
-            Cancel
-          </button>
-        </div>
-      </td>
-    </tr>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" checked={!active} onChange={(e) => setActive(!e.target.checked)} />
+          Stop this recurring line
+        </label>
+      </div>
+      <div className="mt-2">
+        <MonthPicker everyMonth={everyMonth} setEveryMonth={setEveryMonth} months={months} toggleMonth={toggleMonth} />
+      </div>
+      {error && <p className="mt-2 text-xs text-coral">{error}</p>}
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="focus-ring bg-ink px-3 py-1 text-xs text-paper hover:bg-ink-2 disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="focus-ring border border-line bg-white px-3 py-1 text-xs text-ink-2"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -252,11 +219,12 @@ function AddLineItemForm({
       baseAmount: String(baseAmount),
       repeatMonths,
       isActive: true,
+      notes: null,
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-2 space-y-2 border border-line bg-paper-2 p-3">
+    <form onSubmit={handleSubmit} className="space-y-2 border border-line bg-paper-2 p-3">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs font-medium text-ink-2">Line name</label>
@@ -301,69 +269,67 @@ function AddLineItemForm({
 
 function CategoryCard({
   category,
-  currency,
   onLineItemAdded,
   onLineItemUpdated,
 }: {
   category: MonthlyBaseCategoryDTO;
-  currency: string;
   onLineItemAdded: (categoryId: string, lineItem: MonthlyLineItemDTO) => void;
   onLineItemUpdated: (categoryId: string, lineItem: MonthlyLineItemDTO) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editingItem = category.lineItems.find((li) => li.id === editingId) ?? null;
+
+  async function handleCellChange(rowId: string, field: string, value: string | boolean) {
+    const lineItem = category.lineItems.find((li) => li.id === rowId);
+    if (!lineItem) return;
+    if (field === "base") {
+      const raw = String(value).trim();
+      if (raw === "") return;
+      const { ok, data } = await patchJSON(`/api/monthly/line-items/${rowId}`, { baseAmount: Number(raw) });
+      if (!ok) return;
+      onLineItemUpdated(category.id, { ...lineItem, baseAmount: raw });
+    } else if (field === "remark") {
+      const raw = String(value);
+      const { ok } = await patchJSON(`/api/monthly/line-items/${rowId}`, { notes: raw === "" ? null : raw });
+      if (!ok) return;
+      onLineItemUpdated(category.id, { ...lineItem, notes: raw === "" ? null : raw });
+    }
+    // planned/actual/isSkipped aren't applicable to line items — no column for them here.
+  }
+
+  const rows: SheetRow[] = category.lineItems.map((li) => ({
+    id: li.id,
+    name: li.isActive ? li.name : `${li.name} (stopped)`,
+    base: Number(li.baseAmount),
+    planned: null,
+    actual: null,
+    remark: li.notes,
+    actions: (
+      <button
+        type="button"
+        onClick={() => setEditingId((cur) => (cur === li.id ? null : li.id))}
+        className="text-xs text-folio underline decoration-dotted"
+      >
+        Edit
+      </button>
+    ),
+  }));
 
   return (
-    <div className="border border-line bg-white p-4">
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setExpanded((e) => !e)}
-          className="flex items-center gap-2 text-left"
-        >
-          <span className="text-ink-2">{expanded ? "▾" : "▸"}</span>
-          <h3 className="font-display text-lg text-ink">{category.name}</h3>
-          <span className="text-xs font-normal uppercase tracking-wide text-ink-2">
-            {category.type === "INCOME" ? "Income" : "Outflow"}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowAdd((s) => !s)}
-          className="text-xs text-folio underline decoration-dotted"
-        >
-          + Add line item
-        </button>
-      </div>
-
-      {expanded && (
-        <>
-          {category.lineItems.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-2">Nothing set up yet.</p>
-          ) : (
-            <table className="mt-3 w-full text-sm">
-              <thead>
-                <tr className="text-left text-ink-2">
-                  <th className="pb-1 font-medium">Line</th>
-                  <th className="pb-1 text-right font-medium">Base amount</th>
-                  <th className="pb-1 font-medium">Repeats</th>
-                  <th className="pb-1" />
-                </tr>
-              </thead>
-              <tbody>
-                {category.lineItems.map((li) => (
-                  <EditLineItemRow
-                    key={li.id}
-                    lineItem={li}
-                    currency={currency}
-                    onUpdated={(updated) => onLineItemUpdated(category.id, updated)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {showAdd && (
+    <div className="mt-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        {category.type === "INCOME" ? "Income" : "Outflow"}
+      </p>
+      <MonthlySheetTable
+        categoryName={category.name}
+        rows={rows}
+        enabledColumns={["base"]}
+        showSkipColumn={false}
+        onCellChange={handleCellChange}
+        footerSlot={
+          showAdd ? (
             <AddLineItemForm
               categoryId={category.id}
               onCreated={(li) => {
@@ -372,8 +338,28 @@ function CategoryCard({
               }}
               onCancel={() => setShowAdd(false)}
             />
-          )}
-        </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAdd(true)}
+              className="text-xs text-folio underline decoration-dotted"
+            >
+              + Add line item
+            </button>
+          )
+        }
+      />
+      {editingItem && (
+        <div className="mt-2">
+          <EditLineItemPanel
+            lineItem={editingItem}
+            onSaved={(li) => {
+              onLineItemUpdated(category.id, li);
+              setEditingId(null);
+            }}
+            onCancel={() => setEditingId(null)}
+          />
+        </div>
       )}
     </div>
   );
@@ -453,10 +439,8 @@ function AddCategoryForm({
 
 export default function MonthlyBaseClient({
   initialCategories,
-  currency,
 }: {
   initialCategories: MonthlyBaseCategoryDTO[];
-  currency: string;
 }) {
   const router = useRouter();
   const [categories, setCategories] = useState<MonthlyBaseCategoryDTO[]>(initialCategories);
@@ -481,7 +465,7 @@ export default function MonthlyBaseClient({
   }
 
   return (
-    <div className="mt-8 space-y-4">
+    <div className="mt-8">
       {categories.length === 0 && (
         <p className="text-base text-ink-2">No categories yet — add one to get started.</p>
       )}
@@ -489,30 +473,31 @@ export default function MonthlyBaseClient({
         <CategoryCard
           key={category.id}
           category={category}
-          currency={currency}
           onLineItemAdded={handleLineItemAdded}
           onLineItemUpdated={handleLineItemUpdated}
         />
       ))}
 
-      {showAddCategory ? (
-        <AddCategoryForm
-          onCreated={(category) => {
-            setCategories((prev) => [...prev, category]);
-            setShowAddCategory(false);
-            router.refresh();
-          }}
-          onCancel={() => setShowAddCategory(false)}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddCategory(true)}
-          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2"
-        >
-          + Add category
-        </button>
-      )}
+      <div className="mt-8">
+        {showAddCategory ? (
+          <AddCategoryForm
+            onCreated={(category) => {
+              setCategories((prev) => [...prev, category]);
+              setShowAddCategory(false);
+              router.refresh();
+            }}
+            onCancel={() => setShowAddCategory(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddCategory(true)}
+            className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2"
+          >
+            + Add category
+          </button>
+        )}
+      </div>
     </div>
   );
 }

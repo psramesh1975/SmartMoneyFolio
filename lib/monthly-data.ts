@@ -100,6 +100,7 @@ export async function getBasePayload(householdId: string): Promise<MonthlyBaseCa
       baseAmount: li.baseAmount.toString(),
       repeatMonths: li.repeatMonths,
       isActive: li.isActive,
+      notes: li.notes,
     })),
   }));
 }

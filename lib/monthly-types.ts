@@ -45,6 +45,7 @@ export type MonthlyLineItemDTO = {
   baseAmount: string;
   repeatMonths: number[];
   isActive: boolean;
+  notes: string | null;
 };
 
 export type MonthlyBaseCategoryDTO = {

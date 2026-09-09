@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { MONTH_LABELS } from "@/lib/monthly-periods";
 import type { MonthlySummary } from "@/lib/monthly-summary";
 import type { MonthlyMonthPayload } from "@/lib/monthly-types";
+import MonthlySheetTable, { type SheetRow } from "@/components/MonthlySheetTable";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -60,39 +61,28 @@ export default function MonthlyHistoryStack({
           {m.categories.length === 0 ? (
             <p className="mt-3 text-sm text-ink-2">No entries.</p>
           ) : (
-            <div className="mt-4 space-y-4">
-              {m.categories.map((c) => (
-                <div key={c.id}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
-                    {c.name}
-                  </p>
-                  <table className="mt-1 w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-ink-2">
-                        <th className="py-1 font-medium">Line</th>
-                        <th className="py-1 text-right font-medium">Base</th>
-                        <th className="py-1 text-right font-medium">Planned</th>
-                        <th className="py-1 text-right font-medium">Actual</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {c.entries.map((e) => (
-                        <tr
-                          key={e.id}
-                          className={e.isSkipped ? "text-ink-2 line-through" : "text-ink"}
-                        >
-                          <td className="py-1">{e.name}</td>
-                          <td className="py-1 text-right text-ink-2">{fmt(Number(e.baseAmount))}</td>
-                          <td className="py-1 text-right">{fmt(Number(e.plannedAmount))}</td>
-                          <td className="py-1 text-right">
-                            {e.actualAmount == null ? "—" : fmt(Number(e.actualAmount))}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+            <div>
+              {m.categories.map((c) => {
+                const rows: SheetRow[] = c.entries.map((e) => ({
+                  id: e.id,
+                  name: e.name,
+                  base: Number(e.baseAmount),
+                  planned: Number(e.plannedAmount),
+                  actual: e.actualAmount == null ? null : Number(e.actualAmount),
+                  remark: e.notes,
+                  isSkipped: e.isSkipped,
+                }));
+                return (
+                  <MonthlySheetTable
+                    key={c.id}
+                    categoryName={c.name}
+                    rows={rows}
+                    enabledColumns={["planned", "actual"]}
+                    showSkipColumn={false}
+                    readOnly
+                  />
+                );
+              })}
             </div>
           )}
         </div>

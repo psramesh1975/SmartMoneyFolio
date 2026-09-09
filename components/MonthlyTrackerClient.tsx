@@ -9,6 +9,7 @@ import type {
   MonthlyEntryDTO,
   MonthlyMonthPayload,
 } from "@/lib/monthly-types";
+import MonthlySheetTable, { type SheetRow } from "@/components/MonthlySheetTable";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -32,132 +33,6 @@ async function patchJSON(url: string, body: unknown) {
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, data };
-}
-
-// --- One row in a category's table: Base (reference) | Planned | Actual ---
-
-function EntryRow({
-  entry,
-  currency,
-  onUpdated,
-  onDeleted,
-}: {
-  entry: MonthlyEntryDTO;
-  currency: string;
-  onUpdated: (entry: MonthlyEntryDTO) => void;
-  onDeleted: (entryId: string) => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-
-  async function savePlanned(raw: string) {
-    const value = raw.trim();
-    if (value === "") return; // planned amount can't be cleared, only changed
-    const { ok, data } = await patchJSON(`/api/monthly/entries/${entry.id}`, {
-      plannedAmount: Number(value),
-    });
-    if (!ok) {
-      setError(data.error ?? "Couldn't save that.");
-      return;
-    }
-    setError(null);
-    onUpdated({ ...entry, plannedAmount: value });
-  }
-
-  async function saveActual(raw: string) {
-    const value = raw.trim();
-    const { ok, data } = await patchJSON(`/api/monthly/entries/${entry.id}`, {
-      actualAmount: value === "" ? null : Number(value),
-    });
-    if (!ok) {
-      setError(data.error ?? "Couldn't save that.");
-      return;
-    }
-    setError(null);
-    onUpdated({ ...entry, actualAmount: value === "" ? null : value });
-  }
-
-  async function saveSkip(checked: boolean) {
-    const { ok, data } = await patchJSON(`/api/monthly/entries/${entry.id}`, { isSkipped: checked });
-    if (!ok) {
-      setError(data.error ?? "Couldn't save that.");
-      return;
-    }
-    onUpdated({ ...entry, isSkipped: checked });
-  }
-
-  async function saveNotes(raw: string) {
-    const { ok, data } = await patchJSON(`/api/monthly/entries/${entry.id}`, {
-      notes: raw === "" ? null : raw,
-    });
-    if (!ok) {
-      setError(data.error ?? "Couldn't save that.");
-      return;
-    }
-    onUpdated({ ...entry, notes: raw === "" ? null : raw });
-  }
-
-  async function handleDelete() {
-    const res = await fetch(`/api/monthly/entries/${entry.id}`, { method: "DELETE" });
-    if (res.ok) onDeleted(entry.id);
-  }
-
-  return (
-    <>
-      <tr className={`border-t border-line ${entry.isSkipped ? "text-ink-2 line-through" : "text-ink"}`}>
-        <td className="py-2 pr-2">{entry.name}</td>
-        <td className="py-2 pr-2 text-right whitespace-nowrap text-ink-2">
-          {currency} {fmt(Number(entry.baseAmount))}
-        </td>
-        <td className="py-2 pr-2 text-right">
-          <input
-            type="number"
-            defaultValue={entry.plannedAmount}
-            disabled={entry.isSkipped}
-            onBlur={(e) => savePlanned(e.target.value)}
-            className="focus-ring w-28 border border-line bg-white px-2 py-1 text-right text-sm text-ink disabled:bg-paper-2"
-          />
-        </td>
-        <td className="py-2 pr-2 text-right">
-          <input
-            type="number"
-            defaultValue={entry.actualAmount ?? ""}
-            placeholder={fmt(Number(entry.plannedAmount)).toString()}
-            disabled={entry.isSkipped}
-            onBlur={(e) => saveActual(e.target.value)}
-            className="focus-ring w-28 border border-line bg-white px-2 py-1 text-right text-sm text-ink disabled:bg-paper-2"
-          />
-        </td>
-        <td className="py-2 pr-2 text-center">
-          <input
-            type="checkbox"
-            defaultChecked={entry.isSkipped}
-            onChange={(e) => saveSkip(e.target.checked)}
-          />
-        </td>
-        <td className="py-2 pr-2">
-          <input
-            type="text"
-            defaultValue={entry.notes ?? ""}
-            onBlur={(e) => saveNotes(e.target.value)}
-            placeholder="Notes"
-            className="focus-ring w-full border border-line bg-white px-2 py-1 text-sm text-ink"
-          />
-        </td>
-        <td className="py-2 text-right whitespace-nowrap">
-          {!entry.lineItemId && (
-            <button type="button" onClick={handleDelete} className="text-xs text-coral underline">
-              Remove
-            </button>
-          )}
-        </td>
-      </tr>
-      {error && (
-        <tr>
-          <td colSpan={7} className="pb-1 text-xs text-coral">{error}</td>
-        </tr>
-      )}
-    </>
-  );
 }
 
 // --- Add-one-off mini form, per category ---
@@ -217,7 +92,7 @@ function AddOneOffForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-2 flex flex-wrap items-end gap-3 border border-line bg-paper-2 p-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border border-line bg-paper-2 p-3">
       <div>
         <label className="block text-xs font-medium text-ink-2">Name</label>
         <input
@@ -266,12 +141,11 @@ function AddOneOffForm({
   );
 }
 
-// --- One category's section: table + its one-off form ---
+// --- One category's sheet: table + its one-off form ---
 // Category and recurring-line setup itself lives on /monthly/base, not here.
 
 function CategorySection({
   category,
-  currency,
   year,
   month,
   onEntryAdded,
@@ -279,7 +153,6 @@ function CategorySection({
   onEntryDeleted,
 }: {
   category: MonthlyCategoryDTO;
-  currency: string;
   year: number;
   month: number;
   onEntryAdded: (categoryId: string, entry: MonthlyEntryDTO) => void;
@@ -288,69 +161,98 @@ function CategorySection({
 }) {
   const [showAddOneOff, setShowAddOneOff] = useState(false);
 
+  async function handleRemove(entryId: string) {
+    const res = await fetch(`/api/monthly/entries/${entryId}`, { method: "DELETE" });
+    if (res.ok) onEntryDeleted(category.id, entryId);
+  }
+
+  async function handleCellChange(rowId: string, field: string, value: string | boolean) {
+    const entry = category.entries.find((e) => e.id === rowId);
+    if (!entry) return;
+
+    if (field === "planned") {
+      const raw = String(value).trim();
+      if (raw === "") return; // planned amount can't be cleared, only changed
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { plannedAmount: Number(raw) });
+      if (ok) onEntryUpdated(category.id, { ...entry, plannedAmount: raw });
+    } else if (field === "actual") {
+      const raw = String(value).trim();
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, {
+        actualAmount: raw === "" ? null : Number(raw),
+      });
+      if (ok) onEntryUpdated(category.id, { ...entry, actualAmount: raw === "" ? null : raw });
+    } else if (field === "remark") {
+      const raw = String(value);
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { notes: raw === "" ? null : raw });
+      if (ok) onEntryUpdated(category.id, { ...entry, notes: raw === "" ? null : raw });
+    } else if (field === "isSkipped") {
+      const checked = Boolean(value);
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { isSkipped: checked });
+      if (ok) onEntryUpdated(category.id, { ...entry, isSkipped: checked });
+    }
+  }
+
+  const rows: SheetRow[] = category.entries.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    base: Number(entry.baseAmount),
+    planned: Number(entry.plannedAmount),
+    actual: entry.actualAmount == null ? null : Number(entry.actualAmount),
+    remark: entry.notes,
+    isSkipped: entry.isSkipped,
+    actions: !entry.lineItemId ? (
+      <button type="button" onClick={() => handleRemove(entry.id)} className="text-xs text-coral underline">
+        Remove
+      </button>
+    ) : undefined,
+  }));
+
+  const oneOffControl = showAddOneOff ? (
+    <AddOneOffForm
+      categoryId={category.id}
+      year={year}
+      month={month}
+      onCreated={(entry) => {
+        setShowAddOneOff(false);
+        onEntryAdded(category.id, entry);
+      }}
+      onCancel={() => setShowAddOneOff(false)}
+    />
+  ) : (
+    <button
+      type="button"
+      onClick={() => setShowAddOneOff(true)}
+      className="text-xs text-folio underline decoration-dotted"
+    >
+      + One-off
+    </button>
+  );
+
   return (
-    <div className="border border-line bg-white p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg text-ink">
-          {category.name}{" "}
-          <span className="text-xs font-normal uppercase tracking-wide text-ink-2">
-            {category.type === "INCOME" ? "Income" : "Outflow"}
-          </span>
-        </h3>
-        <button
-          type="button"
-          onClick={() => setShowAddOneOff((s) => !s)}
-          className="text-xs text-folio underline decoration-dotted"
-        >
-          + One-off
-        </button>
-      </div>
+    <div className="mt-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        {category.name} — {category.type === "INCOME" ? "Income" : "Outflow"}
+      </p>
 
       {category.entries.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-2">
-          Nothing set up in Monthly Base yet for this category —{" "}
-          <Link href="/monthly/base" className="text-folio underline">
-            set it up there
-          </Link>
-          , or add a one-off below.
-        </p>
+        <>
+          <p className="mt-1 text-sm text-ink-2">
+            Nothing set up in Monthly Base yet for this category —{" "}
+            <Link href="/monthly/base" className="text-folio underline">
+              set it up there
+            </Link>
+            , or add a one-off below.
+          </p>
+          <div className="mt-2">{oneOffControl}</div>
+        </>
       ) : (
-        <table className="mt-3 w-full text-sm">
-          <thead>
-            <tr className="text-left text-ink-2">
-              <th className="pb-1 font-medium">Line</th>
-              <th className="pb-1 text-right font-medium">Base</th>
-              <th className="pb-1 text-right font-medium">Planned</th>
-              <th className="pb-1 text-right font-medium">Actual</th>
-              <th className="pb-1 text-center font-medium">Skip</th>
-              <th className="pb-1 font-medium">Notes</th>
-              <th className="pb-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {category.entries.map((entry) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                currency={currency}
-                onUpdated={(e) => onEntryUpdated(category.id, e)}
-                onDeleted={(id) => onEntryDeleted(category.id, id)}
-              />
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {showAddOneOff && (
-        <AddOneOffForm
-          categoryId={category.id}
-          year={year}
-          month={month}
-          onCreated={(entry) => {
-            setShowAddOneOff(false);
-            onEntryAdded(category.id, entry);
-          }}
-          onCancel={() => setShowAddOneOff(false)}
+        <MonthlySheetTable
+          categoryName={category.name}
+          rows={rows}
+          enabledColumns={["planned", "actual"]}
+          showSkipColumn={true}
+          onCellChange={handleCellChange}
+          footerSlot={oneOffControl}
         />
       )}
     </div>
@@ -459,7 +361,7 @@ export default function MonthlyTrackerClient({
     <div className="mt-8 space-y-6">
       <SummaryBar summary={summary} currency={currency} />
 
-      <div className="space-y-4">
+      <div>
         {categories.length === 0 ? (
           <p className="text-base text-ink-2">
             No categories yet —{" "}
@@ -473,7 +375,6 @@ export default function MonthlyTrackerClient({
             <CategorySection
               key={category.id}
               category={category}
-              currency={currency}
               year={year}
               month={month}
               onEntryAdded={handleEntryAdded}

@@ -10,6 +10,7 @@ const patchSchema = z.object({
   baseAmount: z.coerce.number().positive().optional(),
   repeatMonths: z.array(repeatMonthSchema).optional(),
   isActive: z.boolean().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
