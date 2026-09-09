@@ -10,7 +10,7 @@ import type {
   MonthlyEntryDTO,
   MonthlyMonthPayload,
 } from "@/lib/monthly-types";
-import MonthlySheetTable, { type SheetRow } from "@/components/MonthlySheetTable";
+import MonthlyFlatTable, { type FlatRow } from "@/components/MonthlyFlatTable";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -163,114 +163,8 @@ function AddOneOffForm({
   );
 }
 
-// --- One category's sheet: table + its one-off form ---
-// Category and recurring-line setup itself lives on /monthly/base, not here.
-
-function CategorySection({
-  category,
-  year,
-  month,
-  onEntryAdded,
-  onEntryUpdated,
-  onEntryDeleted,
-}: {
-  category: MonthlyCategoryDTO; // always has entries.length > 0 — the parent filters out empty ones
-  year: number;
-  month: number;
-  onEntryAdded: (categoryId: string, entry: MonthlyEntryDTO) => void;
-  onEntryUpdated: (categoryId: string, entry: MonthlyEntryDTO) => void;
-  onEntryDeleted: (categoryId: string, entryId: string) => void;
-}) {
-  const [showAddOneOff, setShowAddOneOff] = useState(false);
-
-  async function handleRemove(entryId: string) {
-    const res = await fetch(`/api/monthly/entries/${entryId}`, { method: "DELETE" });
-    if (res.ok) onEntryDeleted(category.id, entryId);
-  }
-
-  async function handleCellChange(rowId: string, field: string, value: string | boolean) {
-    const entry = category.entries.find((e) => e.id === rowId);
-    if (!entry) return;
-
-    if (field === "planned") {
-      const raw = String(value).trim();
-      if (raw === "") return; // planned amount can't be cleared, only changed
-      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { plannedAmount: Number(raw) });
-      if (ok) onEntryUpdated(category.id, { ...entry, plannedAmount: raw });
-    } else if (field === "actual") {
-      const raw = String(value).trim();
-      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, {
-        actualAmount: raw === "" ? null : Number(raw),
-      });
-      if (ok) onEntryUpdated(category.id, { ...entry, actualAmount: raw === "" ? null : raw });
-    } else if (field === "remark") {
-      const raw = String(value);
-      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { notes: raw === "" ? null : raw });
-      if (ok) onEntryUpdated(category.id, { ...entry, notes: raw === "" ? null : raw });
-    } else if (field === "isSkipped") {
-      const checked = Boolean(value);
-      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { isSkipped: checked });
-      if (ok) onEntryUpdated(category.id, { ...entry, isSkipped: checked });
-    }
-  }
-
-  const rows: SheetRow[] = category.entries.map((entry) => ({
-    id: entry.id,
-    name: entry.name,
-    base: Number(entry.baseAmount),
-    planned: Number(entry.plannedAmount),
-    actual: entry.actualAmount == null ? null : Number(entry.actualAmount),
-    remark: entry.notes,
-    isSkipped: entry.isSkipped,
-    actions: !entry.lineItemId ? (
-      <button type="button" onClick={() => handleRemove(entry.id)} className="text-xs text-coral underline">
-        Remove
-      </button>
-    ) : undefined,
-  }));
-
-  const oneOffControl = showAddOneOff ? (
-    <AddOneOffForm
-      categories={[{ id: category.id, name: category.name, type: category.type }]}
-      year={year}
-      month={month}
-      onCreated={(categoryId, entry) => {
-        setShowAddOneOff(false);
-        onEntryAdded(categoryId, entry);
-      }}
-      onCancel={() => setShowAddOneOff(false)}
-    />
-  ) : (
-    <button
-      type="button"
-      onClick={() => setShowAddOneOff(true)}
-      className="text-xs text-folio underline decoration-dotted"
-    >
-      + One-off
-    </button>
-  );
-
-  return (
-    <div className="mt-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
-        {category.name} — {category.type === "INCOME" ? "Income" : "Outflow"}
-      </p>
-
-      <MonthlySheetTable
-        categoryName={category.name}
-        rows={rows}
-        enabledColumns={["planned", "actual"]}
-        showSkipColumn={true}
-        onCellChange={handleCellChange}
-        footerSlot={oneOffControl}
-      />
-    </div>
-  );
-}
-
-// --- Bottom-of-page one-off control, for any category (including ones with
-// nothing showing above). Distinct from CategorySection's own "+ One-off",
-// which stays the fastest path for a category you're already looking at.
+// --- Bottom-of-page one-off control, for any category. Category/recurring
+// setup itself lives on /monthly/base, not here.
 
 function BottomOneOff({
   categories,
@@ -409,7 +303,78 @@ export default function MonthlyTrackerClient({
     router.refresh();
   }
 
-  const categoriesWithData = categories.filter((c) => c.entries.length > 0);
+  // Categories arrive pre-sorted by sortOrder, and each category's entries
+  // pre-sorted by createdAt — flattening in this order is already "category
+  // sortOrder, then entry createdAt", no re-sort needed.
+  const flatRows: FlatRow[] = useMemo(
+    () =>
+      categories.flatMap((category) =>
+        category.entries.map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          categoryName: category.name,
+          base: Number(entry.baseAmount),
+          planned: Number(entry.plannedAmount),
+          actual: entry.actualAmount == null ? null : Number(entry.actualAmount),
+          remark: entry.notes,
+          isSkipped: entry.isSkipped,
+          actions: !entry.lineItemId ? (
+            <button
+              type="button"
+              onClick={() => handleRemove(category.id, entry.id)}
+              className="text-xs text-coral underline"
+            >
+              Remove
+            </button>
+          ) : undefined,
+        }))
+      ),
+    [categories]
+  );
+
+  function findEntry(entryId: string) {
+    for (const category of categories) {
+      const entry = category.entries.find((e) => e.id === entryId);
+      if (entry) return { categoryId: category.id, entry };
+    }
+    return null;
+  }
+
+  async function handleRemove(categoryId: string, entryId: string) {
+    const res = await fetch(`/api/monthly/entries/${entryId}`, { method: "DELETE" });
+    if (res.ok) handleEntryDeleted(categoryId, entryId);
+  }
+
+  async function handleCellChange(
+    rowId: string,
+    field: "planned" | "actual" | "remark" | "isSkipped",
+    value: string | boolean
+  ) {
+    const found = findEntry(rowId);
+    if (!found) return;
+    const { categoryId, entry } = found;
+
+    if (field === "planned") {
+      const raw = String(value).trim();
+      if (raw === "") return; // planned amount can't be cleared, only changed
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { plannedAmount: Number(raw) });
+      if (ok) handleEntryUpdated(categoryId, { ...entry, plannedAmount: raw });
+    } else if (field === "actual") {
+      const raw = String(value).trim();
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, {
+        actualAmount: raw === "" ? null : Number(raw),
+      });
+      if (ok) handleEntryUpdated(categoryId, { ...entry, actualAmount: raw === "" ? null : raw });
+    } else if (field === "remark") {
+      const raw = String(value);
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { notes: raw === "" ? null : raw });
+      if (ok) handleEntryUpdated(categoryId, { ...entry, notes: raw === "" ? null : raw });
+    } else if (field === "isSkipped") {
+      const checked = Boolean(value);
+      const { ok } = await patchJSON(`/api/monthly/entries/${rowId}`, { isSkipped: checked });
+      if (ok) handleEntryUpdated(categoryId, { ...entry, isSkipped: checked });
+    }
+  }
 
   return (
     <div className="mt-8 space-y-6">
@@ -426,29 +391,9 @@ export default function MonthlyTrackerClient({
           </p>
         ) : (
           <>
-            {categoriesWithData.map((category) => (
-              <CategorySection
-                key={category.id}
-                category={category}
-                year={year}
-                month={month}
-                onEntryAdded={handleEntryAdded}
-                onEntryUpdated={handleEntryUpdated}
-                onEntryDeleted={handleEntryDeleted}
-              />
-            ))}
+            <MonthlyFlatTable rows={flatRows} onCellChange={handleCellChange} />
 
-            {categoriesWithData.length === 0 && (
-              <p className="text-base text-ink-2">
-                Nothing set up yet this month — add items on{" "}
-                <Link href="/monthly/base" className="text-folio underline">
-                  Monthly Base
-                </Link>
-                , or log a one-off below.
-              </p>
-            )}
-
-            <div className="mt-8">
+            <div className="mt-4">
               <BottomOneOff
                 categories={categories.map((c) => ({ id: c.id, name: c.name, type: c.type }))}
                 year={year}

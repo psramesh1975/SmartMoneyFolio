@@ -5,13 +5,17 @@ import { prisma } from "@/lib/db";
 // what makes "base amount changes apply forward only" work with zero extra
 // bookkeeping. Editing a MonthlyLineItem later never rewrites a MonthlyEntry
 // that was already generated from it.
+//
+// Deliberately not gated on startYear/startMonth: every active line item
+// generates into every month it's asked about, regardless of when it was
+// added to Base. Forward-only behavior doesn't depend on that gate — the
+// upsert's `update: {}` no-op already means an entry generated for a given
+// month is never rewritten, so a Base edit made today still only affects
+// months generated after the edit. The startYear/startMonth columns stay on
+// MonthlyLineItem unused for now.
 export async function ensureMonthGenerated(householdId: string, year: number, month: number) {
   const lineItems = await prisma.monthlyLineItem.findMany({
-    where: {
-      householdId,
-      isActive: true,
-      OR: [{ startYear: { lt: year } }, { startYear: year, startMonth: { lte: month } }],
-    },
+    where: { householdId, isActive: true },
   });
 
   const applicable = lineItems.filter(
