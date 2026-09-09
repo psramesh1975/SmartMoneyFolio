@@ -11,7 +11,7 @@ export async function GET() {
 
   const households = await prisma.household.findMany({
     include: {
-      users: { select: { id: true, email: true, role: true, status: true } },
+      users: { select: { id: true, email: true, status: true } },
       _count: { select: { familyMembers: true, accounts: true } },
     },
     orderBy: { createdAt: "desc" },

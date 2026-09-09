@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type UserRow = { id: string; email: string; role: string; status: string };
+type UserRow = { id: string; email: string; status: string };
 
 type HouseholdRow = {
   id: string;
@@ -31,28 +31,6 @@ export default function PlatformClientsClient({
       if (res.ok) {
         setHouseholds((prev) =>
           prev.map((h) => (h.id === householdId ? { ...h, isSuspended: data.isSuspended } : h))
-        );
-      }
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function changeRole(userId: string, householdId: string, role: string) {
-    setBusyId(userId);
-    try {
-      const res = await fetch(`/api/platform/users/${userId}/role`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-      if (res.ok) {
-        setHouseholds((prev) =>
-          prev.map((h) =>
-            h.id === householdId
-              ? { ...h, users: h.users.map((u) => (u.id === userId ? { ...u, role } : u)) }
-              : h
-          )
         );
       }
     } finally {
@@ -100,16 +78,6 @@ export default function PlatformClientsClient({
             {h.users.map((u) => (
               <div key={u.id} className="flex items-center justify-between py-1.5 text-base">
                 <span className="text-ink">{u.email}</span>
-                <select
-                  value={u.role}
-                  disabled={busyId === u.id}
-                  onChange={(e) => changeRole(u.id, h.id, e.target.value)}
-                  className="focus-ring border border-line bg-white px-2 py-1 text-sm text-ink"
-                >
-                  <option value="ADMIN">Admin</option>
-                  <option value="EDITOR">Editor</option>
-                  <option value="VIEWER">Viewer</option>
-                </select>
               </div>
             ))}
           </div>

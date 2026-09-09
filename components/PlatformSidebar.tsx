@@ -25,7 +25,7 @@ export default function PlatformSidebar() {
           Dashboard
         </Link>
         <Link href="/platform/clients" className={linkClass("/platform/clients")}>
-          User Management
+          Client Management
         </Link>
       </nav>
       <div className="mt-6 px-4">

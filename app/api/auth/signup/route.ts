@@ -69,7 +69,6 @@ export async function POST(req: NextRequest) {
         householdId: household.id,
         email: normalizedEmail,
         passwordHash,
-        role: "ADMIN",
       },
     });
 
@@ -110,7 +109,6 @@ export async function POST(req: NextRequest) {
   await createSession({
     userId: result.user.id,
     householdId: result.household.id,
-    role: "ADMIN",
     email: result.user.email,
     isPlatformOwner: false,
   });

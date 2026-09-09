@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
   await createSession({
     userId: user.id,
     householdId: user.householdId,
-    role: user.role,
     email: user.email,
     isPlatformOwner: user.isPlatformOwner,
   });

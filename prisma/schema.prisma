@@ -8,12 +8,6 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role {
-  ADMIN
-  EDITOR
-  VIEWER
-}
-
 enum Residency {
   NRI
   RESIDENT_INDIAN
@@ -51,7 +45,6 @@ model User {
   household      Household? @relation(fields: [householdId], references: [id], onDelete: Cascade)
   email          String    @unique
   passwordHash   String
-  role           Role      @default(ADMIN)
   isPlatformOwner Boolean  @default(false)
   status         String    @default("active") // active | disabled
   createdAt      DateTime  @default(now())

@@ -23,7 +23,7 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "asc" },
         include: { accounts: true },
       },
-      users: { select: { id: true, email: true, role: true } },
+      users: { select: { id: true, email: true } },
       allocationTargets: true,
       goals: { orderBy: { createdAt: "asc" } },
     },
@@ -220,7 +220,6 @@ export default async function DashboardPage() {
           {household.users.map((u) => (
             <div key={u.id} className="flex items-center justify-between px-4 py-3">
               <p className="text-base text-ink">{u.email}</p>
-              <span className="text-xs uppercase tracking-wide text-folio">{u.role}</span>
             </div>
           ))}
         </div>

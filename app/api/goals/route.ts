@@ -29,10 +29,6 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
-  if (session.role === "VIEWER") {
-    return NextResponse.json({ error: "Viewers can't add goals." }, { status: 403 });
-  }
-
   const body = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {

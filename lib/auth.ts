@@ -26,7 +26,6 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
 export type SessionPayload = {
   userId: string;
   householdId: string | null;
-  role: "ADMIN" | "EDITOR" | "VIEWER";
   email: string;
   isPlatformOwner: boolean;
 };

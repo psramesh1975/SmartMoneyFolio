@@ -29,7 +29,6 @@ export default async function GoalsPage() {
           currentAmount: g.currentAmount.toString(),
           currency: g.currency,
         }))}
-        canEdit={session.role !== "VIEWER"}
       />
     </section>
   );

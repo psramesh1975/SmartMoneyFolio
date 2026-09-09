@@ -27,7 +27,6 @@ export default async function AllocationPage() {
       <AllocationClient
         assetClasses={ASSET_CLASSES.map((c) => ({ value: c.value, label: c.label }))}
         initialTargets={targetMap}
-        canEdit={session.role !== "VIEWER"}
       />
     </section>
   );

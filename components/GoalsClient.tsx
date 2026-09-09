@@ -14,10 +14,8 @@ type GoalRow = {
 
 export default function GoalsClient({
   initialGoals,
-  canEdit,
 }: {
   initialGoals: GoalRow[];
-  canEdit: boolean;
 }) {
   const router = useRouter();
   const [goals, setGoals] = useState(initialGoals);
@@ -65,8 +63,7 @@ export default function GoalsClient({
 
   return (
     <div className="mt-8 space-y-8">
-      {canEdit && (
-        <form
+      <form
           onSubmit={handleAdd}
           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
         >
@@ -123,7 +120,6 @@ export default function GoalsClient({
           </div>
           {error && <p className="lg:col-span-5 text-base text-amber">{error}</p>}
         </form>
-      )}
 
       <div className="space-y-4">
         {goals.length === 0 && (

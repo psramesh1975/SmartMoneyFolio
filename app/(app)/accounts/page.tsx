@@ -41,7 +41,6 @@ export default async function AccountsPage() {
           currency: a.currency,
           currentValue: a.currentValue.toString(),
         }))}
-        canEdit={session.role !== "VIEWER"}
       />
     </section>
   );

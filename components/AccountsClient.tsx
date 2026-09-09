@@ -20,11 +20,9 @@ type AccountRow = {
 export default function AccountsClient({
   familyMembers,
   initialAccounts,
-  canEdit,
 }: {
   familyMembers: FamilyMemberOption[];
   initialAccounts: AccountRow[];
-  canEdit: boolean;
 }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState(initialAccounts);
@@ -87,8 +85,7 @@ export default function AccountsClient({
 
   return (
     <div className="mt-8 space-y-8">
-      {canEdit && (
-        <form
+      <form
           onSubmit={handleAdd}
           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
         >
@@ -165,7 +162,6 @@ export default function AccountsClient({
             <p className="sm:col-span-2 lg:col-span-5 text-base text-amber">{error}</p>
           )}
         </form>
-      )}
 
       <div className="divide-y divide-line border border-line bg-white">
         {accounts.length === 0 && (
@@ -185,14 +181,12 @@ export default function AccountsClient({
               <span className="text-base text-ink">
                 {a.currency} {Number(a.currentValue).toLocaleString()}
               </span>
-              {canEdit && (
-                <button
-                  onClick={() => handleDelete(a.id)}
-                  className="text-xs text-amber hover:underline"
-                >
-                  Remove
-                </button>
-              )}
+              <button
+                onClick={() => handleDelete(a.id)}
+                className="text-xs text-amber hover:underline"
+              >
+                Remove
+              </button>
             </div>
           </div>
         ))}

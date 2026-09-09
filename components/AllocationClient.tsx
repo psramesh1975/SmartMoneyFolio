@@ -6,11 +6,9 @@ import { useRouter } from "next/navigation";
 export default function AllocationClient({
   assetClasses,
   initialTargets,
-  canEdit,
 }: {
   assetClasses: { value: string; label: string }[];
   initialTargets: Record<string, number>;
-  canEdit: boolean;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<Record<string, number>>(() => {
@@ -65,7 +63,6 @@ export default function AllocationClient({
                 min={0}
                 max={100}
                 value={values[c.value]}
-                disabled={!canEdit}
                 onChange={(e) =>
                   setValues((prev) => ({ ...prev, [c.value]: Number(e.target.value) }))
                 }
@@ -81,15 +78,13 @@ export default function AllocationClient({
         <span className={total === 100 ? "text-growth" : "text-amber"}>
           Total: {total}% {total !== 100 && "(should add up to 100%)"}
         </span>
-        {canEdit && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
-          >
-            {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
-          </button>
-        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+        >
+          {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
+        </button>
       </div>
       {error && <p className="mt-2 text-base text-amber">{error}</p>}
     </div>
