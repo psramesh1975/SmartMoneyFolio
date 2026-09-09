@@ -7,9 +7,15 @@ import LogoutButton from "@/components/LogoutButton";
 export default function ClientSidebar({
   isPlatformOwner,
   householdName,
+  previousLabel,
+  currentLabel,
+  nextLabel,
 }: {
   isPlatformOwner: boolean;
   householdName: string;
+  previousLabel: string;
+  currentLabel: string;
+  nextLabel: string;
 }) {
   const pathname = usePathname();
 
@@ -45,14 +51,17 @@ export default function ClientSidebar({
         <Link href="/monthly/base" className={linkClass("/monthly/base")}>
           Monthly Base
         </Link>
-        <Link href="/monthly/previous" className={linkClass("/monthly/previous")}>
-          Previous Month
+        <Link href="/monthly/previous" className={`${linkClass("/monthly/previous")} flex items-center justify-between`}>
+          <span>Previous Month</span>
+          <span className="text-xs opacity-70">{previousLabel}</span>
         </Link>
-        <Link href="/monthly/current" className={linkClass("/monthly/current")}>
-          Current Month
+        <Link href="/monthly/current" className={`${linkClass("/monthly/current")} flex items-center justify-between`}>
+          <span>Current Month</span>
+          <span className="text-xs opacity-70">{currentLabel}</span>
         </Link>
-        <Link href="/monthly/next" className={linkClass("/monthly/next")}>
-          Next Month
+        <Link href="/monthly/next" className={`${linkClass("/monthly/next")} flex items-center justify-between`}>
+          <span>Next Month</span>
+          <span className="text-xs opacity-70">{nextLabel}</span>
         </Link>
         <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")}>
           Earlier Months

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CURRENCIES } from "@/lib/currencies";
+import CountryTimeZoneFields from "@/components/CountryTimeZoneFields";
 
 type ProfileData = {
   name: string;
@@ -10,6 +11,8 @@ type ProfileData = {
   address: string;
   operationalCurrency: string;
   residencyStatus: string;
+  country: string;
+  timeZone: string;
 };
 
 export default function SettingsClient({
@@ -40,6 +43,8 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
   const [address, setAddress] = useState(initialProfile.address);
   const [operationalCurrency, setOperationalCurrency] = useState(initialProfile.operationalCurrency);
   const [residencyStatus, setResidencyStatus] = useState(initialProfile.residencyStatus);
+  const [country, setCountry] = useState(initialProfile.country);
+  const [timeZone, setTimeZone] = useState(initialProfile.timeZone);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -53,7 +58,15 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
       const res = await fetch("/api/account/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, city, address, operationalCurrency, residencyStatus }),
+        body: JSON.stringify({
+          name,
+          city,
+          address,
+          operationalCurrency,
+          residencyStatus,
+          country,
+          timeZone,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -127,6 +140,25 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
             <option value="RESIDENT_INDIAN">Resident Indian</option>
             <option value="OTHER">Other</option>
           </select>
+        </div>
+
+        <hr className="border-line" />
+        <div>
+          <p className="text-sm font-medium text-ink-2">
+            Household country &amp; timezone
+          </p>
+          <p className="mt-0.5 text-sm text-ink-2">
+            Decides which calendar month is "Current" in Monthly Tracking. Changes apply
+            immediately, from your next visit to any Monthly Tracking page.
+          </p>
+          <div className="mt-2">
+            <CountryTimeZoneFields
+              country={country}
+              timeZone={timeZone}
+              onCountryChange={setCountry}
+              onTimeZoneChange={setTimeZone}
+            />
+          </div>
         </div>
 
         {error && <p className="text-base text-amber">{error}</p>}

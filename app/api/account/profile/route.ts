@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
+import { COUNTRY_CODES, isValidTimeZone } from "@/lib/countries";
 
 const RESIDENCY_STATUSES = ["NRI", "RESIDENT_INDIAN", "OTHER"] as const;
 
@@ -12,6 +13,11 @@ const schema = z.object({
   address: z.string().min(1),
   operationalCurrency: z.enum(CURRENCY_CODES),
   residencyStatus: z.enum(RESIDENCY_STATUSES),
+  // Household-level, not per-profile — see note below. Optional here only so
+  // this route still works for a family-member profile with no linked
+  // household context to update; the Settings UI always sends both.
+  country: z.enum(COUNTRY_CODES).optional(),
+  timeZone: z.string().min(1).refine(isValidTimeZone, { message: "Not a valid timezone." }).optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -34,16 +40,23 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  const updated = await prisma.familyMember.update({
-    where: { id: familyMember.id },
-    data: {
-      name: parsed.data.name,
-      city: parsed.data.city,
-      address: parsed.data.address,
-      operationalCurrency: parsed.data.operationalCurrency,
-      residencyStatus: parsed.data.residencyStatus,
-    },
-  });
+  const { country, timeZone, ...profileFields } = parsed.data;
+
+  const [updated] = await Promise.all([
+    prisma.familyMember.update({
+      where: { id: familyMember.id },
+      data: profileFields,
+    }),
+    // Country/timezone live on the Household, not this family member — apply
+    // immediately to all period math on the next request, no guardrails for
+    // a mid-cycle change (the rare month-boundary flip is harmless).
+    session.householdId && (country || timeZone)
+      ? prisma.household.update({
+          where: { id: session.householdId },
+          data: { ...(country ? { country } : {}), ...(timeZone ? { timeZone } : {}) },
+        })
+      : Promise.resolve(null),
+  ]);
 
   return NextResponse.json({ familyMember: updated });
 }

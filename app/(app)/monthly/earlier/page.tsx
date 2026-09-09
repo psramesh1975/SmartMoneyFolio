@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getReadOnlyMonthPayload } from "@/lib/monthly-data";
+import { getReadOnlyMonthPayload, getHouseholdTimeZone } from "@/lib/monthly-data";
 import { getEarlierMonthsOfCurrentYear } from "@/lib/monthly-periods";
 import MonthlyHistoryStack from "@/components/MonthlyHistoryStack";
 
@@ -10,7 +10,8 @@ export default async function EarlierMonthsPage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const periods = getEarlierMonthsOfCurrentYear();
+  const timeZone = await getHouseholdTimeZone(session.householdId);
+  const periods = getEarlierMonthsOfCurrentYear(timeZone);
 
   const [months, household] = await Promise.all([
     Promise.all(periods.map((p) => getReadOnlyMonthPayload(session.householdId!, p.year, p.month))),

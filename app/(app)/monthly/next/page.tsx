@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getMonthPayload } from "@/lib/monthly-data";
+import { getMonthPayload, getHouseholdTimeZone } from "@/lib/monthly-data";
 import { getNextPeriod, MONTH_LABELS } from "@/lib/monthly-periods";
 import MonthlyTrackerClient from "@/components/MonthlyTrackerClient";
 
@@ -10,7 +10,8 @@ export default async function NextMonthPage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const { year, month } = getNextPeriod();
+  const timeZone = await getHouseholdTimeZone(session.householdId);
+  const { year, month } = getNextPeriod(timeZone);
   const [payload, household] = await Promise.all([
     getMonthPayload(session.householdId, year, month),
     prisma.household.findUnique({

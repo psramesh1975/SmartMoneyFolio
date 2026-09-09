@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
+import { COUNTRY_CODES, isValidTimeZone } from "@/lib/countries";
 
 const memberSchema = z.object({
   name: z.string().min(1),
@@ -17,6 +18,8 @@ const memberSchema = z.object({
 
 const schema = z.object({
   householdName: z.string().min(1),
+  country: z.enum(COUNTRY_CODES),
+  timeZone: z.string().min(1).refine(isValidTimeZone, { message: "Not a valid timezone." }),
   baseCurrency: z.enum(CURRENCY_CODES),
   operationalCurrency: z.enum(CURRENCY_CODES),
   email: z.string().email(),
@@ -34,7 +37,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { householdName, baseCurrency, operationalCurrency, email, password, members } = parsed.data;
+  const { householdName, country, timeZone, baseCurrency, operationalCurrency, email, password, members } =
+    parsed.data;
   const normalizedEmail = email.toLowerCase();
 
   const selfDraft = members.find((m) => m.relationship.toLowerCase() === "self");
@@ -59,6 +63,8 @@ export async function POST(req: NextRequest) {
     const household = await tx.household.create({
       data: {
         name: householdName,
+        country,
+        timeZone,
         baseCurrency,
         operationalCurrency,
       },

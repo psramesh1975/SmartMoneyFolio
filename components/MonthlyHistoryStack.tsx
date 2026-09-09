@@ -1,35 +1,15 @@
-import { Fragment } from "react";
-import { MONTH_LABELS } from "@/lib/monthly-periods";
 import type { MonthlySummary } from "@/lib/monthly-summary";
 import type { MonthlyMonthPayload } from "@/lib/monthly-types";
-import MonthlySheetTable, { type SheetRow } from "@/components/MonthlySheetTable";
+import MonthHistoryCard from "@/components/MonthHistoryCard";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
 }
 
-function SummaryGrid({ summary, currency }: { summary: MonthlySummary; currency: string }) {
-  const rows: [string, number, number][] = [
-    ["Income", summary.plannedIncome, summary.actualIncome],
-    ["Outflow", summary.plannedOutflow, summary.actualOutflow],
-    ["Net Surplus", summary.netSurplusPlanned, summary.netSurplusActual],
-  ];
-  return (
-    <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-      <div className="font-medium text-ink-2">&nbsp;</div>
-      <div className="font-medium text-ink-2">Planned</div>
-      <div className="font-medium text-ink-2">Actual</div>
-      {rows.map(([label, planned, actual]) => (
-        <Fragment key={label}>
-          <div className="text-ink">{label}</div>
-          <div className="text-ink">{currency} {fmt(planned)}</div>
-          <div className="text-ink">{currency} {fmt(actual)}</div>
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
+// Used by both /monthly/earlier and /monthly/years/[year] — a stack of
+// expandable month cards, newest first (the pages pass months already
+// reversed into that order). Stays a server component; each card is its own
+// client island for the expand/collapse interaction.
 export default function MonthlyHistoryStack({
   months,
   yearlySummary,
@@ -40,52 +20,32 @@ export default function MonthlyHistoryStack({
   currency: string;
 }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {yearlySummary && (
-        <div className="border border-line bg-white p-4">
+        <div className="border border-line bg-paper-2 p-4">
           <h2 className="font-display text-xl text-ink">Year total</h2>
-          <SummaryGrid summary={yearlySummary} currency={currency} />
+          <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-2">
+            <span>
+              Total Inflow: {currency} {fmt(yearlySummary.actualIncome)}
+            </span>
+            <span>
+              Total Outflow: {currency} {fmt(yearlySummary.actualOutflow)}
+            </span>
+            <span
+              className={
+                yearlySummary.netSurplusActual >= 0
+                  ? "font-semibold text-growth"
+                  : "font-semibold text-coral"
+              }
+            >
+              Net Saved: {currency} {fmt(yearlySummary.netSurplusActual)}
+            </span>
+          </div>
         </div>
       )}
 
       {months.map((m) => (
-        <div key={`${m.year}-${m.month}`} className="border border-line bg-white p-4">
-          <h3 className="font-display text-lg text-ink">
-            {MONTH_LABELS[m.month - 1]} {m.year}
-          </h3>
-          <SummaryGrid summary={m.summary} currency={currency} />
-          <p className="mt-2 text-xs text-ink-2">
-            * Actual totals count any line without an entered actual as its planned amount.
-          </p>
-
-          {m.categories.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-2">No entries.</p>
-          ) : (
-            <div>
-              {m.categories.map((c) => {
-                const rows: SheetRow[] = c.entries.map((e) => ({
-                  id: e.id,
-                  name: e.name,
-                  base: Number(e.baseAmount),
-                  planned: Number(e.plannedAmount),
-                  actual: e.actualAmount == null ? null : Number(e.actualAmount),
-                  remark: e.notes,
-                  isSkipped: e.isSkipped,
-                }));
-                return (
-                  <MonthlySheetTable
-                    key={c.id}
-                    categoryName={c.name}
-                    rows={rows}
-                    enabledColumns={["planned", "actual"]}
-                    showSkipColumn={false}
-                    readOnly
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <MonthHistoryCard key={`${m.year}-${m.month}`} payload={m} currency={currency} />
       ))}
     </div>
   );

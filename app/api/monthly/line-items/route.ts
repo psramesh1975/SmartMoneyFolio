@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getCurrentPeriod } from "@/lib/monthly-periods";
+import { getHouseholdTimeZone } from "@/lib/monthly-data";
 
 const repeatMonthSchema = z.number().int().min(1).max(12);
 
@@ -50,7 +51,8 @@ export async function POST(req: NextRequest) {
   });
   if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
 
-  const { year, month } = getCurrentPeriod();
+  const timeZone = await getHouseholdTimeZone(session.householdId);
+  const { year, month } = getCurrentPeriod(timeZone);
 
   const lineItem = await prisma.monthlyLineItem.create({
     data: {

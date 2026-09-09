@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getYearPayload } from "@/lib/monthly-data";
+import { getYearPayload, getHouseholdTimeZone } from "@/lib/monthly-data";
 import { getMostRecentArchivedYear } from "@/lib/monthly-periods";
 import MonthlyHistoryStack from "@/components/MonthlyHistoryStack";
 
@@ -15,8 +15,9 @@ export default async function ArchivedYearPage({
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
+  const timeZone = await getHouseholdTimeZone(session.householdId);
   const year = Number(yearStr);
-  if (!Number.isInteger(year) || year > getMostRecentArchivedYear()) {
+  if (!Number.isInteger(year) || year > getMostRecentArchivedYear(timeZone)) {
     redirect("/monthly/years");
   }
 
