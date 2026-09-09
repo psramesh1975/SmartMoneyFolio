@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getYearPayload } from "@/lib/monthly-data";
+import { getYearPayload, getHouseholdTimeZone } from "@/lib/monthly-data";
 import { getMostRecentArchivedYear } from "@/lib/monthly-periods";
 
 export async function GET(req: Request, { params }: { params: Promise<{ year: string }> }) {
@@ -9,8 +9,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ year: st
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
 
+  const timeZone = await getHouseholdTimeZone(session.householdId);
   const year = Number(yearStr);
-  if (!Number.isInteger(year) || year > getMostRecentArchivedYear()) {
+  if (!Number.isInteger(year) || year > getMostRecentArchivedYear(timeZone)) {
     return NextResponse.json({ error: "That year isn't archived yet." }, { status: 404 });
   }
 

@@ -10,6 +10,18 @@ import type {
   MonthlyYearPayload,
 } from "@/lib/monthly-types";
 
+// Every Monthly Tracking page/route needs the household's timezone before it
+// can resolve "which month is Current" — centralized here so nobody forgets
+// the "UTC" fallback for households (or the pre-timezone accounts on this
+// deploy) that don't have one set.
+export async function getHouseholdTimeZone(householdId: string): Promise<string> {
+  const household = await prisma.household.findUnique({
+    where: { id: householdId },
+    select: { timeZone: true },
+  });
+  return household?.timeZone || "UTC";
+}
+
 // Shared by the month API route and the server-component pages (Current/
 // Previous/Next), so both go through the exact same generation + fetch +
 // summary logic instead of the page re-fetching its own API.

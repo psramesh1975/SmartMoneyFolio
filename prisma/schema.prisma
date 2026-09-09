@@ -19,6 +19,13 @@ enum Residency {
 model Household {
   id                   String        @id @default(cuid())
   name                 String
+  // Required at signup (not silently defaulted there — the signup form
+  // blocks submission without an explicit choice); defaults here exist only
+  // so this migration doesn't fail against already-existing households,
+  // which get backfilled to these placeholders and should update them from
+  // Settings.
+  country              String        @default("")
+  timeZone             String        @default("UTC") // IANA zone, e.g. "Asia/Dubai" — drives all Monthly Tracking period math
   baseCurrency         String        @default("USD")
   operationalCurrency  String        @default("USD")
   isSuspended          Boolean       @default(false) // platform admin can suspend a client's access

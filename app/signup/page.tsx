@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CURRENCIES } from "@/lib/currencies";
 import { RELATIONSHIPS } from "@/lib/relationships";
+import { findCountryForTimeZone } from "@/lib/countries";
+import CountryTimeZoneFields from "@/components/CountryTimeZoneFields";
 
 type MemberDraft = {
   name: string;
@@ -36,10 +38,29 @@ export default function SignupPage() {
 
   // Step 1 — household + admin account
   const [householdName, setHouseholdName] = useState("");
+  const [country, setCountry] = useState("");
+  const [timeZone, setTimeZone] = useState("");
   const [baseCurrency, setBaseCurrency] = useState("USD");
   const [operationalCurrency, setOperationalCurrency] = useState("USD");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Pre-fill (never auto-submit) from the browser's own timezone — only
+  // when it maps to a country we know, so Country and Timezone start in
+  // sync. If it doesn't match anything, both fields just stay blank and the
+  // household picks explicitly.
+  useEffect(() => {
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const detectedCountry = findCountryForTimeZone(detected);
+      if (detectedCountry) {
+        setCountry(detectedCountry);
+        setTimeZone(detected);
+      }
+    } catch {
+      // Intl not available or detection failed — leave both blank.
+    }
+  }, []);
 
   // Step 2 — family members
   const [members, setMembers] = useState<MemberDraft[]>([
@@ -65,6 +86,10 @@ export default function SignupPage() {
       setError("Give your household a name.");
       return;
     }
+    if (!country || !timeZone) {
+      setError("Select your country and timezone — this decides which calendar month is \"current\" for you.");
+      return;
+    }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -81,6 +106,8 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           householdName,
+          country,
+          timeZone,
           baseCurrency,
           operationalCurrency,
           email,
@@ -137,6 +164,16 @@ export default function SignupPage() {
                 className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-ink"
               />
             </div>
+
+            <CountryTimeZoneFields
+              country={country}
+              timeZone={timeZone}
+              onCountryChange={setCountry}
+              onTimeZoneChange={setTimeZone}
+            />
+            <p className="-mt-3 text-sm text-ink-2">
+              This decides which calendar month is "Current" for your household.
+            </p>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -361,6 +398,9 @@ export default function SignupPage() {
           <div className="mt-8 space-y-6">
             <div className="border border-line bg-white p-4 text-base">
               <p className="font-semibold text-ink">{householdName}</p>
+              <p className="mt-1 text-ink-2">
+                {country} · {timeZone}
+              </p>
               <p className="mt-1 text-ink-2">
                 Base currency {baseCurrency} · Operational currency {operationalCurrency}
               </p>

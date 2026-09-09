@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getHouseholdTimeZone } from "@/lib/monthly-data";
 import { getMostRecentArchivedYear } from "@/lib/monthly-periods";
 
 export default async function EarlierYearsPage() {
@@ -9,7 +10,8 @@ export default async function EarlierYearsPage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const archivedYear = getMostRecentArchivedYear();
+  const timeZone = await getHouseholdTimeZone(session.householdId);
+  const archivedYear = getMostRecentArchivedYear(timeZone);
 
   const rows = await prisma.monthlyEntry.findMany({
     where: { householdId: session.householdId, year: { lte: archivedYear } },

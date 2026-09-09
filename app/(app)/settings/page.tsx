@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const [household, familyMember] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
-      select: { name: true },
+      select: { name: true, country: true, timeZone: true },
     }),
     prisma.familyMember.findUnique({
       where: { linkedUserId: session.userId },
@@ -41,6 +41,8 @@ export default async function SettingsPage() {
                 address: familyMember.address ?? "",
                 operationalCurrency: familyMember.operationalCurrency,
                 residencyStatus: familyMember.residencyStatus,
+                country: household?.country ?? "",
+                timeZone: household?.timeZone ?? "",
               }
             : null
         }
