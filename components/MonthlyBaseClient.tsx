@@ -228,79 +228,77 @@ export default function MonthlyBaseClient({
         />
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed border-collapse text-sm">
-          <thead>
-            <tr className="bg-sheet-header text-paper">
-              <th className="w-[44%] border border-sheet-border px-3 py-2 text-left font-bold">
-                Expense
-              </th>
-              <th className="w-[32%] border border-sheet-border px-3 py-2 text-left font-bold">
-                Category
-              </th>
-              <th className="w-[20%] border border-sheet-border px-3 py-2 text-right font-bold">
-                Base
-              </th>
-              <th className="w-10 border border-sheet-border px-2 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="group bg-sheet-row">
-                <td className="border border-sheet-border p-0">
-                  <input
-                    ref={(el) => {
-                      nameInputRefs.current[row.id] = el;
-                    }}
-                    defaultValue={row.name}
-                    placeholder="Expense description…"
-                    onBlur={(e) => handleNameBlur(row.id, e.target.value)}
-                    className="w-full border-0 bg-transparent px-3 py-2 text-ink focus:bg-white/80 focus:outline-none"
-                  />
-                </td>
-                <td className="relative border border-sheet-border p-0">
-                  <CategoryCombobox
-                    categories={categories}
-                    value={row.categoryId}
-                    onChange={(categoryId) => handleCategoryChange(row.id, categoryId)}
-                    onCreated={handleCategoryCreated}
-                  />
-                </td>
-                <td className="border border-sheet-border p-0">
-                  <input
-                    type="number"
-                    step="any"
-                    value={row.baseAmount}
-                    onChange={(e) => handleBaseChange(row.id, e.target.value)}
-                    onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
-                    className="w-full border-0 bg-transparent px-3 py-2 text-right text-ink [font-variant-numeric:tabular-nums] focus:bg-white/80 focus:outline-none"
-                  />
-                </td>
-                <td className="border border-sheet-border px-2 py-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(row.id)}
-                    title="Delete row"
-                    className="text-lg font-bold leading-none text-coral opacity-40 transition-opacity group-hover:opacity-100"
-                  >
-                    ×
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-sheet-header text-paper font-bold">
-              <td className="border border-sheet-border px-3 py-2">Total</td>
-              <td className="border border-sheet-border px-3 py-2" />
-              <td className="border border-sheet-border px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
-                {formatTotal(total)}
+      <table className="w-full table-fixed border-collapse text-sm">
+        <thead>
+          <tr className="bg-sheet-header text-paper">
+            <th className="w-[44%] border border-sheet-border px-3 py-2 text-left font-bold">
+              Expense
+            </th>
+            <th className="w-[32%] border border-sheet-border px-3 py-2 text-left font-bold">
+              Category
+            </th>
+            <th className="w-[20%] border border-sheet-border px-3 py-2 text-right font-bold">
+              Base
+            </th>
+            <th className="w-10 border border-sheet-border px-2 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="group bg-sheet-row">
+              <td className="border border-sheet-border p-0">
+                <input
+                  ref={(el) => {
+                    nameInputRefs.current[row.id] = el;
+                  }}
+                  defaultValue={row.name}
+                  placeholder="Expense description…"
+                  onBlur={(e) => handleNameBlur(row.id, e.target.value)}
+                  className="w-full border-0 bg-transparent px-3 py-2 text-ink focus:bg-white/80 focus:outline-none"
+                />
               </td>
-              <td className="border border-sheet-border px-2 py-2" />
+              <td className="border border-sheet-border p-0">
+                <CategoryCombobox
+                  categories={categories}
+                  value={row.categoryId}
+                  onChange={(categoryId) => handleCategoryChange(row.id, categoryId)}
+                  onCreated={handleCategoryCreated}
+                />
+              </td>
+              <td className="border border-sheet-border p-0">
+                <input
+                  type="number"
+                  step="any"
+                  value={row.baseAmount}
+                  onChange={(e) => handleBaseChange(row.id, e.target.value)}
+                  onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
+                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-ink [font-variant-numeric:tabular-nums] focus:bg-white/80 focus:outline-none"
+                />
+              </td>
+              <td className="border border-sheet-border px-2 py-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(row.id)}
+                  title="Delete row"
+                  className="text-lg font-bold leading-none text-coral opacity-40 transition-opacity group-hover:opacity-100"
+                >
+                  ×
+                </button>
+              </td>
             </tr>
-          </tfoot>
-        </table>
-      </div>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bg-sheet-header text-paper font-bold">
+            <td className="border border-sheet-border px-3 py-2">Total</td>
+            <td className="border border-sheet-border px-3 py-2" />
+            <td className="border border-sheet-border px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
+              {formatTotal(total)}
+            </td>
+            <td className="border border-sheet-border px-2 py-2" />
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }
