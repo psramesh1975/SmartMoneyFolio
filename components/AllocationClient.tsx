@@ -58,7 +58,7 @@ export default function AllocationClient({
       <div className="divide-y divide-line border border-line bg-white">
         {assetClasses.map((c) => (
           <div key={c.value} className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-sm text-ink">{c.label}</span>
+            <span className="text-base text-ink">{c.label}</span>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -69,29 +69,29 @@ export default function AllocationClient({
                 onChange={(e) =>
                   setValues((prev) => ({ ...prev, [c.value]: Number(e.target.value) }))
                 }
-                className="focus-ring w-16 border border-line bg-white px-2 py-1 text-right text-sm text-ink disabled:bg-paper-2"
+                className="focus-ring w-16 border border-line bg-white px-2 py-1 text-right text-base text-ink disabled:bg-paper-2"
               />
-              <span className="text-sm text-ink-2">%</span>
+              <span className="text-base text-ink-2">%</span>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-sm">
-        <span className={total === 100 ? "text-rupee" : "text-dirham"}>
+      <div className="mt-3 flex items-center justify-between text-base">
+        <span className={total === 100 ? "text-growth" : "text-amber"}>
           Total: {total}% {total !== 100 && "(should add up to 100%)"}
         </span>
         {canEdit && (
           <button
             onClick={handleSave}
             disabled={saving}
-            className="focus-ring bg-ink px-4 py-2 text-sm text-paper hover:bg-ink-2 disabled:opacity-60"
+            className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
           >
             {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
           </button>
         )}
       </div>
-      {error && <p className="mt-2 text-sm text-dirham">{error}</p>}
+      {error && <p className="mt-2 text-base text-amber">{error}</p>}
     </div>
   );
 }

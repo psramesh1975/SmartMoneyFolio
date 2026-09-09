@@ -61,7 +61,7 @@ export default function PlatformClientsClient({
   }
 
   if (households.length === 0) {
-    return <p className="mt-8 text-sm text-ink-2">No clients have signed up yet.</p>;
+    return <p className="mt-8 text-base text-ink-2">No clients have signed up yet.</p>;
   }
 
   return (
@@ -70,13 +70,13 @@ export default function PlatformClientsClient({
         <div key={h.id} className="border border-line bg-white p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-ink">
+              <p className="text-base font-medium text-ink">
                 {h.name}
                 {h.isSuspended && (
-                  <span className="ml-2 text-xs font-semibold uppercase text-dirham">Suspended</span>
+                  <span className="ml-2 text-xs font-semibold uppercase text-amber">Suspended</span>
                 )}
               </p>
-              <p className="text-xs text-ink-2">
+              <p className="text-sm text-ink-2">
                 {h.baseCurrency} · {h.familyMemberCount} family member
                 {h.familyMemberCount !== 1 ? "s" : ""} · {h.accountCount} holding
                 {h.accountCount !== 1 ? "s" : ""} · joined{" "}
@@ -88,8 +88,8 @@ export default function PlatformClientsClient({
               disabled={busyId === h.id}
               className={`focus-ring border px-3 py-1.5 text-xs disabled:opacity-60 ${
                 h.isSuspended
-                  ? "border-rupee text-rupee hover:bg-rupee/5"
-                  : "border-dirham text-dirham hover:bg-dirham/5"
+                  ? "border-growth text-growth hover:bg-growth/5"
+                  : "border-amber text-amber hover:bg-amber/5"
               }`}
             >
               {h.isSuspended ? "Reactivate" : "Suspend"}
@@ -98,13 +98,13 @@ export default function PlatformClientsClient({
 
           <div className="mt-3 divide-y divide-line border-t border-line pt-2">
             {h.users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between py-1.5 text-sm">
+              <div key={u.id} className="flex items-center justify-between py-1.5 text-base">
                 <span className="text-ink">{u.email}</span>
                 <select
                   value={u.role}
                   disabled={busyId === u.id}
                   onChange={(e) => changeRole(u.id, h.id, e.target.value)}
-                  className="focus-ring border border-line bg-white px-2 py-1 text-xs text-ink"
+                  className="focus-ring border border-line bg-white px-2 py-1 text-sm text-ink"
                 >
                   <option value="ADMIN">Admin</option>
                   <option value="EDITOR">Editor</option>

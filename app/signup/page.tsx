@@ -107,11 +107,11 @@ export default function SignupPage() {
   return (
     <main className="min-h-screen bg-paper px-6 py-12">
       <div className="mx-auto max-w-xl">
-        <Link href="/" className="font-display text-lg italic text-ink">
-          WealthBridge
+        <Link href="/" className="font-display text-xl italic text-ink">
+          Smart Money Folio
         </Link>
 
-        <div className="mt-6 flex items-center gap-2 text-xs text-ink-2">
+        <div className="mt-6 flex items-center gap-2 text-sm text-ink-2">
           <span className={step === 1 ? "font-semibold text-ink" : ""}>1. Household</span>
           <span className="text-line">—</span>
           <span className={step === 2 ? "font-semibold text-ink" : ""}>2. Family members</span>
@@ -120,7 +120,7 @@ export default function SignupPage() {
         </div>
 
         {error && (
-          <p className="mt-4 border border-dirham/40 bg-dirham/5 px-3 py-2 text-sm text-dirham">
+          <p className="mt-4 border border-amber/40 bg-amber/5 px-3 py-2 text-base text-amber">
             {error}
           </p>
         )}
@@ -128,7 +128,7 @@ export default function SignupPage() {
         {step === 1 && (
           <form onSubmit={goToMembers} className="mt-8 space-y-5">
             <div>
-              <label className="block text-sm font-medium text-ink-2">Household name</label>
+              <label className="block text-base font-medium text-ink-2">Household name</label>
               <input
                 required
                 value={householdName}
@@ -140,7 +140,7 @@ export default function SignupPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-ink-2">
+                <label className="block text-base font-medium text-ink-2">
                   Base currency (net worth)
                 </label>
                 <select
@@ -156,7 +156,7 @@ export default function SignupPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink-2">
+                <label className="block text-base font-medium text-ink-2">
                   Operational currency (day to day)
                 </label>
                 <select
@@ -176,7 +176,7 @@ export default function SignupPage() {
             <hr className="border-line" />
 
             <div>
-              <label className="block text-sm font-medium text-ink-2">Your email</label>
+              <label className="block text-base font-medium text-ink-2">Your email</label>
               <input
                 type="email"
                 required
@@ -186,7 +186,7 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink-2">
+              <label className="block text-base font-medium text-ink-2">
                 Create a password
               </label>
               <input
@@ -197,7 +197,7 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-ink"
               />
-              <p className="mt-1 text-xs text-ink-2">At least 8 characters. You'll be the household Admin.</p>
+              <p className="mt-1 text-sm text-ink-2">At least 8 characters. You'll be the household Admin.</p>
             </div>
 
             <button
@@ -211,7 +211,7 @@ export default function SignupPage() {
 
         {step === 2 && (
           <div className="mt-8 space-y-6">
-            <p className="text-sm text-ink-2">
+            <p className="text-base text-ink-2">
               Add anyone whose accounts, assets, or expenses you'll want to track
               separately — a spouse, children, or anyone else. You can add or edit
               these later.
@@ -228,7 +228,7 @@ export default function SignupPage() {
                       <button
                         type="button"
                         onClick={() => removeMember(i)}
-                        className="text-xs text-dirham hover:underline"
+                        className="text-xs text-amber hover:underline"
                       >
                         Remove
                       </button>
@@ -239,12 +239,12 @@ export default function SignupPage() {
                       placeholder="Name"
                       value={m.name}
                       onChange={(e) => updateMember(i, { name: e.target.value })}
-                      className="focus-ring border border-line bg-white px-3 py-2 text-sm text-ink"
+                      className="focus-ring border border-line bg-white px-3 py-2 text-base text-ink"
                     />
                     <select
                       value={m.relationship}
                       onChange={(e) => updateMember(i, { relationship: e.target.value })}
-                      className="focus-ring border border-line bg-white px-3 py-2 text-sm text-ink"
+                      className="focus-ring border border-line bg-white px-3 py-2 text-base text-ink"
                     >
                       <option value="" disabled>
                         Relationship
@@ -258,7 +258,7 @@ export default function SignupPage() {
                     <select
                       value={m.operationalCurrency}
                       onChange={(e) => updateMember(i, { operationalCurrency: e.target.value })}
-                      className="focus-ring border border-line bg-white px-3 py-2 text-sm text-ink"
+                      className="focus-ring border border-line bg-white px-3 py-2 text-base text-ink"
                     >
                       {CURRENCIES.map((c) => (
                         <option key={c.code} value={c.code}>
@@ -271,7 +271,7 @@ export default function SignupPage() {
                       onChange={(e) =>
                         updateMember(i, { residencyStatus: e.target.value as MemberDraft["residencyStatus"] })
                       }
-                      className="focus-ring border border-line bg-white px-3 py-2 text-sm text-ink"
+                      className="focus-ring border border-line bg-white px-3 py-2 text-base text-ink"
                     >
                       <option value="NRI">NRI</option>
                       <option value="RESIDENT_INDIAN">Resident Indian</option>
@@ -281,7 +281,7 @@ export default function SignupPage() {
 
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-ink-2">
+                      <label className="block text-sm text-ink-2">
                         Date of birth{m.relationship === "Self" && " *"}
                       </label>
                       <input
@@ -289,36 +289,36 @@ export default function SignupPage() {
                         required={m.relationship === "Self"}
                         value={m.dateOfBirth}
                         onChange={(e) => updateMember(i, { dateOfBirth: e.target.value })}
-                        className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-sm text-ink"
+                        className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
                       />
                     </div>
                     {m.relationship === "Self" && (
                       <div>
-                        <label className="block text-xs text-ink-2">Place / City *</label>
+                        <label className="block text-sm text-ink-2">Place / City *</label>
                         <input
                           required
                           value={m.city}
                           onChange={(e) => updateMember(i, { city: e.target.value })}
                           placeholder="Dubai"
-                          className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-sm text-ink"
+                          className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
                         />
                       </div>
                     )}
                   </div>
                   {m.relationship === "Self" && (
                     <div className="mt-3">
-                      <label className="block text-xs text-ink-2">Address *</label>
+                      <label className="block text-sm text-ink-2">Address *</label>
                       <input
                         required
                         value={m.address}
                         onChange={(e) => updateMember(i, { address: e.target.value })}
                         placeholder="Street, building, area"
-                        className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-sm text-ink"
+                        className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
                       />
                     </div>
                   )}
 
-                  <label className="mt-3 flex items-center gap-2 text-sm text-ink-2">
+                  <label className="mt-3 flex items-center gap-2 text-base text-ink-2">
                     <input
                       type="checkbox"
                       checked={m.isMinor}
@@ -333,7 +333,7 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={addMember}
-              className="focus-ring border border-line px-4 py-2 text-sm text-ink hover:border-span hover:text-span"
+              className="focus-ring border border-line px-4 py-2 text-base text-ink hover:border-folio hover:text-folio"
             >
               + Add another member
             </button>
@@ -359,7 +359,7 @@ export default function SignupPage() {
 
         {step === 3 && (
           <div className="mt-8 space-y-6">
-            <div className="border border-line bg-white p-4 text-sm">
+            <div className="border border-line bg-white p-4 text-base">
               <p className="font-semibold text-ink">{householdName}</p>
               <p className="mt-1 text-ink-2">
                 Base currency {baseCurrency} · Operational currency {operationalCurrency}
@@ -400,9 +400,9 @@ export default function SignupPage() {
           </div>
         )}
 
-        <p className="mt-8 text-sm text-ink-2">
+        <p className="mt-8 text-base text-ink-2">
           Already have an account?{" "}
-          <Link href="/login" className="text-span hover:underline">
+          <Link href="/login" className="text-folio hover:underline">
             Log in
           </Link>
         </p>

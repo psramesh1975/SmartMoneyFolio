@@ -24,18 +24,18 @@ export default function AllocationChart({
         data: {
           labels,
           datasets: [
-            { label: "Actual", data: actual, backgroundColor: "#12203A", borderRadius: 3 },
-            { label: "Target", data: target, backgroundColor: "#D8D0BF", borderRadius: 3 },
+            { label: "Actual", data: actual, backgroundColor: "#2F5FD1", borderRadius: 3 },
+            { label: "Target", data: target, backgroundColor: "#E2E6F0", borderRadius: 3 },
           ],
         },
         options: {
           indexAxis: "y",
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } },
+          plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 12 } } } },
           scales: {
-            x: { ticks: { callback: (v) => v + "%" }, grid: { color: "#EDE8DD" } },
-            y: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            x: { ticks: { callback: (v) => v + "%" }, grid: { color: "#F4F6FB" } },
+            y: { grid: { display: false }, ticks: { font: { size: 12 } } },
           },
         },
       });

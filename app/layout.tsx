@@ -18,7 +18,7 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "WealthBridge — Family Wealth & Cash Flow Tracker",
+  title: "Smart Money Folio — Your Money. Your Wealth. Your Future.",
   description:
     "One ledger for money that lives in two countries. Track cash flow, investments, and net worth across currencies and family members.",
 };

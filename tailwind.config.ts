@@ -5,15 +5,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#12203A",       // deep bridge-steel navy — primary
-        "ink-2": "#1B2E4F",   // lighter navy for panels
-        span: "#B8823A",      // brass/span accent — the bridge's structure
-        "span-light": "#D9A85C",
-        paper: "#FFFFFF",     // white background
-        "paper-2": "#EDE8DD",
-        rupee: "#3C6E52",     // muted teal-green for INR figures
-        dirham: "#8A4B2E",    // warm rust for AED figures
-        line: "#D8D0BF",
+        ink: "#161B33",        // near-black navy — primary text
+        "ink-2": "#4B5170",    // muted slate — secondary text
+        folio: "#2F5FD1",      // vivid royal blue — primary brand / nav / links
+        "folio-light": "#5C82E0",
+        growth: "#0FA968",     // vivid emerald — positive figures, growth, success states
+        amber: "#F2A93B",      // warm amber — highlights, in-progress states
+        coral: "#F2545B",      // vivid coral — alerts, suspended, negative figures
+        paper: "#FFFFFF",
+        "paper-2": "#F4F6FB",  // faint blue-white — section backgrounds, subtle separation
+        line: "#E2E6F0",
       },
       fontFamily: {
         display: ["var(--font-fraunces)", "serif"],

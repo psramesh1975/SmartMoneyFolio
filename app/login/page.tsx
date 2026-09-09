@@ -38,14 +38,14 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-6">
       <div className="w-full max-w-sm">
-        <Link href="/" className="font-display text-lg italic text-ink">
-          WealthBridge
+        <Link href="/" className="font-display text-xl italic text-ink">
+          Smart Money Folio
         </Link>
-        <h1 className="mt-6 font-display text-2xl text-ink">Log in</h1>
+        <h1 className="mt-6 font-display text-3xl text-ink">Log in</h1>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-ink-2">
+            <label htmlFor="email" className="block text-base font-medium text-ink-2">
               Email
             </label>
             <input
@@ -58,7 +58,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-ink-2">
+            <label htmlFor="password" className="block text-base font-medium text-ink-2">
               Password
             </label>
             <input
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="border border-dirham/40 bg-dirham/5 px-3 py-2 text-sm text-dirham">
+            <p className="border border-amber/40 bg-amber/5 px-3 py-2 text-base text-amber">
               {error}
             </p>
           )}
@@ -86,9 +86,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-ink-2">
+        <p className="mt-6 text-base text-ink-2">
           New here?{" "}
-          <Link href="/signup" className="text-span hover:underline">
+          <Link href="/signup" className="text-folio hover:underline">
             Create a household
           </Link>
         </p>

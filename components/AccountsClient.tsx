@@ -93,11 +93,11 @@ export default function AccountsClient({
           className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
         >
           <div>
-            <label className="block text-xs font-medium text-ink-2">Family member</label>
+            <label className="block text-sm font-medium text-ink-2">Family member</label>
             <select
               value={familyMemberId}
               onChange={(e) => setFamilyMemberId(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-sm text-ink"
+              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
             >
               {familyMembers.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -107,11 +107,11 @@ export default function AccountsClient({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-ink-2">Asset class</label>
+            <label className="block text-sm font-medium text-ink-2">Asset class</label>
             <select
               value={assetClass}
               onChange={(e) => setAssetClass(e.target.value as typeof assetClass)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-sm text-ink"
+              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
             >
               {ASSET_CLASSES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -121,21 +121,21 @@ export default function AccountsClient({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-ink-2">Holding name</label>
+            <label className="block text-sm font-medium text-ink-2">Holding name</label>
             <input
               value={holdingName}
               onChange={(e) => setHoldingName(e.target.value)}
               placeholder="PFC FD, Nippon Small Cap…"
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-sm text-ink"
+              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-ink-2">Value</label>
+            <label className="block text-sm font-medium text-ink-2">Value</label>
             <div className="mt-1 flex gap-1">
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="focus-ring w-20 border border-line bg-white px-1 py-2 text-sm text-ink"
+                className="focus-ring w-20 border border-line bg-white px-1 py-2 text-base text-ink"
               >
                 {CURRENCIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -148,7 +148,7 @@ export default function AccountsClient({
                 value={currentValue}
                 onChange={(e) => setCurrentValue(e.target.value)}
                 placeholder="500000"
-                className="focus-ring w-full border border-line bg-white px-2 py-2 text-sm text-ink"
+                className="focus-ring w-full border border-line bg-white px-2 py-2 text-base text-ink"
               />
             </div>
           </div>
@@ -156,39 +156,39 @@ export default function AccountsClient({
             <button
               type="submit"
               disabled={loading}
-              className="focus-ring w-full bg-ink px-4 py-2 text-sm text-paper hover:bg-ink-2 disabled:opacity-60"
+              className="focus-ring w-full bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
             >
               {loading ? "Adding…" : "Add"}
             </button>
           </div>
           {error && (
-            <p className="sm:col-span-2 lg:col-span-5 text-sm text-dirham">{error}</p>
+            <p className="sm:col-span-2 lg:col-span-5 text-base text-amber">{error}</p>
           )}
         </form>
       )}
 
       <div className="divide-y divide-line border border-line bg-white">
         {accounts.length === 0 && (
-          <p className="px-4 py-6 text-sm text-ink-2">
+          <p className="px-4 py-6 text-base text-ink-2">
             No holdings added yet. Use the form above to add your first one.
           </p>
         )}
         {accounts.map((a) => (
           <div key={a.id} className="flex items-center justify-between px-4 py-3">
             <div>
-              <p className="text-sm font-medium text-ink">{a.holdingName}</p>
-              <p className="text-xs text-ink-2">
+              <p className="text-base font-medium text-ink">{a.holdingName}</p>
+              <p className="text-sm text-ink-2">
                 {a.familyMemberName} · {assetClassLabel(a.assetClass)}
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-ink">
+              <span className="text-base text-ink">
                 {a.currency} {Number(a.currentValue).toLocaleString()}
               </span>
               {canEdit && (
                 <button
                   onClick={() => handleDelete(a.id)}
-                  className="text-xs text-dirham hover:underline"
+                  className="text-xs text-amber hover:underline"
                 >
                   Remove
                 </button>

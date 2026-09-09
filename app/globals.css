@@ -2,18 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  font-size: 17px;
+}
+
 html,
 body {
   background-color: #ffffff;
-  color: #12203a;
+  color: #161b33;
 }
 
 ::selection {
-  background-color: #b8823a;
-  color: #f5f2ec;
+  background-color: #2f5fd1;
+  color: #ffffff;
 }
 
 .focus-ring:focus-visible {
-  outline: 2px solid #b8823a;
+  outline: 2px solid #2f5fd1;
   outline-offset: 2px;
 }

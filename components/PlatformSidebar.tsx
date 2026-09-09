@@ -8,15 +8,15 @@ export default function PlatformSidebar() {
   const pathname = usePathname();
 
   const linkClass = (href: string) =>
-    `block px-3 py-2 text-sm ${
+    `block px-3 py-2 text-base ${
       pathname === href ? "bg-ink text-paper" : "text-ink-2 hover:bg-paper-2"
     }`;
 
   return (
     <aside className="w-52 shrink-0 border-r border-line bg-white">
       <div className="px-4 py-4">
-        <Link href="/platform" className="font-display text-lg italic text-ink">
-          WealthBridge
+        <Link href="/platform" className="font-display text-xl italic text-ink">
+          Smart Money Folio
         </Link>
         <p className="mt-0.5 text-xs text-ink-2">Admin</p>
       </div>

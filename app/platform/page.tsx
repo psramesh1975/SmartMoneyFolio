@@ -22,16 +22,16 @@ export default async function PlatformPage() {
     <main className="min-h-screen bg-paper">
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="font-display text-lg italic text-ink">
-            WealthBridge
+          <Link href="/" className="font-display text-xl italic text-ink">
+            Smart Money Folio
           </Link>
           <LogoutButton />
         </div>
       </header>
 
       <section className="mx-auto max-w-5xl px-6 py-10">
-        <h1 className="font-display text-2xl text-ink">Clients</h1>
-        <p className="mt-2 text-sm text-ink-2">
+        <h1 className="font-display text-3xl text-ink">Clients</h1>
+        <p className="mt-2 text-base text-ink-2">
           Every client household on the platform. Suspend a client's access
           or adjust a user's role.
         </p>
