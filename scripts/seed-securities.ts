@@ -13,7 +13,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 }
 
-async function seedMutualFunds() {
+export async function seedMutualFunds() {
   console.log("Fetching mutual fund scheme list from mfapi.in...");
   const res = await fetch("https://api.mfapi.in/mf");
   if (!res.ok) throw new Error(`mfapi.in returned ${res.status}`);
@@ -42,7 +42,7 @@ async function seedMutualFunds() {
   }
 }
 
-async function seedNseStocks() {
+export async function seedNseStocks() {
   console.log("Fetching NSE equity list...");
   const res = await fetch("https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv");
   if (!res.ok) throw new Error(`NSE archive returned ${res.status}`);
@@ -90,9 +90,14 @@ async function main() {
   console.log("Securities master seeded.");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+// Guarded so importing seedMutualFunds/seedNseStocks elsewhere (e.g. a
+// one-off script that runs just one of them) doesn't also trigger this
+// file's own full main() as an import side effect.
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
