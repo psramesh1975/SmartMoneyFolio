@@ -25,36 +25,36 @@ export default function MonthHistoryCard({
   const netSaved = summary.netSurplusActual;
 
   return (
-    <div className="border border-line bg-white">
+    <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="focus-ring flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-3 text-left hover:bg-paper-2"
+        className="focus-ring flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5"
       >
-        <span className="flex items-center gap-2 font-display text-lg text-ink">
-          <span className="text-ink-2">{expanded ? "▾" : "▸"}</span>
+        <span className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <span className="text-slate-500 dark:text-slate-400">{expanded ? "▾" : "▸"}</span>
           {MONTH_LABELS[payload.month - 1]} {payload.year}
         </span>
-        <span className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-ink-2">
+        <span className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
           <span>
             Total Inflow: {currency} {fmt(summary.actualIncome)}
           </span>
           <span>
             Total Outflow: {currency} {fmt(summary.actualOutflow)}
           </span>
-          <span className={netSaved >= 0 ? "font-semibold text-growth" : "font-semibold text-coral"}>
+          <span className={netSaved >= 0 ? "font-semibold text-emerald-600 dark:text-cyan-400" : "font-semibold text-rose-600 dark:text-rose-400"}>
             Net Saved: {currency} {fmt(netSaved)}
           </span>
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-line p-4">
-          <p className="mb-3 text-xs text-ink-2">
+        <div className="border-t border-slate-200/80 p-4 dark:border-slate-800">
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
             * Actual totals count any line without an entered actual as its planned amount.
           </p>
           {payload.categories.length === 0 ? (
-            <p className="text-sm text-ink-2">No entries.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">No entries.</p>
           ) : (
             payload.categories.map((c) => {
               const rows: SheetRow[] = c.entries.map((e) => ({

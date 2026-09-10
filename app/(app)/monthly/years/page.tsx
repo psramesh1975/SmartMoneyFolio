@@ -23,20 +23,20 @@ export default async function EarlierYearsPage() {
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="font-display text-3xl text-ink">Earlier Years</h1>
-      <p className="mt-2 text-base text-ink-2">
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Earlier Years</h1>
+      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
         Fully archived, read-only years — each with its own yearly summary.
       </p>
 
       {years.length === 0 ? (
-        <p className="mt-8 text-base text-ink-2">No archived years yet.</p>
+        <p className="mt-8 text-base text-slate-500 dark:text-slate-400">No archived years yet.</p>
       ) : (
-        <ul className="mt-8 divide-y divide-line border border-line bg-white">
+        <ul className="mt-8 divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card">
           {years.map((year) => (
             <li key={year}>
               <Link
                 href={`/monthly/years/${year}`}
-                className="focus-ring block px-4 py-3 text-base text-ink hover:bg-paper-2"
+                className="focus-ring block px-4 py-3 text-base text-slate-900 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5"
               >
                 {year}
               </Link>

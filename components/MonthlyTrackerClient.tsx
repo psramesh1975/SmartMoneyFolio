@@ -98,14 +98,14 @@ function AddOneOffForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border border-line bg-paper-2 p-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border border-slate-200/80 bg-slate-50 p-3 dark:border-slate-800 dark:bg-white/5">
       {categories.length > 1 && (
         <div>
-          <label className="block text-xs font-medium text-ink-2">Category</label>
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Category</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
+            className="focus-ring mt-1 w-48 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           >
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -116,45 +116,45 @@ function AddOneOffForm({
         </div>
       )}
       <div>
-        <label className="block text-xs font-medium text-ink-2">Name</label>
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Car service"
-          className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring mt-1 w-48 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-ink-2">Planned</label>
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Planned</label>
         <input
           type="number"
           value={plannedAmount}
           onChange={(e) => setPlannedAmount(e.target.value)}
-          className="focus-ring mt-1 w-28 border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring mt-1 w-28 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-ink-2">Actual (optional)</label>
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Actual (optional)</label>
         <input
           type="number"
           value={actualAmount}
           onChange={(e) => setActualAmount(e.target.value)}
-          className="focus-ring mt-1 w-28 border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring mt-1 w-28 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         />
       </div>
-      {error && <p className="w-full text-xs text-coral">{error}</p>}
+      {error && <p className="w-full text-xs text-rose-600 dark:text-rose-400">{error}</p>}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={saving}
-          className="focus-ring bg-folio px-3 py-1 text-xs text-paper hover:bg-folio-light disabled:opacity-60"
+          className="focus-ring bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
         >
           {saving ? "Adding…" : "Add one-off"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="focus-ring border border-line bg-white px-3 py-1 text-xs text-ink-2"
+          className="focus-ring border border-slate-200/80 bg-white px-3 py-1 text-xs text-slate-500 dark:border-slate-800 dark:bg-canvas-card dark:text-slate-400"
         >
           Cancel
         </button>
@@ -184,7 +184,7 @@ function BottomOneOff({
       <button
         type="button"
         onClick={() => setShowAddOneOff(true)}
-        className="text-sm text-folio underline decoration-dotted"
+        className="text-sm text-blue-600 underline decoration-dotted dark:text-lime-400"
       >
         + One-off
       </button>
@@ -214,25 +214,25 @@ function SummaryBar({
   summary: ReturnType<typeof computeMonthlySummary>;
   currency: string;
 }) {
-  const surplusColor = (n: number) => (n >= 0 ? "text-growth" : "text-coral");
+  const surplusColor = (n: number) => (n >= 0 ? "text-emerald-600 dark:text-cyan-400" : "text-rose-600 dark:text-rose-400");
   return (
-    <div className="grid grid-cols-1 gap-4 border border-line bg-white p-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-3">
       {[
         { label: "Total Income", planned: summary.plannedIncome, actual: summary.actualIncome },
         { label: "Total Outflow", planned: summary.plannedOutflow, actual: summary.actualOutflow },
       ].map((row) => (
         <div key={row.label}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">{row.label}</p>
-          <p className="mt-1 text-base text-ink">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{row.label}</p>
+          <p className="mt-1 text-base text-slate-900 dark:text-white">
             Planned: {currency} {fmt(row.planned)}
           </p>
-          <p className="text-base text-ink">
+          <p className="text-base text-slate-900 dark:text-white">
             Actual: {currency} {fmt(row.actual)}
           </p>
         </div>
       ))}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">Net Surplus</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Net Surplus</p>
         <p className={`mt-1 text-base ${surplusColor(summary.netSurplusPlanned)}`}>
           Planned: {currency} {fmt(summary.netSurplusPlanned)}
         </p>
@@ -240,7 +240,7 @@ function SummaryBar({
           Actual: {currency} {fmt(summary.netSurplusActual)}
         </p>
       </div>
-      <p className="text-xs text-ink-2 sm:col-span-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-3">
         * Actual totals count any line without an entered actual as its planned amount, so the
         running number stays meaningful mid-month. Base is a reference only and isn't summed here.
       </p>
@@ -322,7 +322,7 @@ export default function MonthlyTrackerClient({
             <button
               type="button"
               onClick={() => handleRemove(category.id, entry.id)}
-              className="text-xs text-coral underline"
+              className="text-xs text-rose-600 underline dark:text-rose-400"
             >
               Remove
             </button>
@@ -382,9 +382,9 @@ export default function MonthlyTrackerClient({
 
       <div>
         {categories.length === 0 ? (
-          <p className="text-base text-ink-2">
+          <p className="text-base text-slate-500 dark:text-slate-400">
             No categories yet —{" "}
-            <Link href="/monthly/base" className="text-folio underline">
+            <Link href="/monthly/base" className="text-blue-600 underline dark:text-lime-400">
               set them up on Monthly Base
             </Link>
             .

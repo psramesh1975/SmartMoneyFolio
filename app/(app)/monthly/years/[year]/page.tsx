@@ -32,11 +32,11 @@ export default async function ArchivedYearPage({
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="font-display text-3xl text-ink">{year}</h1>
-      <p className="mt-2 text-base text-ink-2">Read-only — fully archived.</p>
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{year}</h1>
+      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">Read-only — fully archived.</p>
 
       {monthsWithData.length === 0 ? (
-        <p className="mt-8 text-base text-ink-2">No entries recorded for {year}.</p>
+        <p className="mt-8 text-base text-slate-500 dark:text-slate-400">No entries recorded for {year}.</p>
       ) : (
         <div className="mt-8">
           <MonthlyHistoryStack

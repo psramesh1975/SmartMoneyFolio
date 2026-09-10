@@ -64,15 +64,15 @@ export default function AllocationClient({
         <button
           type="button"
           onClick={() => setShowImport(true)}
-          className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light"
+          className="focus-ring bg-blue-600 px-4 py-2 text-base text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
         >
           Import from Excel
         </button>
       </div>
-      <div className="divide-y divide-line border border-line bg-white">
+      <div className="divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
         {assetClasses.map((c) => (
           <div key={c.value} className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-base text-ink">{c.label}</span>
+            <span className="text-base text-slate-900 dark:text-white">{c.label}</span>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -82,27 +82,27 @@ export default function AllocationClient({
                 onChange={(e) =>
                   setValues((prev) => ({ ...prev, [c.value]: Number(e.target.value) }))
                 }
-                className="focus-ring w-16 border border-line bg-white px-2 py-1 text-right text-base text-ink disabled:bg-paper-2"
+                className="focus-ring w-16 border border-slate-200/80 bg-white px-2 py-1 text-right text-base text-slate-900 disabled:bg-slate-50 dark:border-slate-800 dark:bg-canvas-card dark:text-white dark:disabled:bg-white/5"
               />
-              <span className="text-base text-ink-2">%</span>
+              <span className="text-base text-slate-500 dark:text-slate-400">%</span>
             </div>
           </div>
         ))}
       </div>
 
       <div className="mt-3 flex items-center justify-between text-base">
-        <span className={isComplete ? "text-growth" : "text-amber"}>
+        <span className={isComplete ? "text-emerald-600 dark:text-cyan-400" : "text-amber-600 dark:text-amber-400"}>
           Total: {total}% {!isComplete && "(should add up to 100%)"}
         </span>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+          className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         >
           {saving ? "Saving…" : saved ? "Saved" : "Save targets"}
         </button>
       </div>
-      {error && <p className="mt-2 text-base text-amber">{error}</p>}
+      {error && <p className="mt-2 text-base text-amber-600 dark:text-amber-400">{error}</p>}
 
       <ImportExcelModal
         open={showImport}

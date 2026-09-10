@@ -47,10 +47,10 @@ export default function MonthlyFlatTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800">
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="bg-sheet-header text-paper font-semibold">
+          <tr className="bg-sheet-header text-white font-semibold">
             <th className="w-[22%] border border-sheet-border px-3 py-2 text-left">Expense</th>
             <th className="w-[16%] border border-sheet-border px-3 py-2 text-left">Category</th>
             <th className="w-[12%] border border-sheet-border px-3 py-2 text-right">Base</th>
@@ -66,14 +66,14 @@ export default function MonthlyFlatTable({
               key={row.id}
               className={`bg-sheet-row ${row.isSkipped ? "line-through opacity-50" : ""}`}
             >
-              <td className="border border-sheet-border px-3 py-2 text-ink">
+              <td className="border border-sheet-border px-3 py-2 text-slate-900">
                 {row.name}
                 {row.actions && <span className="ml-2">{row.actions}</span>}
               </td>
-              <td className="border border-sheet-border px-3 py-2 text-ink-2">
+              <td className="border border-sheet-border px-3 py-2 text-slate-500">
                 {row.categoryName}
               </td>
-              <td className="border border-sheet-border px-3 py-2 text-right text-ink-2">
+              <td className="border border-sheet-border px-3 py-2 text-right text-slate-500">
                 {fmt(row.base)}
               </td>
               <td className="border border-sheet-border p-0">
@@ -83,7 +83,7 @@ export default function MonthlyFlatTable({
                   defaultValue={row.planned}
                   disabled={row.isSkipped}
                   onBlur={(e) => onCellChange(row.id, "planned", e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-ink focus:outline-none disabled:cursor-not-allowed"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
               <td className="border border-sheet-border p-0">
@@ -93,7 +93,7 @@ export default function MonthlyFlatTable({
                   defaultValue={row.actual ?? ""}
                   disabled={row.isSkipped}
                   onBlur={(e) => onCellChange(row.id, "actual", e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-ink focus:outline-none disabled:cursor-not-allowed"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
               <td className="border border-sheet-border p-0">
@@ -103,7 +103,7 @@ export default function MonthlyFlatTable({
                   defaultValue={row.remark ?? ""}
                   disabled={row.isSkipped}
                   onBlur={(e) => onCellChange(row.id, "remark", e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-ink focus:outline-none disabled:cursor-not-allowed"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
               <td className="border border-sheet-border px-3 py-2 text-center">
@@ -118,7 +118,7 @@ export default function MonthlyFlatTable({
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-sheet-header text-paper font-semibold">
+          <tr className="bg-sheet-header text-white font-semibold">
             <td className="border border-sheet-border px-3 py-2">Total</td>
             <td className="border border-sheet-border px-3 py-2" />
             <td className="border border-sheet-border px-3 py-2 text-right">-</td>

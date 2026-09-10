@@ -70,30 +70,30 @@ export default function GoalsClient({
         <button
           type="button"
           onClick={() => setShowImport(true)}
-          className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light"
+          className="focus-ring bg-blue-600 px-4 py-2 text-base text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
         >
           Import from Excel
         </button>
       </div>
       <form
           onSubmit={handleAdd}
-          className="grid grid-cols-1 gap-3 border border-line bg-white p-4 sm:grid-cols-2 lg:grid-cols-5"
+          className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-5"
         >
           <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-ink-2">Goal name</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Goal name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Retirement Corpus"
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-2">Currency</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Currency</label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -103,54 +103,54 @@ export default function GoalsClient({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-2">Target amount</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Target amount</label>
             <input
               type="number"
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
               placeholder="60000000"
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-2">Current progress</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Current progress</label>
             <input
               type="number"
               value={currentAmount}
               onChange={(e) => setCurrentAmount(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div className="flex items-end lg:col-span-5">
             <button
               type="submit"
               disabled={loading}
-              className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+              className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               {loading ? "Adding…" : "Add goal"}
             </button>
           </div>
-          {error && <p className="lg:col-span-5 text-base text-amber">{error}</p>}
+          {error && <p className="lg:col-span-5 text-base text-amber-600 dark:text-amber-400">{error}</p>}
         </form>
 
       <div className="space-y-4">
         {goals.length === 0 && (
-          <p className="text-base text-ink-2">No goals added yet.</p>
+          <p className="text-base text-slate-500 dark:text-slate-400">No goals added yet.</p>
         )}
         {goals.map((g) => {
           const target = Number(g.targetAmount) || 1;
           const current = Number(g.currentAmount) || 0;
           const pct = Math.min(100, Math.round((current / target) * 100));
           return (
-            <div key={g.id} className="border border-line bg-white p-4">
+            <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-center justify-between text-base">
-                <span className="font-medium text-ink">{g.name}</span>
-                <span className="text-ink-2">
+                <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
+                <span className="text-slate-500 dark:text-slate-400">
                   {g.currency} {current.toLocaleString()} of {target.toLocaleString()} ({pct}%)
                 </span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded bg-paper-2">
-                <div className="h-full bg-folio" style={{ width: `${pct}%` }} />
+              <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
+                <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
               </div>
             </div>
           );

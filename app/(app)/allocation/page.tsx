@@ -18,8 +18,8 @@ export default async function AllocationPage() {
 
   return (
     <section className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="font-display text-3xl text-ink">Target allocation</h1>
-      <p className="mt-2 text-base text-ink-2">
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Target allocation</h1>
+      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
         Set the percentage of your total wealth you'd like in each asset
         class. The dashboard compares this against what you actually hold.
       </p>

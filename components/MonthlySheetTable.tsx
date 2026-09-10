@@ -66,7 +66,7 @@ export default function MonthlySheetTable({
     <div className="mt-6">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-sheet-header text-paper font-semibold">
+          <tr className="bg-sheet-header text-white font-semibold">
             <th className="border border-sheet-border px-2 py-1 text-left">{categoryName}</th>
             {ALL_COLUMNS.map((col) => (
               <th key={col} className="border border-sheet-border px-2 py-1 text-right">
@@ -85,7 +85,7 @@ export default function MonthlySheetTable({
               key={row.id}
               className={`bg-sheet-row ${row.isSkipped ? "line-through opacity-50" : ""}`}
             >
-              <td className="border border-sheet-border px-2 py-1 text-ink">
+              <td className="border border-sheet-border px-2 py-1 text-slate-900">
                 {row.name}
                 {row.actions && <span className="ml-2">{row.actions}</span>}
               </td>
@@ -94,7 +94,7 @@ export default function MonthlySheetTable({
                 const value = row[col];
                 if (readOnly) {
                   return (
-                    <td key={col} className="border border-sheet-border px-2 py-1 text-right text-ink">
+                    <td key={col} className="border border-sheet-border px-2 py-1 text-right text-slate-900">
                       {value == null ? "-" : fmt(value)}
                     </td>
                   );
@@ -114,14 +114,14 @@ export default function MonthlySheetTable({
                       defaultValue={value ?? ""}
                       disabled={!enabled || row.isSkipped}
                       onBlur={(e) => onCellChange?.(row.id, col, e.target.value)}
-                      className="w-full border-0 bg-transparent px-2 py-1 text-right text-ink focus:outline-none disabled:cursor-not-allowed"
+                      className="w-full border-0 bg-transparent px-2 py-1 text-right text-slate-900 focus:outline-none disabled:cursor-not-allowed"
                     />
                   </td>
                 );
               })}
               <td className="border border-sheet-border p-0">
                 {readOnly ? (
-                  <div className="px-2 py-1 text-ink">{row.remark ?? ""}</div>
+                  <div className="px-2 py-1 text-slate-900">{row.remark ?? ""}</div>
                 ) : (
                   <input
                     key={row.remark ?? ""}
@@ -129,7 +129,7 @@ export default function MonthlySheetTable({
                     defaultValue={row.remark ?? ""}
                     disabled={row.isSkipped}
                     onBlur={(e) => onCellChange?.(row.id, "remark", e.target.value)}
-                    className="w-full border-0 bg-transparent px-2 py-1 text-ink focus:outline-none disabled:cursor-not-allowed"
+                    className="w-full border-0 bg-transparent px-2 py-1 text-slate-900 focus:outline-none disabled:cursor-not-allowed"
                   />
                 )}
               </td>
@@ -149,7 +149,7 @@ export default function MonthlySheetTable({
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-sheet-header text-paper font-semibold">
+          <tr className="bg-sheet-header text-white font-semibold">
             <td className="border border-sheet-border px-2 py-1">Total</td>
             {ALL_COLUMNS.map((col) => {
               const total = totalFor(col);

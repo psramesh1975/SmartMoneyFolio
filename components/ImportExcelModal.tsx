@@ -122,13 +122,13 @@ export default function ImportExcelModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
-      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto border border-line bg-white p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 dark:bg-black/60">
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg text-ink">{title}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">{title}</h2>
           <button
             onClick={handleClose}
-            className="focus-ring text-sm text-ink-2 hover:text-folio"
+            className="focus-ring text-sm text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-lime-400"
             aria-label="Close"
           >
             Close
@@ -137,8 +137,8 @@ export default function ImportExcelModal({
 
         {step === "mode" && (
           <div className="mt-5 space-y-4">
-            <p className="text-base text-ink-2">How should this file be applied?</p>
-            <label className="flex cursor-pointer items-start gap-2 border border-line p-3">
+            <p className="text-base text-slate-500 dark:text-slate-400">How should this file be applied?</p>
+            <label className="flex cursor-pointer items-start gap-2 border border-slate-200/80 p-3 dark:border-slate-800">
               <input
                 type="radio"
                 name="import-mode"
@@ -147,13 +147,13 @@ export default function ImportExcelModal({
                 className="mt-1"
               />
               <span>
-                <span className="block text-base font-medium text-ink">Append to existing data</span>
-                <span className="block text-sm text-ink-2">
+                <span className="block text-base font-medium text-slate-900 dark:text-white">Append to existing data</span>
+                <span className="block text-sm text-slate-500 dark:text-slate-400">
                   Every row in the file is added as a new record. Nothing existing is touched.
                 </span>
               </span>
             </label>
-            <label className="flex cursor-pointer items-start gap-2 border border-line p-3">
+            <label className="flex cursor-pointer items-start gap-2 border border-slate-200/80 p-3 dark:border-slate-800">
               <input
                 type="radio"
                 name="import-mode"
@@ -162,8 +162,8 @@ export default function ImportExcelModal({
                 className="mt-1"
               />
               <span>
-                <span className="block text-base font-medium text-ink">Replace all existing data</span>
-                <span className="block text-sm text-coral">
+                <span className="block text-base font-medium text-slate-900 dark:text-white">Replace all existing data</span>
+                <span className="block text-sm text-rose-600 dark:text-rose-400">
                   All existing {resourceLabelPlural} for your household are deleted first, then the
                   file is imported. This can't be undone.
                 </span>
@@ -172,7 +172,7 @@ export default function ImportExcelModal({
             <div className="flex justify-end">
               <button
                 onClick={() => setStep("upload")}
-                className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2"
+                className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 Continue
               </button>
@@ -185,55 +185,55 @@ export default function ImportExcelModal({
             <a
               href={templateHref}
               download
-              className="focus-ring inline-block text-sm text-folio hover:underline"
+              className="focus-ring inline-block text-sm text-blue-600 hover:underline dark:text-lime-400"
             >
               Download template
             </a>
             <div>
-              <label className="block text-sm font-medium text-ink-2">Excel file (.xlsx)</label>
+              <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Excel file (.xlsx)</label>
               <input
                 type="file"
                 accept=".xlsx"
                 onChange={handleFileChange}
                 disabled={step === "validating"}
-                className="focus-ring mt-1 w-full border border-line bg-white px-2 py-2 text-base text-ink disabled:opacity-60"
+                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 disabled:opacity-60 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               />
             </div>
             {step === "validating" && (
-              <p className="text-base text-ink-2">Validating {fileName}…</p>
+              <p className="text-base text-slate-500 dark:text-slate-400">Validating {fileName}…</p>
             )}
-            {validateError && <p className="text-base text-coral">{validateError}</p>}
+            {validateError && <p className="text-base text-rose-600 dark:text-rose-400">{validateError}</p>}
           </div>
         )}
 
         {(step === "review" || step === "importing") && (
           <div className="mt-5 space-y-4">
             {warning && (
-              <p className="border border-amber bg-paper-2 px-3 py-2 text-sm text-ink">{warning}</p>
+              <p className="border border-amber-600/40 bg-slate-50 px-3 py-2 text-sm text-slate-900 dark:border-amber-400/40 dark:bg-white/5 dark:text-white">{warning}</p>
             )}
-            <p className="text-sm text-ink-2">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {okRows.length} of {rows.length} rows valid.{" "}
               {rows.length - okRows.length > 0 &&
                 `${rows.length - okRows.length} row${rows.length - okRows.length === 1 ? "" : "s"} will be skipped.`}
             </p>
-            <div className="max-h-64 divide-y divide-line overflow-y-auto border border-line">
+            <div className="max-h-64 divide-y divide-slate-200/80 overflow-y-auto border border-slate-200/80 dark:divide-slate-800 dark:border-slate-800">
               {rows.map((r) => (
                 <div key={r.row} className="flex items-start gap-2 px-3 py-2 text-sm">
                   {r.status === "ok" ? (
                     <>
-                      <span className="text-growth">✓</span>
-                      <span className="text-ink">{r.summary}</span>
+                      <span className="text-emerald-600 dark:text-cyan-400">✓</span>
+                      <span className="text-slate-900 dark:text-white">{r.summary}</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-coral">✕</span>
-                      <span className="text-coral">{r.error}</span>
+                      <span className="text-rose-600 dark:text-rose-400">✕</span>
+                      <span className="text-rose-600 dark:text-rose-400">{r.error}</span>
                     </>
                   )}
                 </div>
               ))}
             </div>
-            {importError && <p className="text-base text-coral">{importError}</p>}
+            {importError && <p className="text-base text-rose-600 dark:text-rose-400">{importError}</p>}
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
@@ -245,14 +245,14 @@ export default function ImportExcelModal({
                   setValidateError(null);
                   setImportError(null);
                 }}
-                className="focus-ring text-sm text-ink-2 hover:text-folio"
+                className="focus-ring text-sm text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-lime-400"
               >
                 Choose a different file
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={okRows.length === 0 || step === "importing"}
-                className="focus-ring bg-folio px-4 py-2 text-base text-paper hover:bg-folio-light disabled:opacity-60"
+                className="focus-ring bg-blue-600 px-4 py-2 text-base text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
               >
                 {step === "importing"
                   ? "Importing…"
@@ -266,13 +266,13 @@ export default function ImportExcelModal({
 
         {step === "done" && (
           <div className="mt-5 space-y-4">
-            <p className="text-base text-ink">
+            <p className="text-base text-slate-900 dark:text-white">
               Imported {importedCount} {resourceLabelPlural}.
             </p>
             <div className="flex justify-end">
               <button
                 onClick={handleClose}
-                className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2"
+                className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 Done
               </button>

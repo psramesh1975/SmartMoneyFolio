@@ -74,13 +74,13 @@ function CategoryRow({
   }
 
   return (
-    <tr className="border-t border-line">
+    <tr className="border-t border-slate-200/80 dark:border-slate-800">
       <td className="px-3 py-2">
         <input
           key={category.name}
           defaultValue={category.name}
           onBlur={(e) => handleNameBlur(e.target.value)}
-          className="focus-ring w-full border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring w-full border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         />
       </td>
       <td className="px-3 py-2">
@@ -98,11 +98,11 @@ function CategoryRow({
           type="button"
           onClick={handleDelete}
           disabled={deleting}
-          className="text-xs text-coral underline disabled:opacity-60"
+          className="text-xs text-rose-600 underline disabled:opacity-60 dark:text-rose-400"
         >
           {deleting ? "Removing…" : "Remove"}
         </button>
-        {error && <p className="mt-1 text-xs text-coral">{error}</p>}
+        {error && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
       </td>
     </tr>
   );
@@ -133,32 +133,32 @@ function AddCategoryRow({ onCreated }: { onCreated: (c: MonthlyCategoryOptionDTO
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t border-line px-3 py-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t border-slate-200/80 px-3 py-3 dark:border-slate-800">
       <div>
-        <label className="block text-xs font-medium text-ink-2">Category name</label>
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Category name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Subscriptions"
-          className="focus-ring mt-1 w-48 border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring mt-1 w-48 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-ink-2">Type</label>
+        <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Type</label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as MonthlyCategoryTypeValue)}
-          className="focus-ring mt-1 border border-line bg-white px-2 py-1 text-sm text-ink"
+          className="focus-ring mt-1 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         >
           <option value="INCOME">Income</option>
           <option value="OUTFLOW">Outflow</option>
         </select>
       </div>
-      {error && <p className="w-full text-xs text-coral">{error}</p>}
+      {error && <p className="w-full text-xs text-rose-600 dark:text-rose-400">{error}</p>}
       <button
         type="submit"
         disabled={saving}
-        className="focus-ring bg-sheet-header px-3 py-1 text-xs font-semibold text-paper hover:opacity-90 disabled:opacity-60"
+        className="focus-ring bg-sheet-header px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
       >
         {saving ? "Adding…" : "Add category"}
       </button>
@@ -178,17 +178,17 @@ export default function ManageCategoriesPanel({
   onCategoryDeleted: (id: string) => void;
 }) {
   return (
-    <div className="border-t border-line bg-paper-2">
+    <div className="border-t border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-white/5">
       <div className="px-6 py-4">
-        <h2 className="font-display text-lg text-ink">Manage Categories</h2>
-        <p className="mt-1 text-xs text-ink-2">
+        <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Manage Categories</h2>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Rename a category or change its type here — this doesn't touch any line items using it.
         </p>
       </div>
       {categories.length > 0 && (
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-ink-2">
+            <tr className="text-left text-slate-500 dark:text-slate-400">
               <th className="px-3 py-1 font-medium">Name</th>
               <th className="px-3 py-1 font-medium">Type</th>
               <th className="px-3 py-1" />

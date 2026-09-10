@@ -61,6 +61,9 @@ export default async function DashboardPage() {
     return {
       id: member.id,
       name: member.name,
+      relationship: member.relationship,
+      residencyStatus: member.residencyStatus,
+      isMinor: member.isMinor,
       byClass,
       total: memberTotal,
       otherCurrencyHoldings,
@@ -82,36 +85,36 @@ export default async function DashboardPage() {
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="border border-line bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Total net worth
           </p>
-          <p className="mt-1 font-display text-3xl text-growth">
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-emerald-600 dark:text-cyan-400">
             {baseCurrency} {fmt(netWorth)}
           </p>
         </div>
-        <div className="border border-line bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Base currency
           </p>
-          <p className="mt-1 font-display text-3xl text-ink">{household.baseCurrency}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{household.baseCurrency}</p>
         </div>
-        <div className="border border-line bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Operational currency
           </p>
-          <p className="mt-1 font-display text-3xl text-amber">{household.operationalCurrency}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-amber-600 dark:text-amber-400">{household.operationalCurrency}</p>
         </div>
-        <div className="border border-line bg-white p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Goals tracked
           </p>
-          <p className="mt-1 font-display text-3xl text-ink">{household.goals.length}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{household.goals.length}</p>
         </div>
       </div>
 
       {otherCurrencyCount.count > 0 && (
-        <p className="mt-4 border border-line bg-paper-2 px-4 py-2 text-sm text-ink-2">
+        <p className="mt-4 border border-slate-200/80 bg-slate-50 px-4 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
           {otherCurrencyCount.count} holding{otherCurrencyCount.count > 1 ? "s are" : " is"} in a
           currency other than {baseCurrency} and {otherCurrencyCount.count > 1 ? "aren't" : "isn't"}{" "}
           included in the total above yet — currency conversion isn't built in this module.
@@ -120,42 +123,57 @@ export default async function DashboardPage() {
 
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl text-ink">By family member</h2>
-          <Link href="/accounts" className="text-base text-folio hover:underline">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
+          <Link href="/accounts" className="text-base text-blue-600 hover:underline dark:text-lime-400">
             Manage holdings →
           </Link>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {memberBreakdowns.map((m) => (
-            <div key={m.id} className="border border-line bg-white p-4">
-              <p className="mb-2 text-base font-medium text-ink">{m.name}</p>
+            <div key={m.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+              <p className="text-base font-medium text-slate-900 dark:text-white">{m.name}</p>
+              <div className="mb-2 mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {m.relationship}
+                </span>
+                {m.residencyStatus === "NRI" && (
+                  <span className="rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
+                    NRI
+                  </span>
+                )}
+                {m.isMinor && (
+                  <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
+                    Minor
+                  </span>
+                )}
+              </div>
               {Object.keys(m.byClass).length === 0 && m.otherCurrencyHoldings.length === 0 ? (
-                <p className="text-sm text-ink-2">No holdings added yet.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No holdings added yet.</p>
               ) : (
                 <table className="w-full text-base">
                   <tbody>
                     {Object.entries(m.byClass).map(([cls, value]) => (
                       <tr key={cls}>
-                        <td className="py-0.5 text-ink-2">{assetClassLabel(cls)}</td>
-                        <td className="py-0.5 text-right text-ink">{fmt(value)}</td>
+                        <td className="py-0.5 text-slate-500 dark:text-slate-400">{assetClassLabel(cls)}</td>
+                        <td className="py-0.5 text-right text-slate-900 dark:text-white">{fmt(value)}</td>
                       </tr>
                     ))}
                     {m.otherCurrencyHoldings.map((h, i) => (
                       <tr key={`other-${i}`}>
-                        <td className="py-0.5 text-ink-2">
-                          {h.holdingName} <span className="text-ink-2">({h.currency})</span>
+                        <td className="py-0.5 text-slate-500 dark:text-slate-400">
+                          {h.holdingName} <span className="text-slate-500 dark:text-slate-400">({h.currency})</span>
                         </td>
-                        <td className="py-0.5 text-right text-ink-2">{fmt(h.value)}</td>
+                        <td className="py-0.5 text-right text-slate-500 dark:text-slate-400">{fmt(h.value)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
               {m.total > 0 && (
-                <div className="mt-2 flex justify-between border-t border-line pt-2 text-base">
-                  <span className="font-medium text-ink">Total ({baseCurrency})</span>
-                  <span className="font-medium text-ink">{fmt(m.total)}</span>
+                <div className="mt-2 flex justify-between border-t border-slate-200/80 pt-2 text-base dark:border-slate-800">
+                  <span className="font-medium text-slate-900 dark:text-white">Total ({baseCurrency})</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{fmt(m.total)}</span>
                 </div>
               )}
             </div>
@@ -165,17 +183,17 @@ export default async function DashboardPage() {
 
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl text-ink">Allocation: actual vs target</h2>
-          <Link href="/allocation" className="text-base text-folio hover:underline">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Allocation: actual vs target</h2>
+          <Link href="/allocation" className="text-base text-blue-600 hover:underline dark:text-lime-400">
             Set targets →
           </Link>
         </div>
         {classesWithData.length === 0 ? (
-          <p className="mt-3 text-base text-ink-2">
+          <p className="mt-3 text-base text-slate-500 dark:text-slate-400">
             Add holdings and set a target allocation to see this chart.
           </p>
         ) : (
-          <div className="mt-4 border border-line bg-white p-4">
+          <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
             <AllocationChart labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
           </div>
         )}
@@ -183,13 +201,13 @@ export default async function DashboardPage() {
 
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl text-ink">Goals</h2>
-          <Link href="/goals" className="text-base text-folio hover:underline">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Goals</h2>
+          <Link href="/goals" className="text-base text-blue-600 hover:underline dark:text-lime-400">
             Manage goals →
           </Link>
         </div>
         {household.goals.length === 0 ? (
-          <p className="mt-3 text-base text-ink-2">No goals added yet.</p>
+          <p className="mt-3 text-base text-slate-500 dark:text-slate-400">No goals added yet.</p>
         ) : (
           <div className="mt-4 space-y-3">
             {household.goals.map((g) => {
@@ -197,15 +215,15 @@ export default async function DashboardPage() {
               const current = Number(g.currentAmount) || 0;
               const pct = Math.min(100, Math.round((current / target) * 100));
               return (
-                <div key={g.id} className="border border-line bg-white p-4">
+                <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
                   <div className="flex items-center justify-between text-base">
-                    <span className="font-medium text-ink">{g.name}</span>
-                    <span className="text-ink-2">
+                    <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
+                    <span className="text-slate-500 dark:text-slate-400">
                       {g.currency} {fmt(current)} of {fmt(target)} ({pct}%)
                     </span>
                   </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded bg-paper-2">
-                    <div className="h-full bg-folio" style={{ width: `${pct}%` }} />
+                  <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
+                    <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -215,17 +233,17 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mt-10">
-        <h2 className="font-display text-2xl text-ink">People with access</h2>
-        <div className="mt-4 divide-y divide-line border border-line bg-white">
+        <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">People with access</h2>
+        <div className="mt-4 divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
           {household.users.map((u) => (
             <div key={u.id} className="flex items-center justify-between px-4 py-3">
-              <p className="text-base text-ink">{u.email}</p>
+              <p className="text-base text-slate-900 dark:text-white">{u.email}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <p className="mt-10 border border-line bg-paper-2 px-4 py-3 text-base text-ink-2">
+      <p className="mt-10 border border-slate-200/80 bg-slate-50 px-4 py-3 text-base text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
         Cash flow tracking (the monthly and yearly planner screens) is coming
         in the next update.
       </p>

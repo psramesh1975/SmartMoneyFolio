@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import ClientSidebar from "@/components/ClientSidebar";
+import { SectionThemeInit } from "@/components/SectionThemeInit";
 import { getPreviousPeriod, getCurrentPeriod, getNextPeriod, MONTH_LABELS_SHORT } from "@/lib/monthly-periods";
 
 function periodLabel({ year, month }: { year: number; month: number }) {
@@ -22,7 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const timeZone = household?.timeZone || "UTC";
 
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-canvas">
+      <SectionThemeInit defaultTheme="light" />
       <ClientSidebar
         isPlatformOwner={session.isPlatformOwner}
         householdName={household?.name ?? ""}
