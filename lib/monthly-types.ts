@@ -28,11 +28,15 @@ export type MonthlyEntryDTO = {
   } | null;
 };
 
+export type MonthlyCategorySpendKindValue = "FIXED" | "VARIABLE";
+
 export type MonthlyCategoryDTO = {
   id: string;
   name: string;
   type: MonthlyCategoryTypeValue;
   sortOrder: number;
+  spendKind: MonthlyCategorySpendKindValue | null;
+  isSubscription: boolean;
   entries: MonthlyEntryDTO[];
 };
 
@@ -51,6 +55,8 @@ export type MonthlyCategoryOptionDTO = {
   id: string;
   name: string;
   type: MonthlyCategoryTypeValue;
+  spendKind: MonthlyCategorySpendKindValue | null;
+  isSubscription: boolean;
 };
 
 export type MonthlyMonthPayload = {

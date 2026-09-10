@@ -163,17 +163,24 @@ enum MonthlyCategoryType {
   OUTFLOW
 }
 
+enum MonthlyCategorySpendKind {
+  FIXED
+  VARIABLE
+}
+
 // A household-defined bucket (Income, EMI/Debt, Expenses, Subscriptions, Savings, ...).
 // type determines whether it adds to or subtracts from Net Surplus.
 model MonthlyCategory {
-  id          String              @id @default(cuid())
-  householdId String
-  household   Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  name        String
-  type        MonthlyCategoryType
-  sortOrder   Int                 @default(0)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id             String                    @id @default(cuid())
+  householdId    String
+  household      Household                 @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name           String
+  type           MonthlyCategoryType
+  sortOrder      Int                       @default(0)
+  spendKind      MonthlyCategorySpendKind? // null allowed for INCOME categories, which don't need one
+  isSubscription Boolean                   @default(false)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
 
   lineItems MonthlyLineItem[]
   entries   MonthlyEntry[]

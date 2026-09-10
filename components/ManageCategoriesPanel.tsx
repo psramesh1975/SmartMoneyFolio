@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { MonthlyCategoryOptionDTO, MonthlyCategoryTypeValue } from "@/lib/monthly-types";
+import type {
+  MonthlyCategoryOptionDTO,
+  MonthlyCategorySpendKindValue,
+  MonthlyCategoryTypeValue,
+} from "@/lib/monthly-types";
 import { categoryBadgeTone } from "@/lib/monthly-badge";
 
 async function postJSON(url: string, body: unknown) {
@@ -60,6 +64,26 @@ function CategoryRow({
     }
   }
 
+  async function handleSpendKindChange(spendKind: MonthlyCategorySpendKindValue) {
+    const { ok, data } = await patchJSON(`/api/monthly/categories/${category.id}`, { spendKind });
+    if (ok) {
+      setError(null);
+      onUpdated({ ...category, spendKind });
+    } else {
+      setError(data.error ?? "Couldn't save that.");
+    }
+  }
+
+  async function handleSubscriptionChange(isSubscription: boolean) {
+    const { ok, data } = await patchJSON(`/api/monthly/categories/${category.id}`, { isSubscription });
+    if (ok) {
+      setError(null);
+      onUpdated({ ...category, isSubscription });
+    } else {
+      setError(data.error ?? "Couldn't save that.");
+    }
+  }
+
   async function handleDelete() {
     setDeleting(true);
     setError(null);
@@ -93,6 +117,30 @@ function CategoryRow({
           <option value="OUTFLOW">Outflow</option>
         </select>
       </td>
+      <td className="px-3 py-2">
+        {category.type === "OUTFLOW" && (
+          <select
+            value={category.spendKind ?? "VARIABLE"}
+            onChange={(e) => handleSpendKindChange(e.target.value as MonthlyCategorySpendKindValue)}
+            className="focus-ring border border-slate-200/80 bg-white px-2 py-1 text-xs text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+          >
+            <option value="FIXED">Fixed</option>
+            <option value="VARIABLE">Variable</option>
+          </select>
+        )}
+      </td>
+      <td className="px-3 py-2">
+        {category.type === "OUTFLOW" && (
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <input
+              type="checkbox"
+              checked={category.isSubscription}
+              onChange={(e) => handleSubscriptionChange(e.target.checked)}
+            />
+            Subscription
+          </label>
+        )}
+      </td>
       <td className="px-3 py-2 text-right">
         <button
           type="button"
@@ -111,6 +159,8 @@ function CategoryRow({
 function AddCategoryRow({ onCreated }: { onCreated: (c: MonthlyCategoryOptionDTO) => void }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<MonthlyCategoryTypeValue>("OUTFLOW");
+  const [spendKind, setSpendKind] = useState<MonthlyCategorySpendKindValue>("VARIABLE");
+  const [isSubscription, setIsSubscription] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,14 +172,27 @@ function AddCategoryRow({ onCreated }: { onCreated: (c: MonthlyCategoryOptionDTO
     }
     setSaving(true);
     setError(null);
-    const { ok, data } = await postJSON("/api/monthly/categories", { name: name.trim(), type });
+    const { ok, data } = await postJSON("/api/monthly/categories", {
+      name: name.trim(),
+      type,
+      spendKind: type === "OUTFLOW" ? spendKind : null,
+      isSubscription: type === "OUTFLOW" ? isSubscription : false,
+    });
     setSaving(false);
     if (!ok) {
       setError(data.error ?? "Couldn't add that.");
       return;
     }
-    onCreated({ id: data.category.id, name: name.trim(), type });
+    onCreated({
+      id: data.category.id,
+      name: name.trim(),
+      type,
+      spendKind: type === "OUTFLOW" ? spendKind : null,
+      isSubscription: type === "OUTFLOW" ? isSubscription : false,
+    });
     setName("");
+    setSpendKind("VARIABLE");
+    setIsSubscription(false);
   }
 
   return (
@@ -154,6 +217,29 @@ function AddCategoryRow({ onCreated }: { onCreated: (c: MonthlyCategoryOptionDTO
           <option value="OUTFLOW">Outflow</option>
         </select>
       </div>
+      {type === "OUTFLOW" && (
+        <div>
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Spend kind</label>
+          <select
+            value={spendKind}
+            onChange={(e) => setSpendKind(e.target.value as MonthlyCategorySpendKindValue)}
+            className="focus-ring mt-1 border border-slate-200/80 bg-white px-2 py-1 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+          >
+            <option value="FIXED">Fixed</option>
+            <option value="VARIABLE">Variable</option>
+          </select>
+        </div>
+      )}
+      {type === "OUTFLOW" && (
+        <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <input
+            type="checkbox"
+            checked={isSubscription}
+            onChange={(e) => setIsSubscription(e.target.checked)}
+          />
+          Subscription
+        </label>
+      )}
       {error && <p className="w-full text-xs text-rose-600 dark:text-rose-400">{error}</p>}
       <button
         type="submit"
@@ -191,6 +277,8 @@ export default function ManageCategoriesPanel({
             <tr className="text-left text-slate-500 dark:text-slate-400">
               <th className="px-3 py-1 font-medium">Name</th>
               <th className="px-3 py-1 font-medium">Type</th>
+              <th className="px-3 py-1 font-medium">Spend kind</th>
+              <th className="px-3 py-1 font-medium">Subscription</th>
               <th className="px-3 py-1" />
             </tr>
           </thead>

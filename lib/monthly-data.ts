@@ -75,6 +75,8 @@ export async function getMonthPayload(
     name: c.name,
     type: c.type,
     sortOrder: c.sortOrder,
+    spendKind: c.spendKind,
+    isSubscription: c.isSubscription,
     entries: entriesByCategory.get(c.id) ?? [],
   }));
 
@@ -118,7 +120,13 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       baseAmount: li.baseAmount.toString(),
       categoryId: li.categoryId,
     })),
-    categories: categories.map((c) => ({ id: c.id, name: c.name, type: c.type })),
+    categories: categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      spendKind: c.spendKind,
+      isSubscription: c.isSubscription,
+    })),
   };
 }
 
@@ -169,6 +177,8 @@ export async function getReadOnlyMonthPayload(
       name: c.name,
       type: c.type,
       sortOrder: c.sortOrder,
+      spendKind: c.spendKind,
+      isSubscription: c.isSubscription,
       entries: entriesByCategory.get(c.id) ?? [],
     }));
 
@@ -234,6 +244,8 @@ export async function getYearPayload(
         name: c.name,
         type: c.type,
         sortOrder: c.sortOrder,
+        spendKind: c.spendKind,
+        isSubscription: c.isSubscription,
         entries: entriesByCategory.get(c.id) ?? [],
       }));
 

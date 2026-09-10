@@ -7,6 +7,8 @@ const patchSchema = z.object({
   name: z.string().min(1).optional(),
   type: z.enum(["INCOME", "OUTFLOW"]).optional(),
   sortOrder: z.coerce.number().int().optional(),
+  spendKind: z.enum(["FIXED", "VARIABLE"]).nullable().optional(),
+  isSubscription: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

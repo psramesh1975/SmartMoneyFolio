@@ -6,6 +6,8 @@ import { getSession } from "@/lib/auth";
 const createSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["INCOME", "OUTFLOW"]),
+  spendKind: z.enum(["FIXED", "VARIABLE"]).nullable().optional(),
+  isSubscription: z.boolean().optional().default(false),
 });
 
 export async function GET() {
@@ -58,6 +60,8 @@ export async function POST(req: NextRequest) {
       householdId: session.householdId,
       name: parsed.data.name,
       type: parsed.data.type,
+      spendKind: parsed.data.spendKind ?? null,
+      isSubscription: parsed.data.isSubscription,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   });
