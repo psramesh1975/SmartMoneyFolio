@@ -19,23 +19,21 @@ export default function ClientSidebar({
   currentLabel: string;
   nextLabel: string;
 }) {
-  const pathname = usePathname();
-  const isOnMonthlyRoute = pathname.startsWith("/monthly/");
+  const pathname = usePathname(); // still needed for per-link active highlighting
 
   // Default false on first render to avoid a hydration mismatch, then sync
   // from localStorage after mount — same pattern as ThemeToggle and the
-  // Phase 7 breakdown panel. Only matters when not on a /monthly/* route,
-  // since being on one always forces the group open regardless.
-  const [manuallyExpanded, setManuallyExpanded] = useState(false);
+  // Phase 7 breakdown panel. Driven purely by the manual toggle — no
+  // route-based override, so it can be collapsed even while on a
+  // /monthly/* page.
+  const [monthlyExpanded, setMonthlyExpanded] = useState(false);
   useEffect(() => {
-    setManuallyExpanded(localStorage.getItem("smf-sidebar-monthly-open") === "true");
+    setMonthlyExpanded(localStorage.getItem("smf-sidebar-monthly-open") === "true");
   }, []);
 
-  const monthlyExpanded = isOnMonthlyRoute || manuallyExpanded;
-
   function toggleMonthly() {
-    const next = !manuallyExpanded;
-    setManuallyExpanded(next);
+    const next = !monthlyExpanded;
+    setMonthlyExpanded(next);
     localStorage.setItem("smf-sidebar-monthly-open", String(next));
   }
 
