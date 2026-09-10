@@ -11,6 +11,7 @@ import type {
   MonthlyMonthPayload,
 } from "@/lib/monthly-types";
 import MonthlyFlatTable, { type FlatRow } from "@/components/MonthlyFlatTable";
+import MonthlyBreakdownPanel from "@/components/MonthlyBreakdownPanel";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -253,9 +254,11 @@ function SummaryBar({
 export default function MonthlyTrackerClient({
   initialPayload,
   currency,
+  period,
 }: {
   initialPayload: MonthlyMonthPayload;
   currency: string;
+  period: "current" | "previous" | "next";
 }) {
   const router = useRouter();
   const { year, month } = initialPayload;
@@ -395,7 +398,13 @@ export default function MonthlyTrackerClient({
 
             <div className="mt-4">
               <BottomOneOff
-                categories={categories.map((c) => ({ id: c.id, name: c.name, type: c.type }))}
+                categories={categories.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  type: c.type,
+                  spendKind: c.spendKind,
+                  isSubscription: c.isSubscription,
+                }))}
                 year={year}
                 month={month}
                 onCreated={handleEntryAdded}
@@ -404,6 +413,10 @@ export default function MonthlyTrackerClient({
           </>
         )}
       </div>
+
+      {period !== "next" && (
+        <MonthlyBreakdownPanel year={year} month={month} period={period} currency={currency} />
+      )}
     </div>
   );
 }

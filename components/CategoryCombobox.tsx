@@ -93,7 +93,13 @@ export default function CategoryCombobox({
     setCreating(false);
 
     if (ok) {
-      const category: MonthlyCategoryOptionDTO = { id: data.category.id, name, type: "OUTFLOW" };
+      const category: MonthlyCategoryOptionDTO = {
+        id: data.category.id,
+        name,
+        type: "OUTFLOW",
+        spendKind: null,
+        isSubscription: false,
+      };
       onCreated(category);
       selectCategory(category);
       return;
@@ -112,6 +118,8 @@ export default function CategoryCombobox({
           id: match.id,
           name: match.name,
           type: match.type,
+          spendKind: match.spendKind ?? null,
+          isSubscription: match.isSubscription ?? false,
         };
         onCreated(category);
         selectCategory(category);

@@ -32,6 +32,7 @@ export default async function PreviousMonthPage() {
       <MonthlyTrackerClient
         initialPayload={payload}
         currency={household?.baseCurrency ?? "USD"}
+        period="previous"
       />
     </section>
   );
