@@ -198,9 +198,9 @@ export default function MonthlyBaseClient({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-sheet-header px-6 py-4">
-        <h1 className="text-base font-bold text-sheet-header">Monthly Base</h1>
+    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-sheet-header px-6 py-4 dark:border-lime-400/40">
+        <h1 className="text-base font-bold text-sheet-header dark:text-lime-400">Monthly Base</h1>
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -231,22 +231,22 @@ export default function MonthlyBaseClient({
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr className="bg-sheet-header text-white">
-            <th className="w-[44%] border border-sheet-border px-3 py-2 text-left font-bold">
+            <th className="w-[44%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-left font-bold">
               Expense
             </th>
-            <th className="w-[32%] border border-sheet-border px-3 py-2 text-left font-bold">
+            <th className="w-[32%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-left font-bold">
               Category
             </th>
-            <th className="w-[20%] border border-sheet-border px-3 py-2 text-right font-bold">
+            <th className="w-[20%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right font-bold">
               Base
             </th>
-            <th className="w-10 border border-sheet-border px-2 py-2" />
+            <th className="w-10 border border-sheet-border dark:border-sheet-border-dark px-2 py-2" />
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="group bg-sheet-row">
-              <td className="border border-sheet-border p-0">
+            <tr key={row.id} className="group bg-sheet-row dark:bg-sheet-row-dark">
+              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
                 <input
                   ref={(el) => {
                     nameInputRefs.current[row.id] = el;
@@ -254,10 +254,10 @@ export default function MonthlyBaseClient({
                   defaultValue={row.name}
                   placeholder="Expense description…"
                   onBlur={(e) => handleNameBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 focus:bg-white/80 focus:outline-none"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-white/80 dark:focus:bg-black/20 focus:outline-none"
                 />
               </td>
-              <td className="border border-sheet-border p-0">
+              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
                 <CategoryCombobox
                   categories={categories}
                   value={row.categoryId}
@@ -265,17 +265,17 @@ export default function MonthlyBaseClient({
                   onCreated={handleCategoryCreated}
                 />
               </td>
-              <td className="border border-sheet-border p-0">
+              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
                 <input
                   type="number"
                   step="any"
                   value={row.baseAmount}
                   onChange={(e) => handleBaseChange(row.id, e.target.value)}
                   onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 [font-variant-numeric:tabular-nums] focus:bg-white/80 focus:outline-none"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 dark:text-white [font-variant-numeric:tabular-nums] focus:bg-white/80 dark:focus:bg-black/20 focus:outline-none"
                 />
               </td>
-              <td className="border border-sheet-border px-2 py-2 text-center">
+              <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-2 text-center">
                 <button
                   type="button"
                   onClick={() => handleDelete(row.id)}
@@ -290,12 +290,12 @@ export default function MonthlyBaseClient({
         </tbody>
         <tfoot>
           <tr className="bg-sheet-header text-white font-bold">
-            <td className="border border-sheet-border px-3 py-2">Total</td>
-            <td className="border border-sheet-border px-3 py-2" />
-            <td className="border border-sheet-border px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2">Total</td>
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2" />
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
               {formatTotal(total)}
             </td>
-            <td className="border border-sheet-border px-2 py-2" />
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-2" />
           </tr>
         </tfoot>
       </table>

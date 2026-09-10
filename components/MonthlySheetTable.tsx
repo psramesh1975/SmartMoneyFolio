@@ -67,15 +67,15 @@ export default function MonthlySheetTable({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="bg-sheet-header text-white font-semibold">
-            <th className="border border-sheet-border px-2 py-1 text-left">{categoryName}</th>
+            <th className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-left">{categoryName}</th>
             {ALL_COLUMNS.map((col) => (
-              <th key={col} className="border border-sheet-border px-2 py-1 text-right">
+              <th key={col} className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-right">
                 {COLUMN_LABELS[col]}
               </th>
             ))}
-            <th className="border border-sheet-border px-2 py-1 text-left">Remark</th>
+            <th className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-left">Remark</th>
             {showSkipColumn && (
-              <th className="border border-sheet-border px-2 py-1 text-center">Skip</th>
+              <th className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-center">Skip</th>
             )}
           </tr>
         </thead>
@@ -83,9 +83,9 @@ export default function MonthlySheetTable({
           {rows.map((row) => (
             <tr
               key={row.id}
-              className={`bg-sheet-row ${row.isSkipped ? "line-through opacity-50" : ""}`}
+              className={`bg-sheet-row dark:bg-sheet-row-dark ${row.isSkipped ? "line-through opacity-50" : ""}`}
             >
-              <td className="border border-sheet-border px-2 py-1 text-slate-900">
+              <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-slate-900 dark:text-white">
                 {row.name}
                 {row.actions && <span className="ml-2">{row.actions}</span>}
               </td>
@@ -94,7 +94,7 @@ export default function MonthlySheetTable({
                 const value = row[col];
                 if (readOnly) {
                   return (
-                    <td key={col} className="border border-sheet-border px-2 py-1 text-right text-slate-900">
+                    <td key={col} className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-right text-slate-900 dark:text-white">
                       {value == null ? "-" : fmt(value)}
                     </td>
                   );
@@ -102,7 +102,7 @@ export default function MonthlySheetTable({
                 return (
                   <td
                     key={col}
-                    className={`border border-sheet-border p-0 ${enabled ? "" : "bg-sheet-row/60"}`}
+                    className={`border border-sheet-border dark:border-sheet-border-dark p-0 ${enabled ? "" : "bg-sheet-row/60 dark:bg-sheet-row-dark/60"}`}
                   >
                     <input
                       // Keyed on the value so an external update (e.g. the Base
@@ -114,14 +114,14 @@ export default function MonthlySheetTable({
                       defaultValue={value ?? ""}
                       disabled={!enabled || row.isSkipped}
                       onBlur={(e) => onCellChange?.(row.id, col, e.target.value)}
-                      className="w-full border-0 bg-transparent px-2 py-1 text-right text-slate-900 focus:outline-none disabled:cursor-not-allowed"
+                      className="w-full border-0 bg-transparent px-2 py-1 text-right text-slate-900 dark:text-white focus:outline-none disabled:cursor-not-allowed"
                     />
                   </td>
                 );
               })}
-              <td className="border border-sheet-border p-0">
+              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
                 {readOnly ? (
-                  <div className="px-2 py-1 text-slate-900">{row.remark ?? ""}</div>
+                  <div className="px-2 py-1 text-slate-900 dark:text-white">{row.remark ?? ""}</div>
                 ) : (
                   <input
                     key={row.remark ?? ""}
@@ -129,12 +129,12 @@ export default function MonthlySheetTable({
                     defaultValue={row.remark ?? ""}
                     disabled={row.isSkipped}
                     onBlur={(e) => onCellChange?.(row.id, "remark", e.target.value)}
-                    className="w-full border-0 bg-transparent px-2 py-1 text-slate-900 focus:outline-none disabled:cursor-not-allowed"
+                    className="w-full border-0 bg-transparent px-2 py-1 text-slate-900 dark:text-white focus:outline-none disabled:cursor-not-allowed"
                   />
                 )}
               </td>
               {showSkipColumn && (
-                <td className="border border-sheet-border px-2 py-1 text-center">
+                <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-center">
                   {!readOnly && (
                     <input
                       key={String(row.isSkipped ?? false)}
@@ -150,17 +150,17 @@ export default function MonthlySheetTable({
         </tbody>
         <tfoot>
           <tr className="bg-sheet-header text-white font-semibold">
-            <td className="border border-sheet-border px-2 py-1">Total</td>
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1">Total</td>
             {ALL_COLUMNS.map((col) => {
               const total = totalFor(col);
               return (
-                <td key={col} className="border border-sheet-border px-2 py-1 text-right">
+                <td key={col} className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1 text-right">
                   {total == null ? "-" : fmt(total)}
                 </td>
               );
             })}
-            <td className="border border-sheet-border px-2 py-1">-</td>
-            {showSkipColumn && <td className="border border-sheet-border px-2 py-1" />}
+            <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1">-</td>
+            {showSkipColumn && <td className="border border-sheet-border dark:border-sheet-border-dark px-2 py-1" />}
           </tr>
         </tfoot>
       </table>
