@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { TrendingUp, Coins, Wallet, Target } from "lucide-react";
+import { TrendingUp, PiggyBank, ArrowLeftRight, Gauge } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AllocationChart from "@/components/AllocationChart";
+import AllocationDonut from "@/components/AllocationDonut";
 import { assetClassLabel, ASSET_CLASSES } from "@/lib/asset-classes";
+import { getDashboardCashFlow, getLiquidBuffer, getGoalPacing } from "@/lib/dashboard-data";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -27,18 +28,21 @@ export default async function DashboardPage() {
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const household = await prisma.household.findUnique({
-    where: { id: session.householdId },
-    include: {
-      familyMembers: {
-        orderBy: { createdAt: "asc" },
-        include: { accounts: true },
+  const [household, cashFlow, { liquidBuffer }] = await Promise.all([
+    prisma.household.findUnique({
+      where: { id: session.householdId },
+      include: {
+        familyMembers: {
+          orderBy: { createdAt: "asc" },
+          include: { accounts: true },
+        },
+        allocationTargets: true,
+        goals: { orderBy: { createdAt: "asc" } },
       },
-      users: { select: { id: true, email: true } },
-      allocationTargets: true,
-      goals: { orderBy: { createdAt: "asc" } },
-    },
-  });
+    }),
+    getDashboardCashFlow(session.householdId),
+    getLiquidBuffer(session.householdId),
+  ]);
 
   if (!household) redirect("/login");
 
@@ -93,6 +97,11 @@ export default async function DashboardPage() {
   );
   const allocationTarget = classesWithData.map((c) => Math.round(targetMap[c.value] ?? 0));
 
+  const runwayMonths =
+    cashFlow.avgMonthlyOutflow && cashFlow.avgMonthlyOutflow > 0
+      ? liquidBuffer / cashFlow.avgMonthlyOutflow
+      : null;
+
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
       <div className="space-y-8">
@@ -100,9 +109,14 @@ export default async function DashboardPage() {
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             <span>Wealth Overview</span>
           </div>
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
-            {household.name}
-          </h1>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+              {household.name}
+            </h1>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Base {household.baseCurrency} · Operational {household.operationalCurrency}
+            </span>
+          </div>
         </div>
 
         <div>
@@ -120,38 +134,68 @@ export default async function DashboardPage() {
                 {baseCurrency} {fmt(netWorth)}
               </p>
             </div>
+
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Base currency
+                  Safe-to-spend buffer
                 </span>
                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-2 text-blue-600 dark:border-lime-400/20 dark:bg-blue-500/10 dark:text-lime-400">
-                  <Coins size={16} />
+                  <PiggyBank size={16} />
                 </div>
               </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{household.baseCurrency}</p>
+              <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                {baseCurrency} {fmt(liquidBuffer)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cash + Fixed Deposits</p>
             </div>
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+
+            <Link
+              href="/monthly/current"
+              className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40"
+            >
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Operational currency
+                  Monthly cash flow
                 </span>
                 <div className="rounded-xl border border-amber-100 bg-amber-50 p-2 text-amber-600 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-400">
-                  <Wallet size={16} />
+                  <ArrowLeftRight size={16} />
                 </div>
               </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-amber-600 dark:text-amber-400">{household.operationalCurrency}</p>
-            </div>
+              <p className="mt-1 text-2xl font-black tracking-tight">
+                <span className="text-emerald-600 dark:text-cyan-400">+{fmt(cashFlow.monthlyInflow)}</span>
+                <span className="text-slate-400 dark:text-slate-500"> / </span>
+                <span className="text-rose-600 dark:text-rose-400">−{fmt(cashFlow.monthlyOutflow)}</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {cashFlow.currentMonthLabel}, actual so far
+              </p>
+            </Link>
+
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Goals tracked
+                  Financial runway
                 </span>
                 <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-400">
-                  <Target size={16} />
+                  <Gauge size={16} />
                 </div>
               </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">{household.goals.length}</p>
+              {runwayMonths !== null ? (
+                <>
+                  <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                    {runwayMonths.toFixed(1)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">months of coverage</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-black tracking-tight text-slate-400 dark:text-slate-600">—</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Add a few months of tracking to see this
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -175,14 +219,22 @@ export default async function DashboardPage() {
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {memberBreakdowns.map((m, i) => {
               const palette = avatarPalette[i % avatarPalette.length];
+              const sharePct = netWorth > 0 ? Math.round((m.total / netWorth) * 100 * 10) / 10 : null;
               return (
                 <div key={m.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
                   <div className="flex items-center gap-3">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${palette.bg} ${palette.text} ${palette.border}`}>
                       {m.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.name}</p>
+                        {sharePct !== null && (
+                          <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
+                            {sharePct}%
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                           {m.relationship}
@@ -247,7 +299,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <AllocationChart labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
+              <AllocationDonut labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
             </div>
           )}
         </div>
@@ -267,6 +319,11 @@ export default async function DashboardPage() {
                 const target = Number(g.targetAmount) || 1;
                 const current = Number(g.currentAmount) || 0;
                 const pct = Math.min(100, Math.round((current / target) * 100));
+                const pacing = getGoalPacing({
+                  targetAmount: Number(g.targetAmount),
+                  currentAmount: current,
+                  targetDate: g.targetDate,
+                });
                 return (
                   <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
                     <div className="flex items-center justify-between text-sm">
@@ -278,28 +335,37 @@ export default async function DashboardPage() {
                     <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
                       <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
                     </div>
+
+                    {pacing.isOverdue ? (
+                      <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+                        Target date passed — {g.currency} {fmt(Math.max(0, target - current))} still needed.
+                      </p>
+                    ) : g.targetDate === null ? (
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        No target date set —{" "}
+                        <Link href="/goals" className="text-blue-600 hover:underline dark:text-lime-400">
+                          add one
+                        </Link>{" "}
+                        to see pacing.
+                      </p>
+                    ) : pacing.requiredMonthlyRate === 0 ? (
+                      <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-cyan-400">
+                        Target reached 🎉
+                      </p>
+                    ) : (
+                      pacing.requiredMonthlyRate !== null && (
+                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          {pacing.monthsRemaining} months left · needs {g.currency}{" "}
+                          {fmt(pacing.requiredMonthlyRate)}/mo to hit target
+                        </p>
+                      )
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-
-        <div>
-          <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">People with access</h2>
-          <div className="mt-4 divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-            {household.users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between px-4 py-3">
-                <p className="text-sm text-slate-900 dark:text-white">{u.email}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
-          Cash flow tracking (the monthly and yearly planner screens) is coming
-          in the next update.
-        </p>
       </div>
     </section>
   );
