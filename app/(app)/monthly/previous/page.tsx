@@ -21,7 +21,7 @@ export default async function PreviousMonthPage() {
   ]);
 
   return (
-    <section className="mx-auto max-w-5xl px-6 py-10">
+    <section className="max-w-5xl px-6 py-10">
       <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
         Previous Month — {MONTH_LABELS[month - 1]} {year}
       </h1>

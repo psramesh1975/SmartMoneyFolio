@@ -42,7 +42,7 @@ export default function AccountsClient({
     e.preventDefault();
     setError(null);
     if (!familyMemberId || !holdingName.trim() || !currentValue) {
-      setError("Fill in the holding name, value, and family member.");
+      setError("Fill in the asset name, value, and family member.");
       return;
     }
     setLoading(true);
@@ -130,7 +130,7 @@ export default function AccountsClient({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Holding name</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Asset name</label>
             <input
               value={holdingName}
               onChange={(e) => setHoldingName(e.target.value)}
@@ -178,7 +178,7 @@ export default function AccountsClient({
       <div className="divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
         {accounts.length === 0 && (
           <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
-            No holdings added yet. Use the form above to add your first one.
+            No assets added yet. Use the form above to add your first one.
           </p>
         )}
         {accounts.map((a) => (
@@ -207,9 +207,9 @@ export default function AccountsClient({
       <ImportExcelModal
         open={showImport}
         onClose={() => setShowImport(false)}
-        title="Import holdings from Excel"
+        title="Import assets from Excel"
         resourceLabelPlural="accounts"
-        templateHref="/templates/holdings-import-template.xlsx"
+        templateHref="/templates/assets-import-template.xlsx"
         validateUrl="/api/accounts/import/validate"
         importUrl="/api/accounts/import"
         onImported={(result, mode: ImportMode) => {

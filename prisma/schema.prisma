@@ -37,6 +37,7 @@ model Household {
   users         User[]
   familyMembers FamilyMember[]
   accounts          Account[]
+  liabilities       Liability[]
   allocationTargets AllocationTarget[]
   goals             Goal[]
   monthlyCategories MonthlyCategory[]
@@ -85,7 +86,8 @@ model FamilyMember {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  accounts Account[]
+  accounts    Account[]
+  liabilities Liability[]
 
   @@index([householdId])
   @@map("family_members")
@@ -118,6 +120,7 @@ model Account {
   holdingName    String       // e.g. "PFC FD", "PPF", "Nippon Small Cap Fund", "401(k)"
   currency       String
   currentValue   Decimal
+  purchaseValue  Decimal?     // optional cost basis — mainly used for Real Estate
   lastUpdated    DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -125,6 +128,44 @@ model Account {
   @@index([householdId])
   @@index([familyMemberId])
   @@map("accounts")
+}
+
+enum LiabilityType {
+  HOME_LOAN
+  CAR_LOAN
+  PERSONAL_LOAN
+  CREDIT_CARD
+  DEVICE_EMI
+  OTHER
+}
+
+// A loan, mortgage, or running balance owed. Outstanding balance nets
+// against Account.currentValue to produce Net Worth. Amortization
+// (principal/interest split, payoff timeline) is computed live from
+// outstandingBalance + interestRate + emiAmount — nothing here is a
+// stored schedule. Loans with interestRate null/0 (credit cards, 0%
+// device EMIs) are simple running balances with no amortization math.
+model Liability {
+  id                 String        @id @default(cuid())
+  householdId        String
+  household          Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  familyMemberId     String
+  familyMember       FamilyMember  @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  liabilityType      LiabilityType
+  name               String        // "ICICI Home Loan", "Credit Card Running Balance"
+  currency           String
+  outstandingBalance Decimal
+  originalAmount     Decimal?      // original principal, if known — needed for amortization progress %
+  interestRate       Decimal?      // annual %, e.g. 8.65 — null/0 means non-amortizing (credit card, 0% EMI)
+  emiAmount          Decimal?      // monthly payment, reference only, not wired to Monthly Tracking in this phase
+  targetPayoffDate   DateTime?
+  lastUpdated        DateTime      @default(now())
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([householdId])
+  @@index([familyMemberId])
+  @@map("liabilities")
 }
 
 // Household-level target allocation % per asset class, compared against

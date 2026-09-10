@@ -26,3 +26,16 @@ export const ASSET_CLASS_VALUES = ASSET_CLASSES.map((c) => c.value) as [
 export function assetClassLabel(value: string): string {
   return ASSET_CLASSES.find((a) => a.value === value)?.label ?? value;
 }
+
+// Groups the asset classes into the collapsible sections shown on the
+// dashboard's Assets area. holdingName free text already covers sub-labels
+// like "HDFC", "Emirates NBD", "SBI Life" — no schema change needed there,
+// it's just what the user types into the existing name field.
+export const ASSET_GROUPS: { label: string; classes: AssetClassValue[] }[] = [
+  { label: "Liquid Cash & Banking", classes: ["CASH"] },
+  { label: "Market Investments", classes: ["STOCKS", "MUTUAL_FUNDS", "BONDS", "CRYPTOCURRENCY"] },
+  { label: "Fixed Capital & Guaranteed", classes: ["FIXED_DEPOSIT", "GOLD"] },
+  { label: "Retirement & Locked Funds", classes: ["RETIREMENT_SAVINGS", "INSURANCE_LINKED"] },
+  { label: "Physical Assets / Real Estate", classes: ["REAL_ESTATE"] },
+  { label: "Other", classes: ["OTHER"] },
+];

@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { TrendingUp, PiggyBank, ArrowLeftRight, Gauge } from "lucide-react";
+import { Landmark, CreditCard, Scale, Gauge } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AllocationDonut from "@/components/AllocationDonut";
+import AssetsOverview from "@/components/AssetsOverview";
+import DebtOverview from "@/components/DebtOverview";
+import DebtPayoffTimeline from "@/components/DebtPayoffTimeline";
 import { assetClassLabel, ASSET_CLASSES } from "@/lib/asset-classes";
-import { getDashboardCashFlow, getLiquidBuffer, getGoalPacing } from "@/lib/dashboard-data";
+import { getSolvencySnapshot } from "@/lib/dashboard-data";
+import { projectDebtPayoffTimeline } from "@/lib/amortization";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -21,6 +25,13 @@ const avatarPalette = [
   { bg: "bg-pink-50 dark:bg-pink-500/10", text: "text-pink-700 dark:text-pink-400", border: "border-pink-200/60 dark:border-pink-500/20" },
 ];
 
+// Cosmetic health cue only, not a stored rule.
+function ratioTone(ratio: number) {
+  if (ratio < 20) return "text-emerald-600 dark:text-cyan-400";
+  if (ratio < 40) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
+}
+
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -28,7 +39,7 @@ export default async function DashboardPage() {
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const [household, cashFlow, { liquidBuffer }] = await Promise.all([
+  const [household, liabilitiesRaw, snapshot] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       include: {
@@ -37,11 +48,14 @@ export default async function DashboardPage() {
           include: { accounts: true },
         },
         allocationTargets: true,
-        goals: { orderBy: { createdAt: "asc" } },
       },
     }),
-    getDashboardCashFlow(session.householdId),
-    getLiquidBuffer(session.householdId),
+    prisma.liability.findMany({
+      where: { householdId: session.householdId },
+      include: { familyMember: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    getSolvencySnapshot(session.householdId),
   ]);
 
   if (!household) redirect("/login");
@@ -54,6 +68,15 @@ export default async function DashboardPage() {
   let netWorth = 0;
   const byClassTotals: Record<string, number> = {};
   const otherCurrencyCount = { count: 0 };
+  const accountRows: {
+    id: string;
+    familyMemberId: string;
+    familyMemberName: string;
+    assetClass: string;
+    holdingName: string;
+    currency: string;
+    currentValue: string;
+  }[] = [];
 
   const memberBreakdowns = household.familyMembers.map((member) => {
     const byClass: Record<string, number> = {};
@@ -62,6 +85,15 @@ export default async function DashboardPage() {
 
     for (const acc of member.accounts) {
       const value = Number(acc.currentValue);
+      accountRows.push({
+        id: acc.id,
+        familyMemberId: member.id,
+        familyMemberName: member.name,
+        assetClass: acc.assetClass,
+        holdingName: acc.holdingName,
+        currency: acc.currency,
+        currentValue: acc.currentValue.toString(),
+      });
       if (acc.currency === baseCurrency) {
         byClass[acc.assetClass] = (byClass[acc.assetClass] ?? 0) + value;
         memberTotal += value;
@@ -97,13 +129,33 @@ export default async function DashboardPage() {
   );
   const allocationTarget = classesWithData.map((c) => Math.round(targetMap[c.value] ?? 0));
 
-  const runwayMonths =
-    cashFlow.avgMonthlyOutflow && cashFlow.avgMonthlyOutflow > 0
-      ? liquidBuffer / cashFlow.avgMonthlyOutflow
-      : null;
+  const liabilityRows = liabilitiesRaw.map((l) => ({
+    id: l.id,
+    familyMemberName: l.familyMember.name,
+    liabilityType: l.liabilityType,
+    name: l.name,
+    currency: l.currency,
+    outstandingBalance: l.outstandingBalance.toString(),
+    originalAmount: l.originalAmount?.toString() ?? null,
+    interestRate: l.interestRate?.toString() ?? null,
+    emiAmount: l.emiAmount?.toString() ?? null,
+    targetPayoffDate: l.targetPayoffDate?.toISOString() ?? null,
+  }));
+
+  // Debt Payoff Timeline: base-currency liabilities only, same convention
+  // as the rest of the totals.
+  const payoffPoints = projectDebtPayoffTimeline(
+    liabilitiesRaw
+      .filter((l) => l.currency === baseCurrency)
+      .map((l) => ({
+        outstandingBalance: Number(l.outstandingBalance),
+        interestRate: l.interestRate ? Number(l.interestRate) : null,
+        emiAmount: l.emiAmount ? Number(l.emiAmount) : null,
+      }))
+  );
 
   return (
-    <section className="mx-auto max-w-5xl px-6 py-10">
+    <section className="max-w-5xl px-6 py-10">
       <div className="space-y-8">
         <div className="border-b border-slate-200/80 pb-6 dark:border-slate-800">
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -119,102 +171,96 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        {/* 6a. Solvency Snapshot */}
         <div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Total net worth
+                  Total assets
                 </span>
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-emerald-600 dark:border-cyan-500/20 dark:bg-emerald-500/10 dark:text-cyan-400">
-                  <TrendingUp size={16} />
+                  <Landmark size={16} />
                 </div>
               </div>
               <p className="mt-1 text-2xl font-black tracking-tight text-emerald-600 dark:text-cyan-400">
-                {baseCurrency} {fmt(netWorth)}
+                {snapshot.baseCurrency} {fmt(snapshot.totalAssets)}
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Safe-to-spend buffer
+                  Total liabilities
+                </span>
+                <div className="rounded-xl border border-rose-100 bg-rose-50 p-2 text-rose-600 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-400">
+                  <CreditCard size={16} />
+                </div>
+              </div>
+              <p className="mt-1 text-2xl font-black tracking-tight text-rose-600 dark:text-rose-400">
+                {snapshot.baseCurrency} {fmt(snapshot.totalLiabilities)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+              <div className="flex items-start justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Net worth
                 </span>
                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-2 text-blue-600 dark:border-lime-400/20 dark:bg-blue-500/10 dark:text-lime-400">
-                  <PiggyBank size={16} />
+                  <Scale size={16} />
                 </div>
               </div>
               <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                {baseCurrency} {fmt(liquidBuffer)}
+                {snapshot.baseCurrency} {fmt(snapshot.netWorth)}
               </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Cash + Fixed Deposits</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total assets − total liabilities</p>
             </div>
-
-            <Link
-              href="/monthly/current"
-              className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40"
-            >
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Monthly cash flow
-                </span>
-                <div className="rounded-xl border border-amber-100 bg-amber-50 p-2 text-amber-600 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-400">
-                  <ArrowLeftRight size={16} />
-                </div>
-              </div>
-              <p className="mt-1 text-2xl font-black tracking-tight">
-                <span className="text-emerald-600 dark:text-cyan-400">+{fmt(cashFlow.monthlyInflow)}</span>
-                <span className="text-slate-400 dark:text-slate-500"> / </span>
-                <span className="text-rose-600 dark:text-rose-400">−{fmt(cashFlow.monthlyOutflow)}</span>
-              </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {cashFlow.currentMonthLabel}, actual so far
-              </p>
-            </Link>
 
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Financial runway
+                  Debt-to-asset ratio
                 </span>
                 <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-400">
                   <Gauge size={16} />
                 </div>
               </div>
-              {runwayMonths !== null ? (
-                <>
-                  <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                    {runwayMonths.toFixed(1)}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">months of coverage</p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-1 text-2xl font-black tracking-tight text-slate-400 dark:text-slate-600">—</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Add a few months of tracking to see this
-                  </p>
-                </>
-              )}
+              <p className={`mt-1 text-2xl font-black tracking-tight ${ratioTone(snapshot.debtToAssetRatio)}`}>
+                {snapshot.debtToAssetRatio.toFixed(1)}%
+              </p>
             </div>
+          </div>
+        </div>
+
+        {/* 6b. Assets — What We Own */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Assets — what we own</h2>
+            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+              Manage assets →
+            </Link>
           </div>
 
           {otherCurrencyCount.count > 0 && (
-            <p className="mt-4 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
-              {otherCurrencyCount.count} holding{otherCurrencyCount.count > 1 ? "s are" : " is"} in a
+            <p className="mt-3 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
+              {otherCurrencyCount.count} asset{otherCurrencyCount.count > 1 ? "s are" : " is"} in a
               currency other than {baseCurrency} and {otherCurrencyCount.count > 1 ? "aren't" : "isn't"}{" "}
-              included in the total above yet — currency conversion isn't built in this module.
+              included in the totals above yet — currency conversion isn't built in this module.
             </p>
           )}
-        </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
-            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage holdings →
-            </Link>
-          </div>
+          {accountRows.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No assets added yet.</p>
+          ) : (
+            <div className="mt-4">
+              <AssetsOverview
+                accounts={accountRows}
+                familyMembers={household.familyMembers.map((m) => ({ id: m.id, name: m.name }))}
+                baseCurrency={baseCurrency}
+              />
+            </div>
+          )}
 
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {memberBreakdowns.map((m, i) => {
@@ -253,7 +299,7 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   {Object.keys(m.byClass).length === 0 && m.otherCurrencyHoldings.length === 0 ? (
-                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">No holdings added yet.</p>
+                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
                   ) : (
                     <table className="mt-3 w-full text-xs">
                       <tbody>
@@ -286,85 +332,40 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        {/* 6c. Debt & Liabilities — What We Owe */}
         <div>
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Allocation: actual vs target</h2>
-            <Link href="/allocation" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Set targets →
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Debt &amp; liabilities — what we owe</h2>
+            <Link href="/liabilities" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+              Manage liabilities →
             </Link>
           </div>
-          {classesWithData.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-              Add holdings and set a target allocation to see this chart.
-            </p>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <AllocationDonut labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
-            </div>
-          )}
+          <div className="mt-4">
+            <DebtOverview liabilities={liabilityRows} baseCurrency={baseCurrency} />
+          </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Goals</h2>
-            <Link href="/goals" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage goals →
-            </Link>
+        {/* 6d. Visuals */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Asset allocation</h2>
+            {classesWithData.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                Add assets and set a target allocation to see this chart.
+              </p>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+                <AllocationDonut labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
+              </div>
+            )}
           </div>
-          {household.goals.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No goals added yet.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {household.goals.map((g) => {
-                const target = Number(g.targetAmount) || 1;
-                const current = Number(g.currentAmount) || 0;
-                const pct = Math.min(100, Math.round((current / target) * 100));
-                const pacing = getGoalPacing({
-                  targetAmount: Number(g.targetAmount),
-                  currentAmount: current,
-                  targetDate: g.targetDate,
-                });
-                return (
-                  <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {g.currency} {fmt(current)} of {fmt(target)} ({pct}%)
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
-                      <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
-                    </div>
 
-                    {pacing.isOverdue ? (
-                      <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
-                        Target date passed — {g.currency} {fmt(Math.max(0, target - current))} still needed.
-                      </p>
-                    ) : g.targetDate === null ? (
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        No target date set —{" "}
-                        <Link href="/goals" className="text-blue-600 hover:underline dark:text-lime-400">
-                          add one
-                        </Link>{" "}
-                        to see pacing.
-                      </p>
-                    ) : pacing.requiredMonthlyRate === 0 ? (
-                      <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-cyan-400">
-                        Target reached 🎉
-                      </p>
-                    ) : (
-                      pacing.requiredMonthlyRate !== null && (
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          {pacing.monthsRemaining} months left · needs {g.currency}{" "}
-                          {fmt(pacing.requiredMonthlyRate)}/mo to hit target
-                        </p>
-                      )
-                    )}
-                  </div>
-                );
-              })}
+          <div>
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Debt payoff timeline</h2>
+            <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+              <DebtPayoffTimeline points={payoffPoints} currency={baseCurrency} />
             </div>
-          )}
+          </div>
         </div>
       </div>
     </section>

@@ -117,6 +117,33 @@ export async function getLiquidBuffer(householdId: string): Promise<{ liquidBuff
   return { liquidBuffer };
 }
 
+export type SolvencySnapshot = {
+  baseCurrency: string;
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+  debtToAssetRatio: number; // percent, 0 if totalAssets is 0
+};
+
+// Base-currency-only, same no-FX-conversion convention as everywhere else —
+// other-currency accounts/liabilities are listed separately, not netted in.
+export async function getSolvencySnapshot(householdId: string): Promise<SolvencySnapshot> {
+  const household = await prisma.household.findUnique({ where: { id: householdId }, select: { baseCurrency: true } });
+  const base = household?.baseCurrency ?? "USD";
+
+  const [accounts, liabilities] = await Promise.all([
+    prisma.account.findMany({ where: { householdId, currency: base }, select: { currentValue: true } }),
+    prisma.liability.findMany({ where: { householdId, currency: base }, select: { outstandingBalance: true } }),
+  ]);
+
+  const totalAssets = accounts.reduce((sum, a) => sum + Number(a.currentValue), 0);
+  const totalLiabilities = liabilities.reduce((sum, l) => sum + Number(l.outstandingBalance), 0);
+  const netWorth = totalAssets - totalLiabilities;
+  const debtToAssetRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+
+  return { baseCurrency: base, totalAssets, totalLiabilities, netWorth, debtToAssetRatio };
+}
+
 export type GoalPacing = {
   monthsRemaining: number | null; // null if no targetDate set
   requiredMonthlyRate: number | null; // null if no targetDate, or if already at/past target

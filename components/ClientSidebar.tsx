@@ -61,7 +61,10 @@ export default function ClientSidebar({
           Targets
         </Link>
         <Link href="/accounts" className={linkClass("/accounts")}>
-          Holdings
+          Assets
+        </Link>
+        <Link href="/liabilities" className={linkClass("/liabilities")}>
+          Liabilities
         </Link>
         <button
           type="button"
