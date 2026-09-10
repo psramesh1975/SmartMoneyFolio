@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const [household, familyMember] = await Promise.all([
+  const [household, familyMember, usersWithAccess] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       select: { name: true, country: true, timeZone: true },
@@ -22,6 +22,10 @@ export default async function SettingsPage() {
         operationalCurrency: true,
         residencyStatus: true,
       },
+    }),
+    prisma.user.findMany({
+      where: { householdId: session.householdId },
+      select: { id: true, email: true },
     }),
   ]);
 
@@ -47,6 +51,17 @@ export default async function SettingsPage() {
             : null
         }
       />
+
+      <div className="mt-8">
+        <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">People with access</h2>
+        <div className="mt-4 divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+          {usersWithAccess.map((u) => (
+            <div key={u.id} className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm text-slate-900 dark:text-white">{u.email}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

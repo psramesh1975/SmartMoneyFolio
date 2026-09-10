@@ -12,6 +12,7 @@ type GoalRow = {
   targetAmount: string;
   currentAmount: string;
   currency: string;
+  targetDate: string | null;
 };
 
 export default function GoalsClient({
@@ -29,6 +30,7 @@ export default function GoalsClient({
   const [targetAmount, setTargetAmount] = useState("");
   const [currentAmount, setCurrentAmount] = useState("0");
   const [currency, setCurrency] = useState("USD");
+  const [targetDate, setTargetDate] = useState("");
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +44,7 @@ export default function GoalsClient({
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, targetAmount, currentAmount, currency }),
+        body: JSON.stringify({ name, targetAmount, currentAmount, currency, targetDate: targetDate || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -51,11 +53,12 @@ export default function GoalsClient({
       }
       setGoals((prev) => [
         ...prev,
-        { id: data.goal.id, name, targetAmount, currentAmount, currency },
+        { id: data.goal.id, name, targetAmount, currentAmount, currency, targetDate: targetDate || null },
       ]);
       setName("");
       setTargetAmount("");
       setCurrentAmount("0");
+      setTargetDate("");
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Try again.");
@@ -77,7 +80,7 @@ export default function GoalsClient({
       </div>
       <form
           onSubmit={handleAdd}
-          className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-5"
+          className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-6"
         >
           <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Goal name</label>
@@ -121,7 +124,16 @@ export default function GoalsClient({
               className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
-          <div className="flex items-end lg:col-span-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Target date (optional)</label>
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+            />
+          </div>
+          <div className="flex items-end lg:col-span-6">
             <button
               type="submit"
               disabled={loading}
@@ -130,7 +142,7 @@ export default function GoalsClient({
               {loading ? "Adding…" : "Add goal"}
             </button>
           </div>
-          {error && <p className="lg:col-span-5 text-sm text-amber-600 dark:text-amber-400">{error}</p>}
+          {error && <p className="lg:col-span-6 text-sm text-amber-600 dark:text-amber-400">{error}</p>}
         </form>
 
       <div className="space-y-4">

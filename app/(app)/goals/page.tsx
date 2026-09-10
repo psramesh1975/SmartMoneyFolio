@@ -28,6 +28,7 @@ export default async function GoalsPage() {
           targetAmount: g.targetAmount.toString(),
           currentAmount: g.currentAmount.toString(),
           currency: g.currency,
+          targetDate: g.targetDate ? g.targetDate.toISOString() : null,
         }))}
       />
     </section>
