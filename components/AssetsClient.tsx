@@ -57,6 +57,40 @@ export type AssetRow = {
   sipMonthlyAmount: string | null;
 };
 
+// The create/update routes respond with the full account row (familyMember
+// and security included) — build the row this page needs straight from
+// that response instead of relying on router.refresh(), which re-fetches
+// the server component's props but can't update this component's own
+// useState(initialAssets), since a hook's initial value is only read on
+// mount. Without this, a new/edited asset wouldn't appear until a full
+// page reload remounted the component.
+function mapAccountToRow(account: any): AssetRow {
+  return {
+    id: account.id,
+    familyMemberId: account.familyMemberId,
+    familyMemberName: account.familyMember?.name ?? "",
+    assetClass: account.assetClass,
+    holdingName: account.holdingName,
+    currency: account.currency,
+    currentValue: String(account.currentValue),
+    purchaseValue: account.purchaseValue != null ? String(account.purchaseValue) : null,
+    accountOrFolioNo: account.accountOrFolioNo ?? null,
+    securityId: account.securityId ?? null,
+    securityName: account.security?.name ?? null,
+    securityTickerOrCode: account.security?.tickerOrCode ?? null,
+    securityLastPrice: account.security?.lastPrice != null ? String(account.security.lastPrice) : null,
+    unitsHeld: account.unitsHeld != null ? String(account.unitsHeld) : null,
+    avgBuyPrice: account.avgBuyPrice != null ? String(account.avgBuyPrice) : null,
+    interestRatePct: account.interestRatePct != null ? String(account.interestRatePct) : null,
+    startDate: account.startDate ?? null,
+    maturityDate: account.maturityDate ?? null,
+    compoundingFrequency: account.compoundingFrequency ?? null,
+    autoRenewalType: account.autoRenewalType ?? null,
+    isTaxExempt: account.isTaxExempt ?? null,
+    sipMonthlyAmount: account.sipMonthlyAmount != null ? String(account.sipMonthlyAmount) : null,
+  };
+}
+
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
 }
@@ -299,8 +333,8 @@ export default function AssetsClient({
         setError(data.error ?? "Couldn't save that asset.");
         return;
       }
-      // Simplest correct way to reflect a category-aware create/edit in the
-      // list without hand-reconstructing every joined field client-side.
+      const row = mapAccountToRow(data.account);
+      setAssets((prev) => (editingId ? prev.map((a) => (a.id === editingId ? row : a)) : [...prev, row]));
       router.refresh();
       resetForm();
     } catch {
