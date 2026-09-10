@@ -155,7 +155,7 @@ export default function CategoryCombobox({
         createPortal(
           <div
             style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width }}
-            className="z-50 mt-1 max-h-80 overflow-y-auto border border-sheet-border bg-sheet-row shadow-md dark:border-sheet-border-dark dark:bg-sheet-row-dark"
+            className="z-50 mt-1 max-h-80 overflow-y-auto rounded-lg border border-slate-200/80 bg-white shadow-md dark:border-slate-800 dark:bg-canvas-card"
           >
             {filtered.map((c) => (
               <button
@@ -165,7 +165,7 @@ export default function CategoryCombobox({
                   e.preventDefault();
                   selectCategory(c);
                 }}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-900 hover:bg-white/40 dark:text-white dark:hover:bg-white/10"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-50 dark:text-white dark:hover:bg-white/5"
               >
                 <span>{c.name}</span>
                 <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${categoryBadgeTone(c.type)}`}>
@@ -174,7 +174,7 @@ export default function CategoryCombobox({
               </button>
             ))}
             {filtered.length === 0 && !showCreate && (
-              <p className="px-3 py-2 text-sm text-slate-500 dark:text-slate-300">No matches</p>
+              <p className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">No matches</p>
             )}
             {showCreate && (
               <button
@@ -184,7 +184,7 @@ export default function CategoryCombobox({
                   createAndSelect();
                 }}
                 disabled={creating}
-                className="w-full border-t border-sheet-border px-3 py-2 text-left text-sm font-medium text-slate-900 hover:bg-white/40 disabled:opacity-60 dark:border-sheet-border-dark dark:text-white dark:hover:bg-white/10"
+                className="w-full border-t border-slate-200/80 px-3 py-2 text-left text-sm font-medium text-slate-900 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-800 dark:text-white dark:hover:bg-white/5"
               >
                 {creating ? "Creating…" : `Create category: "${query.trim()}"`}
               </button>

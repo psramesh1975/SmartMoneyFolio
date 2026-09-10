@@ -158,7 +158,7 @@ function AddCategoryRow({ onCreated }: { onCreated: (c: MonthlyCategoryOptionDTO
       <button
         type="submit"
         disabled={saving}
-        className="focus-ring bg-sheet-header px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+        className="focus-ring bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
       >
         {saving ? "Adding…" : "Add category"}
       </button>
