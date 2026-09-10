@@ -22,7 +22,7 @@ export default async function EarlierMonthsPage() {
   ]);
 
   return (
-    <section className="mx-auto max-w-5xl px-6 py-10">
+    <section className="max-w-5xl px-6 py-10">
       <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Earlier Months</h1>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Read-only — this year's months before Previous Month.

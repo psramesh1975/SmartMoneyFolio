@@ -18,7 +18,7 @@ function writeTemplate(filename: string, headers: string[], exampleRow: (string 
 }
 
 writeTemplate(
-  "holdings-import-template.xlsx",
+  "assets-import-template.xlsx",
   ["Family Member", "Asset Class", "Holding Name", "Currency", "Current Value"],
   ["Self", "Fixed Deposit", "Example — delete this row", "USD", 1000]
 );
