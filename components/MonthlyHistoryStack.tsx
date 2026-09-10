@@ -23,7 +23,7 @@ export default function MonthlyHistoryStack({
     <div className="space-y-4">
       {yearlySummary && (
         <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-white/5">
-          <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">Year total</h2>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Year total</h2>
           <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
             <span>
               Total Inflow: {currency} {fmt(yearlySummary.actualIncome)}

@@ -18,8 +18,8 @@ export default async function PlatformClientsPage() {
 
   return (
     <section className="mx-auto max-w-5xl">
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Clients</h1>
-      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
+      <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Clients</h1>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Every client household on the platform. Suspend or reactivate a
         client's access below.
       </p>

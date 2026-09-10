@@ -22,10 +22,10 @@ export default async function CurrentMonthPage() {
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+      <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
         Current Month — {MONTH_LABELS[month - 1]} {year}
       </h1>
-      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Fully editable. Recurring lines were snapshotted in automatically —
         edit a line's plan for next month, or fill in what actually happened
         this month.

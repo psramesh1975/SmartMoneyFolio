@@ -70,7 +70,7 @@ export default function GoalsClient({
         <button
           type="button"
           onClick={() => setShowImport(true)}
-          className="focus-ring bg-blue-600 px-4 py-2 text-base text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
+          className="focus-ring bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
         >
           Import from Excel
         </button>
@@ -85,7 +85,7 @@ export default function GoalsClient({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Retirement Corpus"
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
@@ -93,7 +93,7 @@ export default function GoalsClient({
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -109,7 +109,7 @@ export default function GoalsClient({
               value={targetAmount}
               onChange={(e) => setTargetAmount(e.target.value)}
               placeholder="60000000"
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
@@ -118,24 +118,24 @@ export default function GoalsClient({
               type="number"
               value={currentAmount}
               onChange={(e) => setCurrentAmount(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div className="flex items-end lg:col-span-5">
             <button
               type="submit"
               disabled={loading}
-              className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              className="focus-ring bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               {loading ? "Adding…" : "Add goal"}
             </button>
           </div>
-          {error && <p className="lg:col-span-5 text-base text-amber-600 dark:text-amber-400">{error}</p>}
+          {error && <p className="lg:col-span-5 text-sm text-amber-600 dark:text-amber-400">{error}</p>}
         </form>
 
       <div className="space-y-4">
         {goals.length === 0 && (
-          <p className="text-base text-slate-500 dark:text-slate-400">No goals added yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No goals added yet.</p>
         )}
         {goals.map((g) => {
           const target = Number(g.targetAmount) || 1;
@@ -143,9 +143,9 @@ export default function GoalsClient({
           const pct = Math.min(100, Math.round((current / target) * 100));
           return (
             <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <div className="flex items-center justify-between text-base">
+              <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {g.currency} {current.toLocaleString()} of {target.toLocaleString()} ({pct}%)
                 </span>
               </div>

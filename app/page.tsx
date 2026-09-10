@@ -38,8 +38,8 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-50 dark:bg-canvas">
       <header className="border-b border-slate-200/80 dark:border-slate-800">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Smart Money Folio</span>
-          <nav className="flex items-center gap-6 text-base">
+          <span className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Smart Money Folio</span>
+          <nav className="flex items-center gap-6 text-sm">
             <Link href="/login" className="focus-ring text-slate-900 hover:text-blue-600 dark:text-white dark:hover:text-lime-400">
               Log in
             </Link>
@@ -54,13 +54,13 @@ export default function HomePage() {
       </header>
 
       <section className="mx-auto max-w-5xl px-6 pb-10 pt-16">
-        <p className="text-base font-semibold uppercase tracking-wide text-blue-600 dark:text-lime-400">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-lime-400">
           Your Money. Your Wealth. Your Future.
         </p>
         <h1 className="mt-4 max-w-3xl text-5xl font-extrabold leading-[1.1] tracking-tight text-slate-900 dark:text-white">
           One ledger for money that lives in two countries.
         </h1>
-        <p className="mt-6 max-w-xl text-xl text-slate-500 dark:text-slate-400">
+        <p className="mt-6 max-w-xl text-base text-slate-500 dark:text-slate-400">
           Replace the spreadsheet. Track income, recurring costs, remittances,
           and family wealth in one place — built for households whose money
           crosses a border every month, in any pair of currencies.
@@ -88,23 +88,23 @@ export default function HomePage() {
       <section className="border-t border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-white/5">
         <div className="mx-auto grid max-w-5xl gap-10 px-6 py-16 md:grid-cols-3">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Dual-currency cash flow</h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-500 dark:text-slate-400">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Dual-currency cash flow</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               Fixed income in one currency, recurring costs like rent and
               insurance, and loan payments in another — planned together
               instead of across six tabs.
             </p>
           </div>
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Consolidated family wealth</h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-500 dark:text-slate-400">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Consolidated family wealth</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               Mutual funds, deposits, bonds, retirement accounts, and pensions
               across every family member, tracked against one lifetime target.
             </p>
           </div>
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">One household, many members</h2>
-            <p className="mt-3 text-base leading-relaxed text-slate-500 dark:text-slate-400">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">One household, many members</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
               Tag accounts and goals to a spouse or child who never needs to log in —
               or invite them with view-only access when they're ready.
             </p>

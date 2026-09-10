@@ -92,7 +92,7 @@ export default function AccountsClient({
         <button
           type="button"
           onClick={() => setShowImport(true)}
-          className="focus-ring bg-blue-600 px-4 py-2 text-base text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
+          className="focus-ring bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
         >
           Import from Excel
         </button>
@@ -106,7 +106,7 @@ export default function AccountsClient({
             <select
               value={familyMemberId}
               onChange={(e) => setFamilyMemberId(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {familyMembers.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -120,7 +120,7 @@ export default function AccountsClient({
             <select
               value={assetClass}
               onChange={(e) => setAssetClass(e.target.value as typeof assetClass)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {ASSET_CLASSES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -135,7 +135,7 @@ export default function AccountsClient({
               value={holdingName}
               onChange={(e) => setHoldingName(e.target.value)}
               placeholder="PFC FD, Nippon Small Cap…"
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
@@ -144,7 +144,7 @@ export default function AccountsClient({
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="focus-ring w-20 border border-slate-200/80 bg-white px-1 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                className="focus-ring w-20 border border-slate-200/80 bg-white px-1 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               >
                 {CURRENCIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -157,7 +157,7 @@ export default function AccountsClient({
                 value={currentValue}
                 onChange={(e) => setCurrentValue(e.target.value)}
                 placeholder="500000"
-                className="focus-ring w-full border border-slate-200/80 bg-white px-2 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                className="focus-ring w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               />
             </div>
           </div>
@@ -165,32 +165,32 @@ export default function AccountsClient({
             <button
               type="submit"
               disabled={loading}
-              className="focus-ring w-full bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              className="focus-ring w-full bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
               {loading ? "Adding…" : "Add"}
             </button>
           </div>
           {error && (
-            <p className="sm:col-span-2 lg:col-span-5 text-base text-amber-600 dark:text-amber-400">{error}</p>
+            <p className="sm:col-span-2 lg:col-span-5 text-sm text-amber-600 dark:text-amber-400">{error}</p>
           )}
         </form>
 
       <div className="divide-y divide-slate-200/80 rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow dark:divide-slate-800 dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
         {accounts.length === 0 && (
-          <p className="px-4 py-6 text-base text-slate-500 dark:text-slate-400">
+          <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
             No holdings added yet. Use the form above to add your first one.
           </p>
         )}
         {accounts.map((a) => (
           <div key={a.id} className="flex items-center justify-between px-4 py-3">
             <div>
-              <p className="text-base font-medium text-slate-900 dark:text-white">{a.holdingName}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-white">{a.holdingName}</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {a.familyMemberName} · {assetClassLabel(a.assetClass)}
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-base text-slate-900 dark:text-white">
+              <span className="text-sm text-slate-900 dark:text-white">
                 {a.currency} {Number(a.currentValue).toLocaleString()}
               </span>
               <button

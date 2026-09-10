@@ -39,7 +39,7 @@ export default function PlatformClientsClient({
   }
 
   if (households.length === 0) {
-    return <p className="mt-8 text-base text-slate-500 dark:text-slate-400">No clients have signed up yet.</p>;
+    return <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">No clients have signed up yet.</p>;
   }
 
   return (
@@ -48,7 +48,7 @@ export default function PlatformClientsClient({
         <div key={h.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-base font-medium text-slate-900 dark:text-white">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">
                 {h.name}
                 {h.isSuspended && (
                   <span className="ml-2 text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">Suspended</span>
@@ -76,7 +76,7 @@ export default function PlatformClientsClient({
 
           <div className="mt-3 divide-y divide-slate-200/80 border-t border-slate-200/80 pt-2 dark:divide-slate-800 dark:border-slate-800">
             {h.users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between py-1.5 text-base">
+              <div key={u.id} className="flex items-center justify-between py-1.5 text-sm">
                 <span className="text-slate-900 dark:text-white">{u.email}</span>
               </div>
             ))}

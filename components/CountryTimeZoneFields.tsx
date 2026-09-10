@@ -36,12 +36,12 @@ export default function CountryTimeZoneFields({
   return (
     <div className="grid grid-cols-2 gap-4">
       <div>
-        <label className="block text-base font-medium text-slate-500 dark:text-slate-400">Country</label>
+        <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Country</label>
         <select
           required
           value={country}
           onChange={(e) => handleCountryChange(e.target.value)}
-          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
         >
           <option value="" disabled>
             Select country
@@ -54,13 +54,13 @@ export default function CountryTimeZoneFields({
         </select>
       </div>
       <div>
-        <label className="block text-base font-medium text-slate-500 dark:text-slate-400">Timezone</label>
+        <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Timezone</label>
         <select
           required
           value={timeZone}
           disabled={locked}
           onChange={(e) => onTimeZoneChange(e.target.value)}
-          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-800 dark:bg-canvas-card dark:text-white dark:disabled:bg-white/5 dark:disabled:text-slate-400"
+          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-800 dark:bg-canvas-card dark:text-white dark:disabled:bg-white/5 dark:disabled:text-slate-400"
         >
           <option value="" disabled>
             Select timezone

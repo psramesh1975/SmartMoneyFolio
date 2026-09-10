@@ -25,7 +25,7 @@ export default function SettingsClient({
       {initialProfile ? (
         <ProfileForm initialProfile={initialProfile} />
       ) : (
-        <p className="border border-slate-200/80 bg-slate-50 px-4 py-3 text-base text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
+        <p className="border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
           We couldn't find a profile linked to your login, so profile
           details can't be edited here. Password changes are still
           available below.
@@ -84,7 +84,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
 
   return (
     <div>
-      <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Profile</h2>
+      <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Profile</h2>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div>
           <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Name</label>
@@ -92,7 +92,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -102,7 +102,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
               required
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
@@ -110,7 +110,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
             <select
               value={operationalCurrency}
               onChange={(e) => setOperationalCurrency(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -126,7 +126,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
             required
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div>
@@ -134,7 +134,7 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
           <select
             value={residencyStatus}
             onChange={(e) => setResidencyStatus(e.target.value)}
-            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           >
             <option value="NRI">NRI</option>
             <option value="RESIDENT_INDIAN">Resident Indian</option>
@@ -161,13 +161,13 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
           </div>
         </div>
 
-        {error && <p className="text-base text-amber-600 dark:text-amber-400">{error}</p>}
-        {saved && !error && <p className="text-base text-emerald-600 dark:text-cyan-400">Profile updated.</p>}
+        {error && <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
+        {saved && !error && <p className="text-sm text-emerald-600 dark:text-cyan-400">Profile updated.</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+          className="focus-ring bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         >
           {loading ? "Saving…" : "Save profile"}
         </button>
@@ -223,7 +223,7 @@ function PasswordForm() {
 
   return (
     <div>
-      <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Password</h2>
+      <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Password</h2>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div>
           <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Current password</label>
@@ -232,7 +232,7 @@ function PasswordForm() {
             required
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -244,7 +244,7 @@ function PasswordForm() {
               minLength={8}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
@@ -255,18 +255,18 @@ function PasswordForm() {
               minLength={8}
               value={confirmNewPassword}
               onChange={(e) => setConfirmNewPassword(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
         </div>
 
-        {error && <p className="text-base text-amber-600 dark:text-amber-400">{error}</p>}
-        {saved && !error && <p className="text-base text-emerald-600 dark:text-cyan-400">Password changed.</p>}
+        {error && <p className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
+        {saved && !error && <p className="text-sm text-emerald-600 dark:text-cyan-400">Password changed.</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+          className="focus-ring bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         >
           {loading ? "Saving…" : "Change password"}
         </button>

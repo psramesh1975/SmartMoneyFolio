@@ -134,7 +134,7 @@ export default function SignupPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-12 dark:bg-canvas">
       <div className="mx-auto max-w-xl">
-        <Link href="/" className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+        <Link href="/" className="text-base font-bold text-slate-900 dark:text-white">
           Smart Money Folio
         </Link>
 
@@ -147,7 +147,7 @@ export default function SignupPage() {
         </div>
 
         {error && (
-          <p className="mt-4 border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-base text-amber-600 dark:border-amber-400/40 dark:bg-amber-400/5 dark:text-amber-400">
+          <p className="mt-4 border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-sm text-amber-600 dark:border-amber-400/40 dark:bg-amber-400/5 dark:text-amber-400">
             {error}
           </p>
         )}
@@ -155,13 +155,13 @@ export default function SignupPage() {
         {step === 1 && (
           <form onSubmit={goToMembers} className="mt-8 space-y-5">
             <div>
-              <label className="block text-base font-medium text-slate-500 dark:text-slate-400">Household name</label>
+              <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Household name</label>
               <input
                 required
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
                 placeholder="e.g. The Sharma Household"
-                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               />
             </div>
 
@@ -177,13 +177,13 @@ export default function SignupPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-base font-medium text-slate-500 dark:text-slate-400">
+                <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                   Base currency (net worth)
                 </label>
                 <select
                   value={baseCurrency}
                   onChange={(e) => setBaseCurrency(e.target.value)}
-                  className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                  className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>
@@ -193,13 +193,13 @@ export default function SignupPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-base font-medium text-slate-500 dark:text-slate-400">
+                <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                   Operational currency (day to day)
                 </label>
                 <select
                   value={operationalCurrency}
                   onChange={(e) => setOperationalCurrency(e.target.value)}
-                  className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                  className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>
@@ -213,17 +213,17 @@ export default function SignupPage() {
             <hr className="border-slate-200/80 dark:border-slate-800" />
 
             <div>
-              <label className="block text-base font-medium text-slate-500 dark:text-slate-400">Your email</label>
+              <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Your email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-base font-medium text-slate-500 dark:text-slate-400">
+              <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                 Create a password
               </label>
               <input
@@ -232,7 +232,7 @@ export default function SignupPage() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
               />
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">At least 8 characters. You'll be the household Admin.</p>
             </div>
@@ -248,7 +248,7 @@ export default function SignupPage() {
 
         {step === 2 && (
           <div className="mt-8 space-y-6">
-            <p className="text-base text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Add anyone whose accounts, assets, or expenses you'll want to track
               separately — a spouse, children, or anyone else. You can add or edit
               these later.
@@ -276,12 +276,12 @@ export default function SignupPage() {
                       placeholder="Name"
                       value={m.name}
                       onChange={(e) => updateMember(i, { name: e.target.value })}
-                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     />
                     <select
                       value={m.relationship}
                       onChange={(e) => updateMember(i, { relationship: e.target.value })}
-                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     >
                       <option value="" disabled>
                         Relationship
@@ -295,7 +295,7 @@ export default function SignupPage() {
                     <select
                       value={m.operationalCurrency}
                       onChange={(e) => updateMember(i, { operationalCurrency: e.target.value })}
-                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     >
                       {CURRENCIES.map((c) => (
                         <option key={c.code} value={c.code}>
@@ -308,7 +308,7 @@ export default function SignupPage() {
                       onChange={(e) =>
                         updateMember(i, { residencyStatus: e.target.value as MemberDraft["residencyStatus"] })
                       }
-                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     >
                       <option value="NRI">NRI</option>
                       <option value="RESIDENT_INDIAN">Resident Indian</option>
@@ -326,7 +326,7 @@ export default function SignupPage() {
                         required={m.relationship === "Self"}
                         value={m.dateOfBirth}
                         onChange={(e) => updateMember(i, { dateOfBirth: e.target.value })}
-                        className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                        className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                       />
                     </div>
                     {m.relationship === "Self" && (
@@ -337,7 +337,7 @@ export default function SignupPage() {
                           value={m.city}
                           onChange={(e) => updateMember(i, { city: e.target.value })}
                           placeholder="Dubai"
-                          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                         />
                       </div>
                     )}
@@ -350,12 +350,12 @@ export default function SignupPage() {
                         value={m.address}
                         onChange={(e) => updateMember(i, { address: e.target.value })}
                         placeholder="Street, building, area"
-                        className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                        className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                       />
                     </div>
                   )}
 
-                  <label className="mt-3 flex items-center gap-2 text-base text-slate-500 dark:text-slate-400">
+                  <label className="mt-3 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                     <input
                       type="checkbox"
                       checked={m.isMinor}
@@ -370,7 +370,7 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={addMember}
-              className="focus-ring border border-slate-200/80 px-4 py-2 text-base text-slate-900 hover:border-blue-600 hover:text-blue-600 dark:border-slate-800 dark:text-white dark:hover:border-lime-400 dark:hover:text-lime-400"
+              className="focus-ring border border-slate-200/80 px-4 py-2 text-sm text-slate-900 hover:border-blue-600 hover:text-blue-600 dark:border-slate-800 dark:text-white dark:hover:border-lime-400 dark:hover:text-lime-400"
             >
               + Add another member
             </button>
@@ -396,7 +396,7 @@ export default function SignupPage() {
 
         {step === 3 && (
           <div className="mt-8 space-y-6">
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 text-base shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 text-sm shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <p className="font-semibold text-slate-900 dark:text-white">{householdName}</p>
               <p className="mt-1 text-slate-500 dark:text-slate-400">
                 {country} · {timeZone}
@@ -440,7 +440,7 @@ export default function SignupPage() {
           </div>
         )}
 
-        <p className="mt-8 text-base text-slate-500 dark:text-slate-400">
+        <p className="mt-8 text-sm text-slate-500 dark:text-slate-400">
           Already have an account?{" "}
           <Link href="/login" className="text-blue-600 hover:underline dark:text-lime-400">
             Log in

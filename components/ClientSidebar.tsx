@@ -21,14 +21,14 @@ export default function ClientSidebar({
   const pathname = usePathname();
 
   const linkClass = (href: string) =>
-    `block px-3 py-2 text-base ${
+    `block px-3 py-2 text-sm ${
       pathname === href ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
     }`;
 
   return (
     <aside className="w-52 shrink-0 bg-slate-900 text-slate-300 dark:bg-sidebar-dark">
       <div className="px-4 py-4">
-        <Link href="/dashboard" className="text-xl font-extrabold tracking-tight text-blue-600 dark:text-lime-400">
+        <Link href="/dashboard" className="text-base font-bold text-blue-600 dark:text-lime-400">
           Smart Money Folio
         </Link>
         <p className="mt-0.5 text-xs text-slate-400">{householdName}</p>

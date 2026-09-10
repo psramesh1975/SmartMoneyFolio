@@ -200,7 +200,7 @@ export default function MonthlyBaseClient({
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-sheet-header px-6 py-4">
-        <h1 className="text-xl font-bold text-sheet-header">Monthly Base</h1>
+        <h1 className="text-base font-bold text-sheet-header">Monthly Base</h1>
         <div className="flex items-center gap-4">
           <button
             type="button"

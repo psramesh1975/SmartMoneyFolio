@@ -31,7 +31,7 @@ export default function MonthHistoryCard({
         onClick={() => setExpanded((e) => !e)}
         className="focus-ring flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5"
       >
-        <span className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
+        <span className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-white">
           <span className="text-slate-500 dark:text-slate-400">{expanded ? "▾" : "▸"}</span>
           {MONTH_LABELS[payload.month - 1]} {payload.year}
         </span>

@@ -38,14 +38,14 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-canvas">
       <div className="w-full max-w-sm">
-        <Link href="/" className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+        <Link href="/" className="text-base font-bold text-slate-900 dark:text-white">
           Smart Money Folio
         </Link>
-        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Log in</h1>
+        <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Log in</h1>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
-            <label htmlFor="email" className="block text-base font-medium text-slate-500 dark:text-slate-400">
+            <label htmlFor="email" className="block text-sm font-medium text-slate-500 dark:text-slate-400">
               Email
             </label>
             <input
@@ -54,11 +54,11 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-base font-medium text-slate-500 dark:text-slate-400">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-500 dark:text-slate-400">
               Password
             </label>
             <input
@@ -67,12 +67,12 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
 
           {error && (
-            <p className="border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-base text-amber-600 dark:border-amber-400/40 dark:bg-amber-400/5 dark:text-amber-400">
+            <p className="border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-sm text-amber-600 dark:border-amber-400/40 dark:bg-amber-400/5 dark:text-amber-400">
               {error}
             </p>
           )}
@@ -86,7 +86,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-base text-slate-500 dark:text-slate-400">
+        <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
           New here?{" "}
           <Link href="/signup" className="text-blue-600 hover:underline dark:text-lime-400">
             Create a household

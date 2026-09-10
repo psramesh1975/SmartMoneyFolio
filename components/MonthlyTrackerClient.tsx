@@ -223,20 +223,20 @@ function SummaryBar({
       ].map((row) => (
         <div key={row.label}>
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{row.label}</p>
-          <p className="mt-1 text-base text-slate-900 dark:text-white">
+          <p className="mt-1 text-sm text-slate-900 dark:text-white">
             Planned: {currency} {fmt(row.planned)}
           </p>
-          <p className="text-base text-slate-900 dark:text-white">
+          <p className="text-sm text-slate-900 dark:text-white">
             Actual: {currency} {fmt(row.actual)}
           </p>
         </div>
       ))}
       <div>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Net Surplus</p>
-        <p className={`mt-1 text-base ${surplusColor(summary.netSurplusPlanned)}`}>
+        <p className={`mt-1 text-sm ${surplusColor(summary.netSurplusPlanned)}`}>
           Planned: {currency} {fmt(summary.netSurplusPlanned)}
         </p>
-        <p className={`text-base ${surplusColor(summary.netSurplusActual)}`}>
+        <p className={`text-sm ${surplusColor(summary.netSurplusActual)}`}>
           Actual: {currency} {fmt(summary.netSurplusActual)}
         </p>
       </div>
@@ -382,7 +382,7 @@ export default function MonthlyTrackerClient({
 
       <div>
         {categories.length === 0 ? (
-          <p className="text-base text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             No categories yet —{" "}
             <Link href="/monthly/base" className="text-blue-600 underline dark:text-lime-400">
               set them up on Monthly Base
