@@ -57,7 +57,7 @@ export default function ClientSidebar({
         <Link href="/goals" className={linkClass("/goals")}>
           Goals
         </Link>
-        <Link href="/accounts" className={linkClass("/accounts")}>
+        <Link href="/assets" className={linkClass("/assets")}>
           Assets
         </Link>
         <Link href="/liabilities" className={linkClass("/liabilities")}>

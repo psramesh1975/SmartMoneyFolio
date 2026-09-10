@@ -3,27 +3,35 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
+import { ASSET_CLASS_VALUES } from "@/lib/asset-classes";
 
-const ASSET_CLASSES = [
-  "CASH",
-  "FIXED_DEPOSIT",
-  "STOCKS",
-  "MUTUAL_FUNDS",
-  "BONDS",
-  "GOLD",
-  "RETIREMENT_SAVINGS",
-  "INSURANCE_LINKED",
-  "REAL_ESTATE",
-  "CRYPTOCURRENCY",
-  "OTHER",
-] as const;
+const COMPOUNDING_FREQUENCIES = ["MONTHLY", "QUARTERLY", "HALF_YEARLY", "ANNUAL", "AT_MATURITY"] as const;
+const AUTO_RENEWAL_TYPES = ["NONE", "PAYOUT_TO_ACCOUNT", "RENEW_PRINCIPAL_ONLY", "RENEW_PRINCIPAL_AND_INTEREST"] as const;
 
+// One flexible schema for every asset class, same pattern as the Account
+// model itself — a row only populates the fields relevant to its own
+// assetClass, so everything category-specific here is optional.
 const createSchema = z.object({
   familyMemberId: z.string().min(1),
-  assetClass: z.enum(ASSET_CLASSES),
+  assetClass: z.enum(ASSET_CLASS_VALUES),
   holdingName: z.string().min(1),
   currency: z.enum(CURRENCY_CODES),
   currentValue: z.coerce.number().nonnegative(),
+  purchaseValue: z.coerce.number().nonnegative().optional(),
+
+  accountOrFolioNo: z.string().optional(),
+  securityId: z.string().optional(),
+  unitsHeld: z.coerce.number().nonnegative().optional(),
+  avgBuyPrice: z.coerce.number().nonnegative().optional(),
+
+  interestRatePct: z.coerce.number().min(0).max(100).optional(),
+  startDate: z.coerce.date().optional(),
+  maturityDate: z.coerce.date().optional(),
+  compoundingFrequency: z.enum(COMPOUNDING_FREQUENCIES).optional(),
+  autoRenewalType: z.enum(AUTO_RENEWAL_TYPES).optional(),
+  isTaxExempt: z.boolean().optional(),
+
+  sipMonthlyAmount: z.coerce.number().nonnegative().optional(),
 });
 
 export async function GET() {
@@ -33,7 +41,7 @@ export async function GET() {
 
   const accounts = await prisma.account.findMany({
     where: { householdId: session.householdId },
-    include: { familyMember: { select: { id: true, name: true } } },
+    include: { familyMember: { select: { id: true, name: true } }, security: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -59,14 +67,8 @@ export async function POST(req: NextRequest) {
   }
 
   const account = await prisma.account.create({
-    data: {
-      householdId: session.householdId,
-      familyMemberId: parsed.data.familyMemberId,
-      assetClass: parsed.data.assetClass,
-      holdingName: parsed.data.holdingName,
-      currency: parsed.data.currency,
-      currentValue: parsed.data.currentValue,
-    },
+    data: { householdId: session.householdId, ...parsed.data },
+    include: { familyMember: { select: { id: true, name: true } }, security: true },
   });
 
   return NextResponse.json({ account });

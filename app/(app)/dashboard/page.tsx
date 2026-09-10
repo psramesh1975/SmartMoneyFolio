@@ -216,7 +216,7 @@ export default async function DashboardPage() {
         <div>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
-            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+            <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
               Manage assets →
             </Link>
           </div>
@@ -295,7 +295,7 @@ export default async function DashboardPage() {
         <div>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Assets — what we own</h2>
-            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+            <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
               Manage assets →
             </Link>
           </div>
