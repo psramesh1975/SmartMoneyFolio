@@ -198,21 +198,21 @@ export default function MonthlyBaseClient({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-sheet-header px-6 py-4">
-        <h1 className="font-display text-xl font-bold text-sheet-header">Monthly Base</h1>
+        <h1 className="text-xl font-bold text-sheet-header">Monthly Base</h1>
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => setShowManageCategories((s) => !s)}
-            className="focus-ring text-sm font-medium text-folio underline decoration-dotted"
+            className="focus-ring text-sm font-medium text-blue-600 underline decoration-dotted dark:text-lime-400"
           >
             {showManageCategories ? "Hide Categories" : "Manage Categories"}
           </button>
           <button
             type="button"
             onClick={handleAddRow}
-            className="focus-ring rounded bg-sheet-header px-4 py-2 text-sm font-semibold text-paper hover:opacity-90"
+            className="focus-ring rounded bg-sheet-header px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
             + Add Line Item
           </button>
@@ -230,7 +230,7 @@ export default function MonthlyBaseClient({
 
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="bg-sheet-header text-paper">
+          <tr className="bg-sheet-header text-white">
             <th className="w-[44%] border border-sheet-border px-3 py-2 text-left font-bold">
               Expense
             </th>
@@ -254,7 +254,7 @@ export default function MonthlyBaseClient({
                   defaultValue={row.name}
                   placeholder="Expense description…"
                   onBlur={(e) => handleNameBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-ink focus:bg-white/80 focus:outline-none"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 focus:bg-white/80 focus:outline-none"
                 />
               </td>
               <td className="border border-sheet-border p-0">
@@ -272,7 +272,7 @@ export default function MonthlyBaseClient({
                   value={row.baseAmount}
                   onChange={(e) => handleBaseChange(row.id, e.target.value)}
                   onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-ink [font-variant-numeric:tabular-nums] focus:bg-white/80 focus:outline-none"
+                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 [font-variant-numeric:tabular-nums] focus:bg-white/80 focus:outline-none"
                 />
               </td>
               <td className="border border-sheet-border px-2 py-2 text-center">
@@ -280,7 +280,7 @@ export default function MonthlyBaseClient({
                   type="button"
                   onClick={() => handleDelete(row.id)}
                   title="Delete row"
-                  className="text-lg font-bold leading-none text-coral opacity-40 transition-opacity group-hover:opacity-100"
+                  className="text-lg font-bold leading-none text-rose-600 opacity-40 transition-opacity group-hover:opacity-100"
                 >
                   ×
                 </button>
@@ -289,7 +289,7 @@ export default function MonthlyBaseClient({
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-sheet-header text-paper font-bold">
+          <tr className="bg-sheet-header text-white font-bold">
             <td className="border border-sheet-border px-3 py-2">Total</td>
             <td className="border border-sheet-border px-3 py-2" />
             <td className="border border-sheet-border px-3 py-2 text-right [font-variant-numeric:tabular-nums]">

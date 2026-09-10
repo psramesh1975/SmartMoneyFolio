@@ -39,22 +39,22 @@ export default function PlatformClientsClient({
   }
 
   if (households.length === 0) {
-    return <p className="mt-8 text-base text-ink-2">No clients have signed up yet.</p>;
+    return <p className="mt-8 text-base text-slate-500 dark:text-slate-400">No clients have signed up yet.</p>;
   }
 
   return (
     <div className="mt-8 space-y-4">
       {households.map((h) => (
-        <div key={h.id} className="border border-line bg-white p-4">
+        <div key={h.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-base font-medium text-ink">
+              <p className="text-base font-medium text-slate-900 dark:text-white">
                 {h.name}
                 {h.isSuspended && (
-                  <span className="ml-2 text-xs font-semibold uppercase text-amber">Suspended</span>
+                  <span className="ml-2 text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">Suspended</span>
                 )}
               </p>
-              <p className="text-sm text-ink-2">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {h.baseCurrency} · {h.familyMemberCount} family member
                 {h.familyMemberCount !== 1 ? "s" : ""} · {h.accountCount} holding
                 {h.accountCount !== 1 ? "s" : ""} · joined{" "}
@@ -66,18 +66,18 @@ export default function PlatformClientsClient({
               disabled={busyId === h.id}
               className={`focus-ring border px-3 py-1.5 text-xs disabled:opacity-60 ${
                 h.isSuspended
-                  ? "border-growth text-growth hover:bg-growth/5"
-                  : "border-amber text-amber hover:bg-amber/5"
+                  ? "border-emerald-600 text-emerald-600 hover:bg-emerald-600/5 dark:border-cyan-400 dark:text-cyan-400 dark:hover:bg-cyan-400/5"
+                  : "border-amber-600 text-amber-600 hover:bg-amber-600/5 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-400/5"
               }`}
             >
               {h.isSuspended ? "Reactivate" : "Suspend"}
             </button>
           </div>
 
-          <div className="mt-3 divide-y divide-line border-t border-line pt-2">
+          <div className="mt-3 divide-y divide-slate-200/80 border-t border-slate-200/80 pt-2 dark:divide-slate-800 dark:border-slate-800">
             {h.users.map((u) => (
               <div key={u.id} className="flex items-center justify-between py-1.5 text-base">
-                <span className="text-ink">{u.email}</span>
+                <span className="text-slate-900 dark:text-white">{u.email}</span>
               </div>
             ))}
           </div>

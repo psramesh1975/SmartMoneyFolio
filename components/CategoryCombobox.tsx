@@ -165,7 +165,7 @@ export default function CategoryCombobox({
                   e.preventDefault();
                   selectCategory(c);
                 }}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-ink hover:bg-white/40"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-900 hover:bg-white/40"
               >
                 <span>{c.name}</span>
                 <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${categoryBadgeTone(c.type)}`}>
@@ -174,7 +174,7 @@ export default function CategoryCombobox({
               </button>
             ))}
             {filtered.length === 0 && !showCreate && (
-              <p className="px-3 py-2 text-sm text-ink-2">No matches</p>
+              <p className="px-3 py-2 text-sm text-slate-500">No matches</p>
             )}
             {showCreate && (
               <button
@@ -184,7 +184,7 @@ export default function CategoryCombobox({
                   createAndSelect();
                 }}
                 disabled={creating}
-                className="w-full border-t border-sheet-border px-3 py-2 text-left text-sm font-medium text-ink hover:bg-white/40 disabled:opacity-60"
+                className="w-full border-t border-sheet-border px-3 py-2 text-left text-sm font-medium text-slate-900 hover:bg-white/40 disabled:opacity-60"
               >
                 {creating ? "Creating…" : `Create category: "${query.trim()}"`}
               </button>

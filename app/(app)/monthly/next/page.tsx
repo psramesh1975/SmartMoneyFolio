@@ -22,10 +22,10 @@ export default async function NextMonthPage() {
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="font-display text-3xl text-ink">
+      <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
         Next Month — {MONTH_LABELS[month - 1]} {year}
       </h1>
-      <p className="mt-2 text-base text-ink-2">
+      <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
         Get ahead — line item changes you make now land here first.
       </p>
 

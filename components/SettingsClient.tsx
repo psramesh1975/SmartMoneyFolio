@@ -25,7 +25,7 @@ export default function SettingsClient({
       {initialProfile ? (
         <ProfileForm initialProfile={initialProfile} />
       ) : (
-        <p className="border border-line bg-paper-2 px-4 py-3 text-base text-ink-2">
+        <p className="border border-slate-200/80 bg-slate-50 px-4 py-3 text-base text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
           We couldn't find a profile linked to your login, so profile
           details can't be edited here. Password changes are still
           available below.
@@ -84,33 +84,33 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
 
   return (
     <div>
-      <h2 className="font-display text-2xl text-ink">Profile</h2>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4 border border-line bg-white p-4">
+      <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Profile</h2>
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div>
-          <label className="block text-sm font-medium text-ink-2">Name</label>
+          <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Name</label>
           <input
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-ink-2">City</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">City</label>
             <input
               required
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-2">Operational currency</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Operational currency</label>
             <select
               value={operationalCurrency}
               onChange={(e) => setOperationalCurrency(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             >
               {CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -121,20 +121,20 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ink-2">Address</label>
+          <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Address</label>
           <input
             required
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ink-2">Residency status</label>
+          <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Residency status</label>
           <select
             value={residencyStatus}
             onChange={(e) => setResidencyStatus(e.target.value)}
-            className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           >
             <option value="NRI">NRI</option>
             <option value="RESIDENT_INDIAN">Resident Indian</option>
@@ -142,12 +142,12 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
           </select>
         </div>
 
-        <hr className="border-line" />
+        <hr className="border-slate-200/80 dark:border-slate-800" />
         <div>
-          <p className="text-sm font-medium text-ink-2">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             Household country &amp; timezone
           </p>
-          <p className="mt-0.5 text-sm text-ink-2">
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
             Decides which calendar month is "Current" in Monthly Tracking. Changes apply
             immediately, from your next visit to any Monthly Tracking page.
           </p>
@@ -161,13 +161,13 @@ function ProfileForm({ initialProfile }: { initialProfile: ProfileData }) {
           </div>
         </div>
 
-        {error && <p className="text-base text-amber">{error}</p>}
-        {saved && !error && <p className="text-base text-growth">Profile updated.</p>}
+        {error && <p className="text-base text-amber-600 dark:text-amber-400">{error}</p>}
+        {saved && !error && <p className="text-base text-emerald-600 dark:text-cyan-400">Profile updated.</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+          className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         >
           {loading ? "Saving…" : "Save profile"}
         </button>
@@ -223,50 +223,50 @@ function PasswordForm() {
 
   return (
     <div>
-      <h2 className="font-display text-2xl text-ink">Password</h2>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4 border border-line bg-white p-4">
+      <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Password</h2>
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div>
-          <label className="block text-sm font-medium text-ink-2">Current password</label>
+          <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Current password</label>
           <input
             type="password"
             required
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+            className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-ink-2">New password</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">New password</label>
             <input
               type="password"
               required
               minLength={8}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-2">Confirm new password</label>
+            <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Confirm new password</label>
             <input
               type="password"
               required
               minLength={8}
               value={confirmNewPassword}
               onChange={(e) => setConfirmNewPassword(e.target.value)}
-              className="focus-ring mt-1 w-full border border-line bg-white px-3 py-2 text-base text-ink"
+              className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-3 py-2 text-base text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
             />
           </div>
         </div>
 
-        {error && <p className="text-base text-amber">{error}</p>}
-        {saved && !error && <p className="text-base text-growth">Password changed.</p>}
+        {error && <p className="text-base text-amber-600 dark:text-amber-400">{error}</p>}
+        {saved && !error && <p className="text-base text-emerald-600 dark:text-cyan-400">Password changed.</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="focus-ring bg-ink px-4 py-2 text-base text-paper hover:bg-ink-2 disabled:opacity-60"
+          className="focus-ring bg-slate-900 px-4 py-2 text-base text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
         >
           {loading ? "Saving…" : "Change password"}
         </button>

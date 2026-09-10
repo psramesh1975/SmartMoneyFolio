@@ -1,27 +1,23 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: "#161B33",        // near-black navy — primary text
-        "ink-2": "#4B5170",    // muted slate — secondary text
-        folio: "#2F5FD1",      // vivid royal blue — primary brand / nav / links
-        "folio-light": "#5C82E0",
-        growth: "#0FA968",     // vivid emerald — positive figures, growth, success states
-        amber: "#F2A93B",      // warm amber — highlights, in-progress states
-        coral: "#F2545B",      // vivid coral — alerts, suspended, negative figures
-        paper: "#FFFFFF",
-        "paper-2": "#F4F6FB",  // faint blue-white — section backgrounds, subtle separation
-        line: "#E2E6F0",
-        "sheet-header": "#275216",  // dark green header/totals row
-        "sheet-row": "#b9e0a5",     // light green body row
-        "sheet-border": "#8cb878", // cell/row borders
+        // Custom surfaces that don't exist in stock Tailwind shades
+        canvas: "#06080E",        // dark-mode page background
+        "canvas-card": "#0E131F", // dark-mode card background
+        "sidebar-dark": "#0A0E17",// dark-mode sidebar background
+
+        // Monthly Tracking spreadsheet-style grid — UNCHANGED, not part of this rebrand
+        "sheet-header": "#275216",
+        "sheet-row": "#b9e0a5",
+        "sheet-border": "#8cb878",
       },
       fontFamily: {
-        display: ["var(--font-fraunces)", "serif"],
-        body: ["var(--font-source-sans)", "sans-serif"],
+        sans: ["var(--font-jakarta)", "Inter", "sans-serif"],
       },
       borderRadius: {
         sm: "2px",
