@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
@@ -19,6 +20,24 @@ export default function ClientSidebar({
   nextLabel: string;
 }) {
   const pathname = usePathname();
+  const isOnMonthlyRoute = pathname.startsWith("/monthly/");
+
+  // Default false on first render to avoid a hydration mismatch, then sync
+  // from localStorage after mount — same pattern as ThemeToggle and the
+  // Phase 7 breakdown panel. Only matters when not on a /monthly/* route,
+  // since being on one always forces the group open regardless.
+  const [manuallyExpanded, setManuallyExpanded] = useState(false);
+  useEffect(() => {
+    setManuallyExpanded(localStorage.getItem("smf-sidebar-monthly-open") === "true");
+  }, []);
+
+  const monthlyExpanded = isOnMonthlyRoute || manuallyExpanded;
+
+  function toggleMonthly() {
+    const next = !manuallyExpanded;
+    setManuallyExpanded(next);
+    localStorage.setItem("smf-sidebar-monthly-open", String(next));
+  }
 
   const linkClass = (href: string) =>
     `block px-3 py-2 text-sm ${
@@ -46,30 +65,41 @@ export default function ClientSidebar({
         <Link href="/accounts" className={linkClass("/accounts")}>
           Holdings
         </Link>
-        <p className="mt-4 px-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-          Monthly Tracking
-        </p>
-        <Link href="/monthly/base" className={linkClass("/monthly/base")}>
-          Monthly Base
-        </Link>
-        <Link href="/monthly/previous" className={`${linkClass("/monthly/previous")} flex items-center justify-between`}>
-          <span>Previous Month</span>
-          <span className="text-xs opacity-70">{previousLabel}</span>
-        </Link>
-        <Link href="/monthly/current" className={`${linkClass("/monthly/current")} flex items-center justify-between`}>
-          <span>Current Month</span>
-          <span className="text-xs opacity-70">{currentLabel}</span>
-        </Link>
-        <Link href="/monthly/next" className={`${linkClass("/monthly/next")} flex items-center justify-between`}>
-          <span>Next Month</span>
-          <span className="text-xs opacity-70">{nextLabel}</span>
-        </Link>
-        <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")}>
-          Earlier Months
-        </Link>
-        <Link href="/monthly/years" className={linkClass("/monthly/years")}>
-          Earlier Years
-        </Link>
+        <button
+          type="button"
+          onClick={toggleMonthly}
+          className="mt-4 flex w-full items-center gap-1.5 px-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+          aria-expanded={monthlyExpanded}
+        >
+          <span className="w-3 text-center">{monthlyExpanded ? "–" : "+"}</span>
+          <span>Monthly Tracking</span>
+        </button>
+
+        {monthlyExpanded && (
+          <div className="mt-1">
+            <Link href="/monthly/base" className={linkClass("/monthly/base")}>
+              Monthly Base
+            </Link>
+            <Link href="/monthly/previous" className={`${linkClass("/monthly/previous")} flex items-center justify-between`}>
+              <span>Previous Month</span>
+              <span className="text-xs opacity-70">{previousLabel}</span>
+            </Link>
+            <Link href="/monthly/current" className={`${linkClass("/monthly/current")} flex items-center justify-between`}>
+              <span>Current Month</span>
+              <span className="text-xs opacity-70">{currentLabel}</span>
+            </Link>
+            <Link href="/monthly/next" className={`${linkClass("/monthly/next")} flex items-center justify-between`}>
+              <span>Next Month</span>
+              <span className="text-xs opacity-70">{nextLabel}</span>
+            </Link>
+            <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")}>
+              Earlier Months
+            </Link>
+            <Link href="/monthly/years" className={linkClass("/monthly/years")}>
+              Earlier Years
+            </Link>
+          </div>
+        )}
         <Link href="/settings" className={linkClass("/settings")}>
           Settings
         </Link>
