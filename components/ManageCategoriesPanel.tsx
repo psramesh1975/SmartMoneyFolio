@@ -180,7 +180,7 @@ export default function ManageCategoriesPanel({
   return (
     <div className="border-t border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-white/5">
       <div className="px-6 py-4">
-        <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Manage Categories</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-white">Manage Categories</h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Rename a category or change its type here — this doesn't touch any line items using it.
         </p>
