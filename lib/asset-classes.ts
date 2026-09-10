@@ -5,8 +5,10 @@ export const ASSET_CLASSES = [
   { value: "MUTUAL_FUNDS", label: "Mutual Funds / ETFs" },
   { value: "BONDS", label: "Bonds" },
   { value: "GOLD", label: "Gold / Precious Metals" },
+  { value: "SGB", label: "Sovereign Gold Bonds" },
   { value: "RETIREMENT_SAVINGS", label: "Retirement / Long-term Savings" },
   { value: "INSURANCE_LINKED", label: "Insurance-linked Investment" },
+  { value: "GOVERNMENT_SCHEME", label: "Government Scheme (PPF / SSA / NPS)" },
   { value: "REAL_ESTATE", label: "Real Estate" },
   { value: "CRYPTOCURRENCY", label: "Cryptocurrency" },
   { value: "OTHER", label: "Other" },
@@ -34,8 +36,8 @@ export function assetClassLabel(value: string): string {
 export const ASSET_GROUPS: { label: string; classes: AssetClassValue[] }[] = [
   { label: "Liquid Cash & Banking", classes: ["CASH"] },
   { label: "Market Investments", classes: ["STOCKS", "MUTUAL_FUNDS", "BONDS", "CRYPTOCURRENCY"] },
-  { label: "Fixed Capital & Guaranteed", classes: ["FIXED_DEPOSIT", "GOLD"] },
-  { label: "Retirement & Locked Funds", classes: ["RETIREMENT_SAVINGS", "INSURANCE_LINKED"] },
+  { label: "Fixed Capital & Guaranteed", classes: ["FIXED_DEPOSIT", "GOLD", "SGB"] },
+  { label: "Retirement & Locked Funds", classes: ["RETIREMENT_SAVINGS", "INSURANCE_LINKED", "GOVERNMENT_SCHEME"] },
   { label: "Physical Assets / Real Estate", classes: ["REAL_ESTATE"] },
   { label: "Other", classes: ["OTHER"] },
 ];

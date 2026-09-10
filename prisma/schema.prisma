@@ -99,17 +99,36 @@ enum AssetClass {
   STOCKS
   MUTUAL_FUNDS
   BONDS
-  GOLD
+  GOLD              // physical gold — unchanged
+  SGB               // Sovereign Gold Bonds, distinct from physical GOLD
   RETIREMENT_SAVINGS
   INSURANCE_LINKED
+  GOVERNMENT_SCHEME // PPF, SSA, NPS: simple value-only for now
   REAL_ESTATE
   CRYPTOCURRENCY
   OTHER
 }
 
+enum CompoundingFrequency {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  ANNUAL
+  AT_MATURITY
+}
+
+enum AutoRenewalType {
+  NONE
+  PAYOUT_TO_ACCOUNT
+  RENEW_PRINCIPAL_ONLY
+  RENEW_PRINCIPAL_AND_INTEREST
+}
+
 // A single holding — a specific FD, mutual fund, bank account, PPF, SGB, etc.
 // The asset class powers allocation charts; holdingName is free text so it
-// works for any country's specific product names.
+// works for any country's specific product names. Category-specific fields
+// below are all nullable — a given row only populates the ones relevant to
+// its assetClass (same one-table-with-optional-columns pattern as Liability).
 model Account {
   id             String       @id @default(cuid())
   householdId    String
@@ -121,13 +140,66 @@ model Account {
   currency       String
   currentValue   Decimal
   purchaseValue  Decimal?     // optional cost basis — mainly used for Real Estate
+
+  // Identifier — bank A/C number, MF folio, stock ticker, SGB tranche name, policy number
+  accountOrFolioNo String?
+
+  // Link to live-priced securities (Mutual Funds & Stocks only)
+  securityId     String?
+  security       SecuritiesMaster? @relation(fields: [securityId], references: [id])
+
+  // Units / quantity — MF units, stock shares, SGB grams
+  unitsHeld      Decimal?
+  avgBuyPrice    Decimal?     // weighted average NAV / price / issue price per unit
+
+  // Fixed Deposit specific
+  interestRatePct      Decimal?
+  startDate            DateTime?
+  maturityDate         DateTime?
+  compoundingFrequency CompoundingFrequency?
+  autoRenewalType      AutoRenewalType?
+  isTaxExempt          Boolean?  // NRE FDs, PPF interest
+
+  // Mutual Fund specific
+  sipMonthlyAmount Decimal?
+
   lastUpdated    DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@index([householdId])
   @@index([familyMemberId])
+  @@index([securityId])
   @@map("accounts")
+}
+
+enum SecurityType {
+  MUTUAL_FUND
+  STOCK
+  ETF
+}
+
+// Global, household-independent directory of tradeable securities, seeded
+// and refreshed by scripts/seed-securities.ts and the price-sync route —
+// never by the app's own migrate/seed step. Powers the autocomplete search
+// when adding a Mutual Fund or Stock, and holds the last synced price.
+model SecuritiesMaster {
+  id             String       @id @default(cuid())
+  securityType   SecurityType
+  country        String       @default("IN") // "IN", "US"
+  tickerOrCode   String       // scheme code ("122639") or ticker ("TCS.NS", "AAPL")
+  name           String       // full scheme/company name, incl. Direct/Regular, Growth/IDCW
+  isin           String?
+  exchange       String?      // "AMFI", "NSE", "BSE", "NASDAQ", "NYSE"
+  lastPrice      Decimal?
+  priceUpdatedAt DateTime?
+  createdAt      DateTime     @default(now())
+
+  accounts       Account[]
+
+  @@unique([tickerOrCode, securityType])
+  @@index([name])
+  @@map("securities_master")
 }
 
 enum LiabilityType {
