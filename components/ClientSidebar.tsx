@@ -42,6 +42,14 @@ export default function ClientSidebar({
       pathname === href ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
     }`;
 
+  // Current Month gets a distinct emerald badge instead of the plain
+  // active-link highlight, so it reads as "you are here" at a glance even
+  // when the group is collapsed and re-opened.
+  const currentMonthActive = pathname === "/monthly/current";
+  const currentMonthClass = currentMonthActive
+    ? "flex items-center justify-between py-2 px-2 text-sm font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+    : `${linkClass("/monthly/current")} flex items-center justify-between`;
+
   return (
     <aside className="w-52 shrink-0 bg-slate-900 text-slate-300 dark:bg-sidebar-dark">
       <div className="px-4 py-4">
@@ -66,15 +74,15 @@ export default function ClientSidebar({
         <button
           type="button"
           onClick={toggleMonthly}
-          className="mt-4 flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+          className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white"
           aria-expanded={monthlyExpanded}
         >
-          <ChevronRight size={14} className={`transition-transform ${monthlyExpanded ? "rotate-90" : ""}`} />
           <span>Monthly Tracking</span>
+          <ChevronRight size={16} className={`w-4 h-4 shrink-0 transition-transform ${monthlyExpanded ? "rotate-90" : ""}`} />
         </button>
 
         {monthlyExpanded && (
-          <div className="mt-1 ml-3 space-y-0.5 border-l border-white/10 pl-2">
+          <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
             <Link href="/monthly/base" className={linkClass("/monthly/base")}>
               Monthly Base
             </Link>
@@ -82,9 +90,9 @@ export default function ClientSidebar({
               <span>Previous Month</span>
               <span className="text-xs opacity-70">{previousLabel}</span>
             </Link>
-            <Link href="/monthly/current" className={`${linkClass("/monthly/current")} flex items-center justify-between`}>
+            <Link href="/monthly/current" className={currentMonthClass}>
               <span>Current Month</span>
-              <span className="text-xs opacity-70">{currentLabel}</span>
+              <span className="font-mono text-[10px] opacity-90">{currentLabel}</span>
             </Link>
             <Link href="/monthly/next" className={`${linkClass("/monthly/next")} flex items-center justify-between`}>
               <span>Next Month</span>
