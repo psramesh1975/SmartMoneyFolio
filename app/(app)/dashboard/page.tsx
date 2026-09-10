@@ -3,13 +3,10 @@ import Link from "next/link";
 import { Landmark, CreditCard, Scale, Gauge } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AllocationDonut from "@/components/AllocationDonut";
 import AssetsOverview from "@/components/AssetsOverview";
 import DebtOverview from "@/components/DebtOverview";
-import DebtPayoffTimeline from "@/components/DebtPayoffTimeline";
-import { assetClassLabel, ASSET_CLASSES } from "@/lib/asset-classes";
-import { getSolvencySnapshot } from "@/lib/dashboard-data";
-import { projectDebtPayoffTimeline } from "@/lib/amortization";
+import { assetClassLabel } from "@/lib/asset-classes";
+import { getSolvencySnapshot, getGoalPacing } from "@/lib/dashboard-data";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -47,7 +44,7 @@ export default async function DashboardPage() {
           orderBy: { createdAt: "asc" },
           include: { accounts: true },
         },
-        allocationTargets: true,
+        goals: { orderBy: { createdAt: "asc" } },
       },
     }),
     prisma.liability.findMany({
@@ -62,11 +59,10 @@ export default async function DashboardPage() {
 
   const baseCurrency = household.baseCurrency;
 
-  // Only accounts in the household's base currency count toward net worth
-  // and allocation percentages, since there's no FX conversion yet — mixing
-  // currencies into one total would be misleading rather than useful.
+  // Only accounts in the household's base currency count toward net worth,
+  // since there's no FX conversion yet — mixing currencies into one total
+  // would be misleading rather than useful.
   let netWorth = 0;
-  const byClassTotals: Record<string, number> = {};
   const otherCurrencyCount = { count: 0 };
   const accountRows: {
     id: string;
@@ -98,7 +94,6 @@ export default async function DashboardPage() {
         byClass[acc.assetClass] = (byClass[acc.assetClass] ?? 0) + value;
         memberTotal += value;
         netWorth += value;
-        byClassTotals[acc.assetClass] = (byClassTotals[acc.assetClass] ?? 0) + value;
       } else {
         otherCurrencyHoldings.push({ holdingName: acc.holdingName, currency: acc.currency, value });
         otherCurrencyCount.count += 1;
@@ -117,18 +112,6 @@ export default async function DashboardPage() {
     };
   });
 
-  const targetMap: Record<string, number> = {};
-  for (const t of household.allocationTargets) targetMap[t.assetClass] = Number(t.targetPercent) * 100;
-
-  const classesWithData = ASSET_CLASSES.filter(
-    (c) => (byClassTotals[c.value] ?? 0) > 0 || (targetMap[c.value] ?? 0) > 0
-  );
-  const allocationLabels = classesWithData.map((c) => c.label);
-  const allocationActual = classesWithData.map((c) =>
-    netWorth > 0 ? Math.round(((byClassTotals[c.value] ?? 0) / netWorth) * 100) : 0
-  );
-  const allocationTarget = classesWithData.map((c) => Math.round(targetMap[c.value] ?? 0));
-
   const liabilityRows = liabilitiesRaw.map((l) => ({
     id: l.id,
     familyMemberName: l.familyMember.name,
@@ -141,18 +124,6 @@ export default async function DashboardPage() {
     emiAmount: l.emiAmount?.toString() ?? null,
     targetPayoffDate: l.targetPayoffDate?.toISOString() ?? null,
   }));
-
-  // Debt Payoff Timeline: base-currency liabilities only, same convention
-  // as the rest of the totals.
-  const payoffPoints = projectDebtPayoffTimeline(
-    liabilitiesRaw
-      .filter((l) => l.currency === baseCurrency)
-      .map((l) => ({
-        outstandingBalance: Number(l.outstandingBalance),
-        interestRate: l.interestRate ? Number(l.interestRate) : null,
-        emiAmount: l.emiAmount ? Number(l.emiAmount) : null,
-      }))
-  );
 
   return (
     <section className="max-w-5xl px-6 py-10">
@@ -171,7 +142,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 6a. Solvency Snapshot */}
+        {/* 1. Solvency Snapshot */}
         <div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
@@ -231,36 +202,24 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
-        </div>
-
-        {/* 6b. Assets — What We Own */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Assets — what we own</h2>
-            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage assets →
-            </Link>
-          </div>
 
           {otherCurrencyCount.count > 0 && (
-            <p className="mt-3 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
+            <p className="mt-4 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
               {otherCurrencyCount.count} asset{otherCurrencyCount.count > 1 ? "s are" : " is"} in a
               currency other than {baseCurrency} and {otherCurrencyCount.count > 1 ? "aren't" : "isn't"}{" "}
               included in the totals above yet — currency conversion isn't built in this module.
             </p>
           )}
+        </div>
 
-          {accountRows.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No assets added yet.</p>
-          ) : (
-            <div className="mt-4">
-              <AssetsOverview
-                accounts={accountRows}
-                familyMembers={household.familyMembers.map((m) => ({ id: m.id, name: m.name }))}
-                baseCurrency={baseCurrency}
-              />
-            </div>
-          )}
+        {/* 2. By family member */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
+            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+              Manage assets →
+            </Link>
+          </div>
 
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
             {memberBreakdowns.map((m, i) => {
@@ -332,7 +291,29 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 6c. Debt & Liabilities — What We Owe */}
+        {/* 3. Assets — grouped */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Assets — what we own</h2>
+            <Link href="/accounts" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+              Manage assets →
+            </Link>
+          </div>
+
+          {accountRows.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No assets added yet.</p>
+          ) : (
+            <div className="mt-4">
+              <AssetsOverview
+                accounts={accountRows}
+                familyMembers={household.familyMembers.map((m) => ({ id: m.id, name: m.name }))}
+                baseCurrency={baseCurrency}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 4. Debt & Liabilities */}
         <div>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Debt &amp; liabilities — what we owe</h2>
@@ -345,27 +326,68 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 6d. Visuals */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div>
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Asset allocation</h2>
-            {classesWithData.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                Add assets and set a target allocation to see this chart.
-              </p>
-            ) : (
-              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-                <AllocationDonut labels={allocationLabels} actual={allocationActual} target={allocationTarget} />
-              </div>
-            )}
+        {/* 5. Goals */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Goals</h2>
+            <Link href="/goals" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+              Manage goals →
+            </Link>
           </div>
+          {household.goals.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No goals added yet.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {household.goals.map((g) => {
+                const target = Number(g.targetAmount) || 1;
+                const current = Number(g.currentAmount) || 0;
+                const pct = Math.min(100, Math.round((current / target) * 100));
+                const pacing = getGoalPacing({
+                  targetAmount: Number(g.targetAmount),
+                  currentAmount: current,
+                  targetDate: g.targetDate,
+                });
+                return (
+                  <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {g.currency} {fmt(current)} of {fmt(target)} ({pct}%)
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
+                      <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
+                    </div>
 
-          <div>
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Debt payoff timeline</h2>
-            <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <DebtPayoffTimeline points={payoffPoints} currency={baseCurrency} />
+                    {pacing.isOverdue ? (
+                      <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+                        Target date passed — {g.currency} {fmt(Math.max(0, target - current))} still needed.
+                      </p>
+                    ) : g.targetDate === null ? (
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        No target date set —{" "}
+                        <Link href="/goals" className="text-blue-600 hover:underline dark:text-lime-400">
+                          add one
+                        </Link>{" "}
+                        to see pacing.
+                      </p>
+                    ) : pacing.requiredMonthlyRate === 0 ? (
+                      <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-cyan-400">
+                        Target reached 🎉
+                      </p>
+                    ) : (
+                      pacing.requiredMonthlyRate !== null && (
+                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                          {pacing.monthsRemaining} months left · needs {g.currency}{" "}
+                          {fmt(pacing.requiredMonthlyRate)}/mo to hit target
+                        </p>
+                      )
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </section>

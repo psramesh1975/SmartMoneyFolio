@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import LogoutButton from "@/components/LogoutButton";
+import { ChevronRight } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function ClientSidebar({
@@ -57,9 +57,6 @@ export default function ClientSidebar({
         <Link href="/goals" className={linkClass("/goals")}>
           Goals
         </Link>
-        <Link href="/allocation" className={linkClass("/allocation")}>
-          Targets
-        </Link>
         <Link href="/accounts" className={linkClass("/accounts")}>
           Assets
         </Link>
@@ -69,15 +66,15 @@ export default function ClientSidebar({
         <button
           type="button"
           onClick={toggleMonthly}
-          className="mt-4 flex w-full items-center gap-1.5 px-3 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+          className="mt-4 flex w-full items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
           aria-expanded={monthlyExpanded}
         >
-          <span className="w-3 text-center">{monthlyExpanded ? "–" : "+"}</span>
+          <ChevronRight size={14} className={`transition-transform ${monthlyExpanded ? "rotate-90" : ""}`} />
           <span>Monthly Tracking</span>
         </button>
 
         {monthlyExpanded && (
-          <div className="mt-1">
+          <div className="mt-1 ml-3 space-y-0.5 border-l border-white/10 pl-2">
             <Link href="/monthly/base" className={linkClass("/monthly/base")}>
               Monthly Base
             </Link>
@@ -111,7 +108,6 @@ export default function ClientSidebar({
         )}
       </nav>
       <div className="mt-6 flex items-center gap-2 px-4">
-        <LogoutButton />
         <ThemeToggle />
       </div>
     </aside>

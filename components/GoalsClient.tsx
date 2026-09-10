@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { CURRENCIES } from "@/lib/currencies";
 import ImportExcelModal from "@/components/ImportExcelModal";
 import type { ImportMode } from "@/lib/import/types";
@@ -25,6 +26,7 @@ export default function GoalsClient({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -32,7 +34,27 @@ export default function GoalsClient({
   const [currency, setCurrency] = useState("USD");
   const [targetDate, setTargetDate] = useState("");
 
-  async function handleAdd(e: React.FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setTargetAmount("");
+    setCurrentAmount("0");
+    setCurrency("USD");
+    setTargetDate("");
+    setError(null);
+  }
+
+  function startEdit(g: GoalRow) {
+    setEditingId(g.id);
+    setName(g.name);
+    setTargetAmount(g.targetAmount);
+    setCurrentAmount(g.currentAmount);
+    setCurrency(g.currency);
+    setTargetDate(g.targetDate ? g.targetDate.slice(0, 10) : "");
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!name.trim() || !targetAmount) {
@@ -41,30 +63,43 @@ export default function GoalsClient({
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/goals/${editingId}` : "/api/goals", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, targetAmount, currentAmount, currency, targetDate: targetDate || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Couldn't add that goal.");
+        setError(data.error ?? "Couldn't save that goal.");
         return;
       }
-      setGoals((prev) => [
-        ...prev,
-        { id: data.goal.id, name, targetAmount, currentAmount, currency, targetDate: targetDate || null },
-      ]);
-      setName("");
-      setTargetAmount("");
-      setCurrentAmount("0");
-      setTargetDate("");
+      const updated: GoalRow = {
+        id: editingId ?? data.goal.id,
+        name,
+        targetAmount,
+        currentAmount,
+        currency,
+        targetDate: targetDate || null,
+      };
+      if (editingId) {
+        setGoals((prev) => prev.map((g) => (g.id === editingId ? updated : g)));
+      } else {
+        setGoals((prev) => [...prev, updated]);
+      }
+      resetForm();
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleDelete(id: string) {
+    setGoals((prev) => prev.filter((g) => g.id !== id));
+    if (editingId === id) resetForm();
+    await fetch(`/api/goals/${id}`, { method: "DELETE" });
+    router.refresh();
   }
 
   return (
@@ -79,9 +114,23 @@ export default function GoalsClient({
         </button>
       </div>
       <form
-          onSubmit={handleAdd}
+          onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-6"
         >
+          <div className="sm:col-span-2 lg:col-span-6 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {editingId ? `Editing ${name || "goal"}` : "Add a new goal"}
+            </p>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-xs text-slate-500 hover:underline dark:text-slate-400"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
           <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Goal name</label>
             <input
@@ -139,7 +188,7 @@ export default function GoalsClient({
               disabled={loading}
               className="focus-ring bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              {loading ? "Adding…" : "Add goal"}
+              {loading ? "Saving…" : editingId ? "Save changes" : "Add goal"}
             </button>
           </div>
           {error && <p className="lg:col-span-6 text-sm text-amber-600 dark:text-amber-400">{error}</p>}
@@ -157,9 +206,24 @@ export default function GoalsClient({
             <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {g.currency} {current.toLocaleString()} of {target.toLocaleString()} ({pct}%)
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {g.currency} {current.toLocaleString()} of {target.toLocaleString()} ({pct}%)
+                  </span>
+                  <button
+                    onClick={() => startEdit(g)}
+                    aria-label="Edit"
+                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(g.id)}
+                    className="text-xs text-amber-600 hover:underline dark:text-amber-400"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
                 <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { CURRENCIES } from "@/lib/currencies";
 import { computeAmortization } from "@/lib/amortization";
 
@@ -50,6 +51,7 @@ export default function LiabilitiesClient({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [familyMemberId, setFamilyMemberId] = useState(familyMembers[0]?.id ?? "");
   const [liabilityType, setLiabilityType] = useState<(typeof LIABILITY_TYPES)[number]["value"]>("HOME_LOAN");
@@ -61,7 +63,35 @@ export default function LiabilitiesClient({
   const [emiAmount, setEmiAmount] = useState("");
   const [targetPayoffDate, setTargetPayoffDate] = useState("");
 
-  async function handleAdd(e: React.FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setFamilyMemberId(familyMembers[0]?.id ?? "");
+    setLiabilityType("HOME_LOAN");
+    setName("");
+    setCurrency("USD");
+    setOutstandingBalance("");
+    setOriginalAmount("");
+    setInterestRate("");
+    setEmiAmount("");
+    setTargetPayoffDate("");
+    setError(null);
+  }
+
+  function startEdit(l: LiabilityRow) {
+    setEditingId(l.id);
+    setFamilyMemberId(l.familyMemberId);
+    setLiabilityType(l.liabilityType as typeof liabilityType);
+    setName(l.name);
+    setCurrency(l.currency);
+    setOutstandingBalance(l.outstandingBalance);
+    setOriginalAmount(l.originalAmount ?? "");
+    setInterestRate(l.interestRate ?? "");
+    setEmiAmount(l.emiAmount ?? "");
+    setTargetPayoffDate(l.targetPayoffDate ? l.targetPayoffDate.slice(0, 10) : "");
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!familyMemberId || !name.trim() || !outstandingBalance) {
@@ -70,8 +100,8 @@ export default function LiabilitiesClient({
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/liabilities", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/liabilities/${editingId}` : "/api/liabilities", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           familyMemberId,
@@ -87,32 +117,29 @@ export default function LiabilitiesClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Couldn't add that liability.");
+        setError(data.error ?? "Couldn't save that liability.");
         return;
       }
       const member = familyMembers.find((m) => m.id === familyMemberId);
-      setLiabilities((prev) => [
-        ...prev,
-        {
-          id: data.liability.id,
-          familyMemberId,
-          familyMemberName: member?.name ?? "",
-          liabilityType,
-          name,
-          currency,
-          outstandingBalance,
-          originalAmount: originalAmount || null,
-          interestRate: interestRate || null,
-          emiAmount: emiAmount || null,
-          targetPayoffDate: targetPayoffDate || null,
-        },
-      ]);
-      setName("");
-      setOutstandingBalance("");
-      setOriginalAmount("");
-      setInterestRate("");
-      setEmiAmount("");
-      setTargetPayoffDate("");
+      const updated: LiabilityRow = {
+        id: editingId ?? data.liability.id,
+        familyMemberId,
+        familyMemberName: member?.name ?? "",
+        liabilityType,
+        name,
+        currency,
+        outstandingBalance,
+        originalAmount: originalAmount || null,
+        interestRate: interestRate || null,
+        emiAmount: emiAmount || null,
+        targetPayoffDate: targetPayoffDate || null,
+      };
+      if (editingId) {
+        setLiabilities((prev) => prev.map((l) => (l.id === editingId ? updated : l)));
+      } else {
+        setLiabilities((prev) => [...prev, updated]);
+      }
+      resetForm();
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Try again.");
@@ -123,6 +150,7 @@ export default function LiabilitiesClient({
 
   async function handleDelete(id: string) {
     setLiabilities((prev) => prev.filter((l) => l.id !== id));
+    if (editingId === id) resetForm();
     await fetch(`/api/liabilities/${id}`, { method: "DELETE" });
     router.refresh();
   }
@@ -130,9 +158,23 @@ export default function LiabilitiesClient({
   return (
     <div className="mt-8 space-y-8">
       <form
-        onSubmit={handleAdd}
+        onSubmit={handleSubmit}
         className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-4"
       >
+        <div className="sm:col-span-2 lg:col-span-4 flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            {editingId ? `Editing ${name || "liability"}` : "Add a new liability"}
+          </p>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-xs text-slate-500 hover:underline dark:text-slate-400"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
         <div>
           <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Family member</label>
           <select
@@ -238,7 +280,7 @@ export default function LiabilitiesClient({
             disabled={loading}
             className="focus-ring w-full bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
           >
-            {loading ? "Adding…" : "Add liability"}
+            {loading ? "Saving…" : editingId ? "Save changes" : "Add liability"}
           </button>
         </div>
         {error && <p className="sm:col-span-2 lg:col-span-4 text-sm text-amber-600 dark:text-amber-400">{error}</p>}
@@ -261,24 +303,37 @@ export default function LiabilitiesClient({
           });
           return (
             <div key={l.id}>
-              <button
-                type="button"
-                onClick={() => setExpandedId(isExpanded ? null : l.id)}
-                className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
-              >
-                <div>
+              <div className="flex w-full items-center justify-between px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                  className="focus-ring flex-1 text-left"
+                >
                   <p className="text-sm font-medium text-slate-900 dark:text-white">{l.name}</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {l.familyMemberName} · {liabilityTypeLabel(l.liabilityType)}
                   </p>
-                </div>
+                </button>
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-slate-900 dark:text-white">
                     {l.currency} {fmt(Number(l.outstandingBalance))}
                   </span>
-                  <span className="text-slate-400 dark:text-slate-500">{isExpanded ? "–" : "+"}</span>
+                  <button
+                    onClick={() => startEdit(l)}
+                    aria-label="Edit"
+                    className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                    className="text-slate-400 dark:text-slate-500"
+                  >
+                    {isExpanded ? "–" : "+"}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="border-t border-slate-200/80 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-white/5">
