@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import ClientSidebar from "@/components/ClientSidebar";
+import AppHeader from "@/components/AppHeader";
 import { SectionThemeInit } from "@/components/SectionThemeInit";
 import { getPreviousPeriod, getCurrentPeriod, getNextPeriod, MONTH_LABELS_SHORT } from "@/lib/monthly-periods";
 
@@ -32,7 +33,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         currentLabel={periodLabel(getCurrentPeriod(timeZone))}
         nextLabel={periodLabel(getNextPeriod(timeZone))}
       />
-      <main className="flex-1 px-8 py-10">{children}</main>
+      <main className="flex flex-1 flex-col">
+        <AppHeader householdName={household?.name ?? ""} />
+        <div className="px-8 py-10">{children}</div>
+      </main>
     </div>
   );
 }

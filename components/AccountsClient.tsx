@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { CURRENCIES } from "@/lib/currencies";
 import { ASSET_CLASSES, assetClassLabel } from "@/lib/asset-classes";
 import ImportExcelModal from "@/components/ImportExcelModal";
@@ -31,6 +32,7 @@ export default function AccountsClient({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [familyMemberId, setFamilyMemberId] = useState(familyMembers[0]?.id ?? "");
   const [assetClass, setAssetClass] = useState(ASSET_CLASSES[0].value);
@@ -38,7 +40,27 @@ export default function AccountsClient({
   const [currency, setCurrency] = useState("USD");
   const [currentValue, setCurrentValue] = useState("");
 
-  async function handleAdd(e: React.FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setFamilyMemberId(familyMembers[0]?.id ?? "");
+    setAssetClass(ASSET_CLASSES[0].value);
+    setHoldingName("");
+    setCurrency("USD");
+    setCurrentValue("");
+    setError(null);
+  }
+
+  function startEdit(a: AccountRow) {
+    setEditingId(a.id);
+    setFamilyMemberId(a.familyMemberId);
+    setAssetClass(a.assetClass as typeof assetClass);
+    setHoldingName(a.holdingName);
+    setCurrency(a.currency);
+    setCurrentValue(a.currentValue);
+    setError(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!familyMemberId || !holdingName.trim() || !currentValue) {
@@ -47,31 +69,40 @@ export default function AccountsClient({
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/accounts", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/accounts/${editingId}` : "/api/accounts", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ familyMemberId, assetClass, holdingName, currency, currentValue }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Couldn't add that account.");
+        setError(data.error ?? "Couldn't save that asset.");
         return;
       }
       const member = familyMembers.find((m) => m.id === familyMemberId);
-      setAccounts((prev) => [
-        ...prev,
-        {
-          id: data.account.id,
-          familyMemberId,
-          familyMemberName: member?.name ?? "",
-          assetClass,
-          holdingName,
-          currency,
-          currentValue,
-        },
-      ]);
-      setHoldingName("");
-      setCurrentValue("");
+      if (editingId) {
+        setAccounts((prev) =>
+          prev.map((a) =>
+            a.id === editingId
+              ? { ...a, familyMemberId, familyMemberName: member?.name ?? "", assetClass, holdingName, currency, currentValue }
+              : a
+          )
+        );
+      } else {
+        setAccounts((prev) => [
+          ...prev,
+          {
+            id: data.account.id,
+            familyMemberId,
+            familyMemberName: member?.name ?? "",
+            assetClass,
+            holdingName,
+            currency,
+            currentValue,
+          },
+        ]);
+      }
+      resetForm();
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Try again.");
@@ -82,6 +113,7 @@ export default function AccountsClient({
 
   async function handleDelete(id: string) {
     setAccounts((prev) => prev.filter((a) => a.id !== id));
+    if (editingId === id) resetForm();
     await fetch(`/api/accounts/${id}`, { method: "DELETE" });
     router.refresh();
   }
@@ -98,9 +130,23 @@ export default function AccountsClient({
         </button>
       </div>
       <form
-          onSubmit={handleAdd}
+          onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-2 lg:grid-cols-5"
         >
+          <div className="sm:col-span-2 lg:col-span-5 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {editingId ? `Editing ${holdingName || "asset"}` : "Add a new asset"}
+            </p>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="text-xs text-slate-500 hover:underline dark:text-slate-400"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Family member</label>
             <select
@@ -167,7 +213,7 @@ export default function AccountsClient({
               disabled={loading}
               className="focus-ring w-full bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              {loading ? "Adding…" : "Add"}
+              {loading ? "Saving…" : editingId ? "Save changes" : "Add"}
             </button>
           </div>
           {error && (
@@ -193,6 +239,13 @@ export default function AccountsClient({
               <span className="text-sm text-slate-900 dark:text-white">
                 {a.currency} {Number(a.currentValue).toLocaleString()}
               </span>
+              <button
+                onClick={() => startEdit(a)}
+                aria-label="Edit"
+                className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
+              >
+                <Pencil size={14} />
+              </button>
               <button
                 onClick={() => handleDelete(a.id)}
                 className="text-xs text-amber-600 hover:underline dark:text-amber-400"

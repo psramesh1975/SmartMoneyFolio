@@ -3,15 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CURRENCY_CODES } from "@/lib/currencies";
-import { ASSET_CLASS_VALUES } from "@/lib/asset-classes";
 
 const updateSchema = z.object({
-  familyMemberId: z.string().min(1).optional(),
-  assetClass: z.enum(ASSET_CLASS_VALUES).optional(),
-  holdingName: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  targetAmount: z.coerce.number().positive().optional(),
   currency: z.enum(CURRENCY_CODES).optional(),
-  currentValue: z.coerce.number().nonnegative().optional(),
-  purchaseValue: z.coerce.number().nonnegative().optional(),
+  currentAmount: z.coerce.number().nonnegative().optional(),
+  targetDate: z.string().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,29 +18,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
 
-  const existing = await prisma.account.findFirst({ where: { id, householdId: session.householdId } });
-  if (!existing) return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  const existing = await prisma.goal.findFirst({ where: { id, householdId: session.householdId } });
+  if (!existing) return NextResponse.json({ error: "Goal not found." }, { status: 404 });
 
   const body = await req.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Some details are invalid." }, { status: 400 });
 
-  const account = await prisma.account.update({ where: { id }, data: parsed.data });
-  return NextResponse.json({ account });
+  const { targetDate, ...rest } = parsed.data;
+  const goal = await prisma.goal.update({
+    where: { id },
+    data: { ...rest, ...(targetDate !== undefined ? { targetDate: targetDate ? new Date(targetDate) : null } : {}) },
+  });
+  return NextResponse.json({ goal });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
-  const account = await prisma.account.findFirst({
-    where: { id, householdId: session.householdId },
-  });
-  if (!account) {
-    return NextResponse.json({ error: "Account not found." }, { status: 404 });
-  }
 
-  await prisma.account.delete({ where: { id: account.id } });
+  const existing = await prisma.goal.findFirst({ where: { id, householdId: session.householdId } });
+  if (!existing) return NextResponse.json({ error: "Goal not found." }, { status: 404 });
+
+  await prisma.goal.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
