@@ -50,33 +50,33 @@ export default function MonthlyFlatTable({
     <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="bg-sheet-header text-white font-semibold">
-            <th className="w-[22%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-left">Expense</th>
-            <th className="w-[16%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-left">Category</th>
-            <th className="w-[12%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">Base</th>
-            <th className="w-[12%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">Planned</th>
-            <th className="w-[12%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">Actual</th>
-            <th className="w-[18%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-left">Remark</th>
-            <th className="w-[8%] border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-center">Skip</th>
+          <tr className="bg-slate-900 text-white font-semibold">
+            <th className="w-[22%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left">Expense</th>
+            <th className="w-[16%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left">Category</th>
+            <th className="w-[12%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">Base</th>
+            <th className="w-[12%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">Planned</th>
+            <th className="w-[12%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">Actual</th>
+            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left">Remark</th>
+            <th className="w-[8%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-center">Skip</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr
               key={row.id}
-              className={`bg-sheet-row dark:bg-sheet-row-dark ${row.isSkipped ? "line-through opacity-50" : ""}`}
+              className={`bg-white dark:bg-canvas-card ${row.isSkipped ? "line-through opacity-50" : ""}`}
             >
-              <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-slate-900 dark:text-white">
+              <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-slate-900 dark:text-white">
                 {row.name}
                 {row.actions && <span className="ml-2">{row.actions}</span>}
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-slate-500 dark:text-slate-300">
+              <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-slate-500 dark:text-slate-400">
                 {row.categoryName}
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right text-slate-500 dark:text-slate-300">
+              <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right text-slate-500 dark:text-slate-400">
                 {fmt(row.base)}
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
+              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
                 <input
                   key={row.planned}
                   type="number"
@@ -86,7 +86,7 @@ export default function MonthlyFlatTable({
                   className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 dark:text-white focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
+              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
                 <input
                   key={row.actual ?? ""}
                   type="number"
@@ -96,7 +96,7 @@ export default function MonthlyFlatTable({
                   className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 dark:text-white focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark p-0">
+              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
                 <input
                   key={row.remark ?? ""}
                   type="text"
@@ -106,7 +106,7 @@ export default function MonthlyFlatTable({
                   className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:outline-none disabled:cursor-not-allowed"
                 />
               </td>
-              <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-center">
+              <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-center">
                 <input
                   key={String(row.isSkipped)}
                   type="checkbox"
@@ -118,14 +118,14 @@ export default function MonthlyFlatTable({
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-sheet-header text-white font-semibold">
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2">Total</td>
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2" />
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">-</td>
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">{fmt(plannedTotal)}</td>
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2 text-right">{fmt(actualTotal)}</td>
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2">-</td>
-            <td className="border border-sheet-border dark:border-sheet-border-dark px-3 py-2" />
+          <tr className="bg-slate-900 text-white font-semibold">
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2">Total</td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">-</td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">{fmt(plannedTotal)}</td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right">{fmt(actualTotal)}</td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2">-</td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
           </tr>
         </tfoot>
       </table>
