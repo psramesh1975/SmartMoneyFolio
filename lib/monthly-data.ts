@@ -1,12 +1,10 @@
 import { prisma } from "@/lib/db";
 import { ensureMonthGenerated } from "@/lib/monthly-generate";
+import { reconcileAutoLinkedLineItems } from "@/lib/monthly-auto-sync";
 import { computeMonthlySummary } from "@/lib/monthly-summary";
 import type {
-  AccountOptionDTO,
-  LiabilityOptionDTO,
-  MonthlyBaseRowDTO,
+  FlatBasePayload,
   MonthlyCategoryDTO,
-  MonthlyCategoryOptionDTO,
   MonthlyEntryDTO,
   MonthlyMonthPayload,
   MonthlyYearPayload,
@@ -32,6 +30,7 @@ export async function getMonthPayload(
   year: number,
   month: number
 ): Promise<MonthlyMonthPayload> {
+  await reconcileAutoLinkedLineItems(householdId);
   await ensureMonthGenerated(householdId, year, month);
 
   const [categories, entries] = await Promise.all([
@@ -96,48 +95,74 @@ export async function getMonthPayload(
   return { year, month, categories: categoryDTOs, summary };
 }
 
-// The Monthly Base setup page: one flat list of active line items (no
-// grouping by category — that's just a column here), plus the household's
-// categories for the row-level category picker. No entries, no Planned or
+// The Monthly Base setup page: Debt (EMI) and SIP rows are auto-linked and
+// read-only here (sourced from Liabilities/Assets — see
+// lib/monthly-auto-sync.ts), everything else is a general recurring expense,
+// grouped by category and freely editable. No entries, no Planned or
 // Actual — Base is the template, not a month.
-export async function getFlatBasePayload(householdId: string): Promise<{
-  lineItems: MonthlyBaseRowDTO[];
-  categories: MonthlyCategoryOptionDTO[];
-  liabilities: LiabilityOptionDTO[];
-  accounts: AccountOptionDTO[];
-}> {
-  const [lineItems, categories, liabilities, accounts] = await Promise.all([
+export async function getFlatBasePayload(householdId: string): Promise<FlatBasePayload> {
+  const { debtCategoryId, sipCategoryId } = await reconcileAutoLinkedLineItems(householdId);
+
+  const [debtItems, sipItems, generalItems, categories] = await Promise.all([
     prisma.monthlyLineItem.findMany({
-      where: { householdId, isActive: true },
+      where: { householdId, isActive: true, categoryId: debtCategoryId },
+      include: { liability: { select: { accountReference: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.monthlyLineItem.findMany({
+      where: { householdId, isActive: true, categoryId: sipCategoryId },
+      include: { account: { select: { accountOrFolioNo: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.monthlyLineItem.findMany({
+      where: {
+        householdId,
+        isActive: true,
+        categoryId: { notIn: [debtCategoryId, sipCategoryId] },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.monthlyCategory.findMany({
-      where: { householdId },
+      where: { householdId, id: { notIn: [debtCategoryId, sipCategoryId] } },
       orderBy: { sortOrder: "asc" },
-    }),
-    prisma.liability.findMany({
-      where: { householdId },
-      select: { id: true, name: true, emiAmount: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    // Mutual Fund accounts only — SIP linking is scoped to assetClass =
-    // MUTUAL_FUNDS (stocks aren't bought via recurring SIP in this app's model).
-    prisma.account.findMany({
-      where: { householdId, assetClass: "MUTUAL_FUNDS" },
-      select: { id: true, holdingName: true, sipMonthlyAmount: true },
-      orderBy: { createdAt: "asc" },
     }),
   ]);
 
+  const debtRows = debtItems.map((li) => ({
+    id: li.id,
+    name: li.name,
+    baseAmount: li.baseAmount.toString(),
+    subtitle: li.liability?.accountReference ?? null,
+    kind: "EMI" as const,
+  }));
+  const sipRows = sipItems.map((li) => ({
+    id: li.id,
+    name: li.name,
+    baseAmount: li.baseAmount.toString(),
+    subtitle: li.account?.accountOrFolioNo ?? null,
+    kind: "SIP" as const,
+  }));
+
+  const generalGroups = categories.map((c) => ({
+    categoryId: c.id,
+    categoryName: c.name,
+    // Keep empty categories visible so "+ Add" has somewhere to go.
+    rows: generalItems
+      .filter((li) => li.categoryId === c.id)
+      .map((li) => ({ id: li.id, name: li.name, baseAmount: li.baseAmount.toString(), categoryId: c.id })),
+  }));
+
+  const sum = (rows: { baseAmount: string }[]) => rows.reduce((s, r) => s + Number(r.baseAmount), 0);
+  const debtServicing = sum(debtRows);
+  const sipContributions = sum(sipRows);
+  const wealthBuilding = debtServicing + sipContributions;
+  const totalOutflow = wealthBuilding + generalItems.reduce((s, li) => s + Number(li.baseAmount), 0);
+  const fixedLiving = totalOutflow - wealthBuilding;
+
   return {
-    lineItems: lineItems.map((li) => ({
-      id: li.id,
-      name: li.name,
-      baseAmount: li.baseAmount.toString(),
-      categoryId: li.categoryId,
-      liabilityId: li.liabilityId,
-      accountId: li.accountId,
-    })),
+    debtRows,
+    sipRows,
+    generalGroups,
     categories: categories.map((c) => ({
       id: c.id,
       name: c.name,
@@ -145,16 +170,15 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       spendKind: c.spendKind,
       isSubscription: c.isSubscription,
     })),
-    liabilities: liabilities.map((l) => ({
-      id: l.id,
-      name: l.name,
-      emiAmount: l.emiAmount?.toString() ?? null,
-    })),
-    accounts: accounts.map((a) => ({
-      id: a.id,
-      name: a.holdingName,
-      sipMonthlyAmount: a.sipMonthlyAmount?.toString() ?? null,
-    })),
+    kpis: {
+      totalOutflow: totalOutflow.toFixed(2),
+      debtServicing: debtServicing.toFixed(2),
+      sipContributions: sipContributions.toFixed(2),
+      wealthBuilding: wealthBuilding.toFixed(2),
+      wealthBuildingPercent: totalOutflow > 0 ? Math.round((wealthBuilding / totalOutflow) * 100) : 0,
+      fixedLiving: fixedLiving.toFixed(2),
+      fixedLivingPercent: totalOutflow > 0 ? Math.round((fixedLiving / totalOutflow) * 100) : 0,
+    },
   };
 }
 

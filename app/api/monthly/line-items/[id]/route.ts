@@ -13,10 +13,7 @@ const patchSchema = z.object({
   repeatMonths: z.array(repeatMonthSchema).optional(),
   isActive: z.boolean().optional(),
   notes: z.string().nullable().optional(),
-  liabilityId: z.string().min(1).nullable().optional(),
-  // Mutually exclusive with liabilityId — a line item links to at most one
-  // of a Liability (EMI) or an Account (SIP), enforced below.
-  accountId: z.string().min(1).nullable().optional(),
+  // liabilityId / accountId removed — auto-sync only, see lib/monthly-auto-sync.ts
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -41,34 +38,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: parsed.data.categoryId, householdId: session.householdId },
     });
     if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
-  }
-
-  if (parsed.data.liabilityId) {
-    const liability = await prisma.liability.findFirst({
-      where: { id: parsed.data.liabilityId, householdId: session.householdId },
-    });
-    if (!liability) return NextResponse.json({ error: "That liability wasn't found." }, { status: 400 });
-  }
-
-  if (parsed.data.accountId) {
-    // SIP linking is scoped to Mutual Fund accounts only — see decisions in
-    // the Phase 14 spec.
-    const account = await prisma.account.findFirst({
-      where: { id: parsed.data.accountId, householdId: session.householdId, assetClass: "MUTUAL_FUNDS" },
-    });
-    if (!account) return NextResponse.json({ error: "That mutual fund account wasn't found." }, { status: 400 });
-  }
-
-  // A line item links to at most one of Liability/Account — check the
-  // state this patch would leave it in (existing value where this patch
-  // doesn't touch a field), not just what's in the request body.
-  const nextLiabilityId = parsed.data.liabilityId !== undefined ? parsed.data.liabilityId : lineItem.liabilityId;
-  const nextAccountId = parsed.data.accountId !== undefined ? parsed.data.accountId : lineItem.accountId;
-  if (nextLiabilityId && nextAccountId) {
-    return NextResponse.json(
-      { error: "A line item can link to a Liability or an Account, not both." },
-      { status: 400 }
-    );
   }
 
   // Only affects entries not yet generated — existing MonthlyEntry rows for
