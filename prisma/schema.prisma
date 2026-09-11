@@ -167,6 +167,8 @@ model Account {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  monthlyLineItems MonthlyLineItem[]
+
   @@index([householdId])
   @@index([familyMemberId])
   @@index([securityId])
@@ -329,6 +331,11 @@ model MonthlyLineItem {
   notes          String?         // the "Remark" column on Monthly Base — not copied onto generated entries
   liabilityId    String?         // opt-in: "this recurring expense is the EMI for that loan"
   liability      Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
+  // opt-in: "this recurring expense is the SIP for that mutual fund holding"
+  // — mutually exclusive with liabilityId (enforced in the API, not here);
+  // a line item represents one real-world payment, so at most one link.
+  accountId      String?
+  account        Account?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -337,6 +344,7 @@ model MonthlyLineItem {
   @@index([householdId])
   @@index([categoryId])
   @@index([liabilityId])
+  @@index([accountId])
   @@map("monthly_line_items")
 }
 
@@ -366,6 +374,12 @@ model MonthlyEntry {
   // re-editing or un-marking the entry later can't double-count or lose
   // track of what already happened to the loan balance.
   principalAppliedAmount Decimal?
+  // Idempotency guard for the SIP->Mutual Fund auto-sync, same shape as
+  // principalAppliedAmount above but two fields: reversing a weighted-average
+  // buy price needs both the units removed and the cost removed, not just one
+  // number. Set together, cleared together.
+  sipUnitsApplied Decimal?
+  sipCostApplied  Decimal?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

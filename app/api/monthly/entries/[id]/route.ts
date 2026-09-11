@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const entry = await prisma.monthlyEntry.findFirst({
     where: { id, householdId: session.householdId },
-    include: { lineItem: { include: { liability: true } } },
+    include: { lineItem: { include: { liability: true, account: { include: { security: true } } } } },
   });
   if (!entry) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
 
@@ -78,6 +78,79 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // non-null) does NOT recompute or re-apply principal — deliberately left
   // untouched above (principalAppliedAmount stays undefined in that branch).
 
+  // SIP -> Mutual Fund holding auto-sync. Same trigger and idempotency shape
+  // as the EMI branch above, scoped to accountId links (Mutual Fund accounts
+  // only). A line item links to at most one of liability/account, so these
+  // two branches never both fire for the same entry.
+  const account = entry.lineItem?.account ?? null;
+  let sipUnitsApplied: number | null | undefined; // undefined = leave untouched
+  let sipCostApplied: number | null | undefined;
+  let sipPriceUnresolved = false; // surfaced in the response so the UI can flag it
+
+  if (account && wasUnpaid && willBePaid) {
+    // Newly marked paid: resolve a price off the security's last synced
+    // price, falling back to the account's own avgBuyPrice. No resolvable
+    // price (brand new security, sync hasn't run, no avgBuyPrice set
+    // either) — don't guess: actualAmount still saves below, the unit
+    // purchase just doesn't happen.
+    const price = account.security?.lastPrice
+      ? Number(account.security.lastPrice)
+      : account.avgBuyPrice
+        ? Number(account.avgBuyPrice)
+        : null;
+
+    if (price && price > 0) {
+      const sipAmount = Number(parsed.data.actualAmount);
+      const unitsPurchased = sipAmount / price;
+      const oldUnits = Number(account.unitsHeld ?? 0);
+      const oldAvgPrice = Number(account.avgBuyPrice ?? price);
+      const oldTotalCost = oldUnits * oldAvgPrice;
+
+      const newUnits = oldUnits + unitsPurchased;
+      const newAvgBuyPrice = (oldTotalCost + sipAmount) / newUnits;
+
+      await prisma.account.update({
+        where: { id: account.id },
+        data: {
+          unitsHeld: newUnits,
+          avgBuyPrice: newAvgBuyPrice,
+          currentValue: newUnits * price,
+        },
+      });
+
+      sipUnitsApplied = unitsPurchased;
+      sipCostApplied = sipAmount;
+    } else {
+      sipPriceUnresolved = true;
+    }
+  } else if (account && !wasUnpaid && willBeUnpaid && entry.sipUnitsApplied && entry.sipCostApplied) {
+    // Un-marking a previously-paid entry: reverse exactly the units and cost
+    // that were applied for THIS entry, restoring the prior weighted average.
+    const unitsToRemove = Number(entry.sipUnitsApplied);
+    const costToRemove = Number(entry.sipCostApplied);
+    const oldUnits = Number(account.unitsHeld ?? 0);
+    const oldAvgPrice = Number(account.avgBuyPrice ?? 0);
+    const oldTotalCost = oldUnits * oldAvgPrice;
+
+    const newUnits = oldUnits - unitsToRemove;
+    const newAvgBuyPrice = newUnits > 0 ? (oldTotalCost - costToRemove) / newUnits : 0;
+    const latestPrice = account.security?.lastPrice ? Number(account.security.lastPrice) : newAvgBuyPrice;
+
+    await prisma.account.update({
+      where: { id: account.id },
+      data: {
+        unitsHeld: newUnits,
+        avgBuyPrice: newAvgBuyPrice,
+        currentValue: newUnits * latestPrice,
+      },
+    });
+
+    sipUnitsApplied = null;
+    sipCostApplied = null;
+  }
+  // Editing an already-paid SIP entry's actualAmount does NOT re-trigger a
+  // purchase — same deliberate non-recompute as the EMI branch.
+
   // plannedAmount is this month's own editable plan and is fair game on any
   // entry, recurring-linked or one-off — it defaults from the line item's
   // baseAmount at generation but diverges freely from there. baseAmount
@@ -87,10 +160,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: {
       ...parsed.data,
       ...(principalAppliedAmount !== undefined ? { principalAppliedAmount } : {}),
+      ...(sipUnitsApplied !== undefined ? { sipUnitsApplied } : {}),
+      ...(sipCostApplied !== undefined ? { sipCostApplied } : {}),
     },
   });
 
-  return NextResponse.json({ entry: updated });
+  return NextResponse.json({ entry: updated, ...(sipPriceUnresolved ? { sipPriceUnresolved: true } : {}) });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
