@@ -1,0 +1,30 @@
+name: Seed securities master
+
+# Refreshes the household-independent SecuritiesMaster catalog (mutual
+# funds via mfapi.in, NSE stocks via NSE's equity CSV) — new fund launches
+# and new stock listings, not day-to-day price moves (that's the separate
+# Vercel Cron hitting /api/cron/sync-prices daily). Deliberately not part
+# of the app's own deploy pipeline; this workflow is its whole lifecycle.
+on:
+  schedule:
+    # 03:00 UTC on the 1st of every month.
+    - cron: "0 3 1 * *"
+  workflow_dispatch: {} # lets you trigger a run on demand from the Actions tab
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - run: npx tsx scripts/seed-securities.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
