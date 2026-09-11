@@ -60,7 +60,11 @@ test.describe("Monthly Base blueprint (/monthly/base)", () => {
   });
 
   test("no raw unformatted numbers render — every amount matches the currency formatter", async ({ page }) => {
-    const amountNodes = page.locator("[class*='tabular-nums']");
+    // Excludes <input> — the editable baseAmount fields in General Recurring
+    // Expenses carry this same class for alignment, but innerText() on an
+    // <input> is always "" (its value lives in the value attribute, not as
+    // text content), which isn't a formatting bug to catch here.
+    const amountNodes = page.locator("[class*='tabular-nums']:not(input)");
     const count = await amountNodes.count();
     expect(count).toBeGreaterThan(0);
     for (let i = 0; i < count; i++) {
@@ -70,15 +74,26 @@ test.describe("Monthly Base blueprint (/monthly/base)", () => {
   });
 
   test("Total Monthly Base Outflow reconciles to auto-linked + manual category subtotals", async ({ page }) => {
-    const kpiCard = page.locator("div", { hasText: "Total Monthly Base Outflow" }).first();
+    // page.locator("div", { hasText }).first() matches in DOM order, which
+    // is outermost-ancestor-first — on this page that's a huge wrapper div
+    // containing the whole sidebar/topbar, not the KPI card, so .first()
+    // grabbed an unrelated <p> (the household name). :has(> span:text-is())
+    // scopes to the one div whose *direct* child span carries this exact
+    // label, i.e. the actual card.
+    const kpiCard = page.locator("div:has(> span:text-is('Total Monthly Base Outflow'))");
     const totalText = await kpiCard.locator("p").first().innerText();
     const total = parseCurrency(totalText);
 
+    // The toggle's second top-level <span> wraps [amount-span, chevron]; that
+    // wrapper's own text also contains the currency token (chevron is an SVG,
+    // no text), so the plain filter matches it AND the inner amount span —
+    // two elements, which .innerText() rejects under Playwright's strict
+    // mode. .last() resolves to the innermost (actual) amount span.
     const sipToggle = await openAutoSection(page, "sip-section");
-    const sipSubtotal = parseCurrency(await sipToggle.locator("span").filter({ hasText: CURRENCY_TOKEN }).innerText());
+    const sipSubtotal = parseCurrency(await sipToggle.locator("span").filter({ hasText: CURRENCY_TOKEN }).last().innerText());
 
     const debtToggle = await openAutoSection(page, "debt-section");
-    const debtSubtotal = parseCurrency(await debtToggle.locator("span").filter({ hasText: CURRENCY_TOKEN }).innerText());
+    const debtSubtotal = parseCurrency(await debtToggle.locator("span").filter({ hasText: CURRENCY_TOKEN }).last().innerText());
 
     const allToggles = page.locator("button[aria-expanded]");
     const toggleCount = await allToggles.count();
@@ -97,7 +112,12 @@ test.describe("Monthly Base blueprint (/monthly/base)", () => {
   });
 
   test("Wealth Building KPI subtitle explicitly references Debt Servicing", async ({ page }) => {
-    const wealthCard = page.locator("div", { hasText: "Wealth Building" }).first();
+    // Same fix as the KPI-card locator above: scope to the div whose direct
+    // child span is the "Wealth Building" label, not an outer wrapper that
+    // happens to also contain this text somewhere in its subtree — the
+    // .first() version passed today, but only because its overly broad
+    // match still happened to contain the right text further down.
+    const wealthCard = page.locator("div:has(> span:text-is('Wealth Building'))");
     await expect(wealthCard.getByText(/Debt Servicing \+ SIPs/)).toBeVisible();
   });
 });
