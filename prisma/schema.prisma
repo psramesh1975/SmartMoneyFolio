@@ -305,6 +305,15 @@ model MonthlyCategory {
   lineItems MonthlyLineItem[]
   entries   MonthlyEntry[]
 
+  // Enforced at the DB level, not just app-level checks — closes the race
+  // where concurrent requests for the same household (e.g. multiple tabs,
+  // or reconcileAutoLinkedLineItems() firing from parallel page loads) could
+  // each pass a check-then-create guard before any of them finished,
+  // producing duplicate system categories. Deliberately covers manually
+  // created categories too: no household should ever have two categories
+  // with the same name + type (income vs. outflow), not just the two
+  // system ones (Loan EMIs, Investments & SIPs).
+  @@unique([householdId, name, type])
   @@index([householdId])
   @@map("monthly_categories")
 }
@@ -341,6 +350,17 @@ model MonthlyLineItem {
 
   entries MonthlyEntry[]
 
+  // Closes the race in reconcileAutoLinkedLineItems() (lib/monthly-auto-sync.ts):
+  // concurrent requests for the same household could each read the same
+  // stale "no line item linked to this liability/account yet" snapshot and
+  // all create one, producing several duplicate rows for the same EMI/SIP
+  // that then double- (or N-) count in Total Monthly Base Outflow. NULLs
+  // (manually created line items, which have neither) don't collide with
+  // each other under Postgres unique-constraint semantics, so this only
+  // ever constrains two rows genuinely pointing at the same liability, or
+  // the same account, within one household.
+  @@unique([householdId, liabilityId])
+  @@unique([householdId, accountId])
   @@index([householdId])
   @@index([categoryId])
   @@index([liabilityId])
