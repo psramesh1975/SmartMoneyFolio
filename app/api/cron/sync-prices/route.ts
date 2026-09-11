@@ -34,6 +34,22 @@ async function handleSync(req: NextRequest) {
         data: { lastPrice: price, priceUpdatedAt: new Date() },
       });
       updated++;
+
+      // Keep every linked Account.currentValue in step with the fresh
+      // price — this is what keeps the Dashboard's getSolvencySnapshot()
+      // (which sums the stored currentValue column directly) in agreement
+      // with what /assets computes live. Prisma's updateMany can't multiply
+      // by each row's own unitsHeld in one call, so this is a small loop —
+      // one household's holdings, not a performance concern.
+      const linkedAccounts = await prisma.account.findMany({
+        where: { securityId: sec.id, unitsHeld: { not: null } },
+      });
+      for (const acct of linkedAccounts) {
+        await prisma.account.update({
+          where: { id: acct.id },
+          data: { currentValue: Number(acct.unitsHeld) * price },
+        });
+      }
     }
   }
 

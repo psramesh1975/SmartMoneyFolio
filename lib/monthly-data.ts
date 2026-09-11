@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { ensureMonthGenerated } from "@/lib/monthly-generate";
 import { computeMonthlySummary } from "@/lib/monthly-summary";
 import type {
+  AccountOptionDTO,
   LiabilityOptionDTO,
   MonthlyBaseRowDTO,
   MonthlyCategoryDTO,
@@ -103,8 +104,9 @@ export async function getFlatBasePayload(householdId: string): Promise<{
   lineItems: MonthlyBaseRowDTO[];
   categories: MonthlyCategoryOptionDTO[];
   liabilities: LiabilityOptionDTO[];
+  accounts: AccountOptionDTO[];
 }> {
-  const [lineItems, categories, liabilities] = await Promise.all([
+  const [lineItems, categories, liabilities, accounts] = await Promise.all([
     prisma.monthlyLineItem.findMany({
       where: { householdId, isActive: true },
       orderBy: { createdAt: "asc" },
@@ -118,6 +120,13 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       select: { id: true, name: true, emiAmount: true },
       orderBy: { createdAt: "asc" },
     }),
+    // Mutual Fund accounts only — SIP linking is scoped to assetClass =
+    // MUTUAL_FUNDS (stocks aren't bought via recurring SIP in this app's model).
+    prisma.account.findMany({
+      where: { householdId, assetClass: "MUTUAL_FUNDS" },
+      select: { id: true, holdingName: true, sipMonthlyAmount: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   return {
@@ -127,6 +136,7 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       baseAmount: li.baseAmount.toString(),
       categoryId: li.categoryId,
       liabilityId: li.liabilityId,
+      accountId: li.accountId,
     })),
     categories: categories.map((c) => ({
       id: c.id,
@@ -139,6 +149,11 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       id: l.id,
       name: l.name,
       emiAmount: l.emiAmount?.toString() ?? null,
+    })),
+    accounts: accounts.map((a) => ({
+      id: a.id,
+      name: a.holdingName,
+      sipMonthlyAmount: a.sipMonthlyAmount?.toString() ?? null,
     })),
   };
 }

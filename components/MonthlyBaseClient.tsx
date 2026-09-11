@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { LiabilityOptionDTO, MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
+import type { AccountOptionDTO, LiabilityOptionDTO, MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import ManageCategoriesPanel from "@/components/ManageCategoriesPanel";
 
@@ -42,6 +42,10 @@ type Row = {
   // Opt-in link: "this recurring expense is the EMI for that loan". null =
   // not linked, the default and common case.
   liabilityId: string | null;
+  // Opt-in link: "this recurring expense is the SIP for that mutual fund
+  // holding". Mutually exclusive with liabilityId — picking one clears the
+  // other, both here and server-side.
+  accountId: string | null;
 };
 
 function makeTempId() {
@@ -52,10 +56,12 @@ export default function MonthlyBaseClient({
   initialLineItems,
   initialCategories,
   liabilities,
+  accounts,
 }: {
   initialLineItems: MonthlyBaseRowDTO[];
   initialCategories: MonthlyCategoryOptionDTO[];
   liabilities: LiabilityOptionDTO[];
+  accounts: AccountOptionDTO[];
 }) {
   const router = useRouter();
   const [categories, setCategories] = useState<MonthlyCategoryOptionDTO[]>(initialCategories);
@@ -67,6 +73,7 @@ export default function MonthlyBaseClient({
       baseAmount: li.baseAmount,
       persisted: true,
       liabilityId: li.liabilityId,
+      accountId: li.accountId,
     }))
   );
   const [showManageCategories, setShowManageCategories] = useState(false);
@@ -94,6 +101,7 @@ export default function MonthlyBaseClient({
         baseAmount: "0.00",
         persisted: false,
         liabilityId: null,
+        accountId: null,
       },
     ]);
     requestAnimationFrame(() => nameInputRefs.current[tempId]?.focus());
@@ -104,18 +112,20 @@ export default function MonthlyBaseClient({
   // the API.
   async function createRow(
     row: Row,
-    overrides: Partial<Pick<Row, "name" | "categoryId" | "baseAmount" | "liabilityId">>
+    overrides: Partial<Pick<Row, "name" | "categoryId" | "baseAmount" | "liabilityId" | "accountId">>
   ) {
     const name = (overrides.name ?? row.name).trim();
     const categoryId = overrides.categoryId ?? row.categoryId;
     const baseAmount = overrides.baseAmount ?? row.baseAmount;
     const liabilityId = overrides.liabilityId !== undefined ? overrides.liabilityId : row.liabilityId;
+    const accountId = overrides.accountId !== undefined ? overrides.accountId : row.accountId;
     if (!name || !categoryId) return;
     const { ok, data } = await postJSON("/api/monthly/line-items", {
       categoryId,
       name,
       baseAmount: Number(baseAmount) || 0,
       liabilityId: liabilityId ?? undefined,
+      accountId: accountId ?? undefined,
     });
     if (!ok) return;
     const newId = data.lineItem.id;
@@ -123,7 +133,7 @@ export default function MonthlyBaseClient({
     setRows((prev) =>
       prev.map((r) =>
         r.id === row.id
-          ? { ...r, id: newId, name, categoryId, baseAmount, liabilityId, persisted: true }
+          ? { ...r, id: newId, name, categoryId, baseAmount, liabilityId, accountId, persisted: true }
           : r
       )
     );
@@ -169,24 +179,51 @@ export default function MonthlyBaseClient({
 
   // Selecting a liability suggests baseAmount = that loan's EMI (still
   // freely editable afterward, in case the EMI shown on the loan doesn't
-  // match what's actually budgeted here).
+  // match what's actually budgeted here). Mutually exclusive with the SIP
+  // account link — a line item represents one real-world payment, so
+  // picking a loan clears any linked account.
   async function handleLiabilityChange(rowId: string, rawValue: string) {
     const row = rows.find((r) => r.id === rowId);
     if (!row) return;
     const liabilityId = rawValue || null;
     const liability = liabilityId ? liabilities.find((l) => l.id === liabilityId) : undefined;
     const suggestedBase = liability?.emiAmount;
-    const patch: Partial<Row> = { liabilityId };
+    const patch: Partial<Row> = { liabilityId, accountId: null };
     if (suggestedBase) patch.baseAmount = suggestedBase;
     updateRow(rowId, patch);
 
     if (row.persisted) {
       await patchJSON(`/api/monthly/line-items/${rowId}`, {
         liabilityId,
+        accountId: null,
         ...(suggestedBase ? { baseAmount: Number(suggestedBase) } : {}),
       });
     } else if (row.name.trim() && row.categoryId) {
-      await createRow(row, { liabilityId, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
+      await createRow(row, { liabilityId, accountId: null, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
+    }
+  }
+
+  // Selecting a mutual fund account suggests baseAmount = that fund's SIP
+  // amount (still freely editable). Mutually exclusive with the linked
+  // loan — picking an account clears any linked liability.
+  async function handleAccountChange(rowId: string, rawValue: string) {
+    const row = rows.find((r) => r.id === rowId);
+    if (!row) return;
+    const accountId = rawValue || null;
+    const account = accountId ? accounts.find((a) => a.id === accountId) : undefined;
+    const suggestedBase = account?.sipMonthlyAmount;
+    const patch: Partial<Row> = { accountId, liabilityId: null };
+    if (suggestedBase) patch.baseAmount = suggestedBase;
+    updateRow(rowId, patch);
+
+    if (row.persisted) {
+      await patchJSON(`/api/monthly/line-items/${rowId}`, {
+        accountId,
+        liabilityId: null,
+        ...(suggestedBase ? { baseAmount: Number(suggestedBase) } : {}),
+      });
+    } else if (row.name.trim() && row.categoryId) {
+      await createRow(row, { accountId, liabilityId: null, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
     }
   }
 
@@ -266,17 +303,20 @@ export default function MonthlyBaseClient({
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr className="bg-slate-900 text-white">
-            <th className="w-[36%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+            <th className="w-[28%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
               Expense
             </th>
-            <th className="w-[24%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
               Category
             </th>
-            <th className="w-[16%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right font-bold">
+            <th className="w-[14%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right font-bold">
               Base
             </th>
-            <th className="w-[16%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
               Linked Loan
+            </th>
+            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+              Linked SIP
             </th>
             <th className="w-10 border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
           </tr>
@@ -327,6 +367,20 @@ export default function MonthlyBaseClient({
                   ))}
                 </select>
               </td>
+              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
+                <select
+                  value={row.accountId ?? ""}
+                  onChange={(e) => handleAccountChange(row.id, e.target.value)}
+                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
+                >
+                  <option value="">— None —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2 text-center">
                 <button
                   type="button"
@@ -347,6 +401,7 @@ export default function MonthlyBaseClient({
             <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
               {formatTotal(total)}
             </td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
             <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
             <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
           </tr>

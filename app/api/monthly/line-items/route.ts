@@ -15,6 +15,9 @@ const createSchema = z.object({
   baseAmount: z.coerce.number().nonnegative(),
   repeatMonths: z.array(repeatMonthSchema).default([]),
   liabilityId: z.string().min(1).optional(),
+  // Mutually exclusive with liabilityId — a line item links to at most one
+  // of a Liability (EMI) or an Account (SIP), enforced below.
+  accountId: z.string().min(1).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -52,11 +55,27 @@ export async function POST(req: NextRequest) {
   });
   if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
 
+  if (parsed.data.liabilityId && parsed.data.accountId) {
+    return NextResponse.json(
+      { error: "A line item can link to a Liability or an Account, not both." },
+      { status: 400 }
+    );
+  }
+
   if (parsed.data.liabilityId) {
     const liability = await prisma.liability.findFirst({
       where: { id: parsed.data.liabilityId, householdId: session.householdId },
     });
     if (!liability) return NextResponse.json({ error: "That liability wasn't found." }, { status: 400 });
+  }
+
+  if (parsed.data.accountId) {
+    // SIP linking is scoped to Mutual Fund accounts only — see decisions in
+    // the Phase 14 spec.
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data.accountId, householdId: session.householdId, assetClass: "MUTUAL_FUNDS" },
+    });
+    if (!account) return NextResponse.json({ error: "That mutual fund account wasn't found." }, { status: 400 });
   }
 
   const timeZone = await getHouseholdTimeZone(session.householdId);
@@ -70,6 +89,7 @@ export async function POST(req: NextRequest) {
       baseAmount: parsed.data.baseAmount,
       repeatMonths: parsed.data.repeatMonths,
       liabilityId: parsed.data.liabilityId,
+      accountId: parsed.data.accountId,
       startYear: year,
       startMonth: month,
     },

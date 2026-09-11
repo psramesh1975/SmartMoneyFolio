@@ -52,6 +52,9 @@ export type MonthlyBaseRowDTO = {
   // Opt-in: "this recurring expense is the EMI for that loan" — null means
   // not linked, the default and common case.
   liabilityId: string | null;
+  // Opt-in: "this recurring expense is the SIP for that mutual fund
+  // holding" — null means not linked. Mutually exclusive with liabilityId.
+  accountId: string | null;
 };
 
 // Option list for the Monthly Base line-item form's "Link to a loan" select.
@@ -59,6 +62,14 @@ export type LiabilityOptionDTO = {
   id: string;
   name: string;
   emiAmount: string | null;
+};
+
+// Option list for the Monthly Base line-item form's "Link to a mutual fund
+// SIP" select — Mutual Fund accounts only (assetClass = MUTUAL_FUNDS).
+export type AccountOptionDTO = {
+  id: string;
+  name: string; // holdingName
+  sipMonthlyAmount: string | null;
 };
 
 export type MonthlyCategoryOptionDTO = {

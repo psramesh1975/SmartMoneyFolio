@@ -34,13 +34,19 @@ const createSchema = z.object({
   sipMonthlyAmount: z.coerce.number().nonnegative().optional(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!session.householdId) return NextResponse.json({ error: "No household." }, { status: 403 });
 
+  const assetClassParam = req.nextUrl.searchParams.get("assetClass");
+  const assetClass =
+    assetClassParam && (ASSET_CLASS_VALUES as readonly string[]).includes(assetClassParam)
+      ? (assetClassParam as (typeof ASSET_CLASS_VALUES)[number])
+      : undefined;
+
   const accounts = await prisma.account.findMany({
-    where: { householdId: session.householdId },
+    where: { householdId: session.householdId, ...(assetClass ? { assetClass } : {}) },
     include: { familyMember: { select: { id: true, name: true } }, security: true },
     orderBy: { createdAt: "asc" },
   });
