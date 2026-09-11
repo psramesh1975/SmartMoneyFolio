@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
+import type { LiabilityOptionDTO, MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
 import CategoryCombobox from "@/components/CategoryCombobox";
 import ManageCategoriesPanel from "@/components/ManageCategoriesPanel";
 
@@ -39,6 +39,9 @@ type Row = {
   categoryId: string | null;
   baseAmount: string;
   persisted: boolean;
+  // Opt-in link: "this recurring expense is the EMI for that loan". null =
+  // not linked, the default and common case.
+  liabilityId: string | null;
 };
 
 function makeTempId() {
@@ -48,9 +51,11 @@ function makeTempId() {
 export default function MonthlyBaseClient({
   initialLineItems,
   initialCategories,
+  liabilities,
 }: {
   initialLineItems: MonthlyBaseRowDTO[];
   initialCategories: MonthlyCategoryOptionDTO[];
+  liabilities: LiabilityOptionDTO[];
 }) {
   const router = useRouter();
   const [categories, setCategories] = useState<MonthlyCategoryOptionDTO[]>(initialCategories);
@@ -61,6 +66,7 @@ export default function MonthlyBaseClient({
       categoryId: li.categoryId,
       baseAmount: li.baseAmount,
       persisted: true,
+      liabilityId: li.liabilityId,
     }))
   );
   const [showManageCategories, setShowManageCategories] = useState(false);
@@ -87,6 +93,7 @@ export default function MonthlyBaseClient({
         categoryId: categories[0]?.id ?? null,
         baseAmount: "0.00",
         persisted: false,
+        liabilityId: null,
       },
     ]);
     requestAnimationFrame(() => nameInputRefs.current[tempId]?.focus());
@@ -95,15 +102,20 @@ export default function MonthlyBaseClient({
   // Not created server-side until the user actually types a name (and a
   // category is available) — a click on "+ Add Line Item" alone never hits
   // the API.
-  async function createRow(row: Row, overrides: Partial<Pick<Row, "name" | "categoryId" | "baseAmount">>) {
+  async function createRow(
+    row: Row,
+    overrides: Partial<Pick<Row, "name" | "categoryId" | "baseAmount" | "liabilityId">>
+  ) {
     const name = (overrides.name ?? row.name).trim();
     const categoryId = overrides.categoryId ?? row.categoryId;
     const baseAmount = overrides.baseAmount ?? row.baseAmount;
+    const liabilityId = overrides.liabilityId !== undefined ? overrides.liabilityId : row.liabilityId;
     if (!name || !categoryId) return;
     const { ok, data } = await postJSON("/api/monthly/line-items", {
       categoryId,
       name,
       baseAmount: Number(baseAmount) || 0,
+      liabilityId: liabilityId ?? undefined,
     });
     if (!ok) return;
     const newId = data.lineItem.id;
@@ -111,7 +123,7 @@ export default function MonthlyBaseClient({
     setRows((prev) =>
       prev.map((r) =>
         r.id === row.id
-          ? { ...r, id: newId, name, categoryId, baseAmount, persisted: true }
+          ? { ...r, id: newId, name, categoryId, baseAmount, liabilityId, persisted: true }
           : r
       )
     );
@@ -153,6 +165,29 @@ export default function MonthlyBaseClient({
 
   function handleBaseChange(rowId: string, value: string) {
     updateRow(rowId, { baseAmount: value });
+  }
+
+  // Selecting a liability suggests baseAmount = that loan's EMI (still
+  // freely editable afterward, in case the EMI shown on the loan doesn't
+  // match what's actually budgeted here).
+  async function handleLiabilityChange(rowId: string, rawValue: string) {
+    const row = rows.find((r) => r.id === rowId);
+    if (!row) return;
+    const liabilityId = rawValue || null;
+    const liability = liabilityId ? liabilities.find((l) => l.id === liabilityId) : undefined;
+    const suggestedBase = liability?.emiAmount;
+    const patch: Partial<Row> = { liabilityId };
+    if (suggestedBase) patch.baseAmount = suggestedBase;
+    updateRow(rowId, patch);
+
+    if (row.persisted) {
+      await patchJSON(`/api/monthly/line-items/${rowId}`, {
+        liabilityId,
+        ...(suggestedBase ? { baseAmount: Number(suggestedBase) } : {}),
+      });
+    } else if (row.name.trim() && row.categoryId) {
+      await createRow(row, { liabilityId, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
+    }
   }
 
   async function handleBaseBlur(rowId: string, value: string) {
@@ -231,14 +266,17 @@ export default function MonthlyBaseClient({
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr className="bg-slate-900 text-white">
-            <th className="w-[44%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+            <th className="w-[36%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
               Expense
             </th>
-            <th className="w-[32%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+            <th className="w-[24%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
               Category
             </th>
-            <th className="w-[20%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right font-bold">
+            <th className="w-[16%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right font-bold">
               Base
+            </th>
+            <th className="w-[16%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
+              Linked Loan
             </th>
             <th className="w-10 border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
           </tr>
@@ -275,6 +313,20 @@ export default function MonthlyBaseClient({
                   className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 dark:text-white [font-variant-numeric:tabular-nums] focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
                 />
               </td>
+              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
+                <select
+                  value={row.liabilityId ?? ""}
+                  onChange={(e) => handleLiabilityChange(row.id, e.target.value)}
+                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
+                >
+                  <option value="">— None —</option>
+                  {liabilities.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2 text-center">
                 <button
                   type="button"
@@ -295,6 +347,7 @@ export default function MonthlyBaseClient({
             <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
               {formatTotal(total)}
             </td>
+            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
             <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
           </tr>
         </tfoot>

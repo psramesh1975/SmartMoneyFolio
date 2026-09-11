@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { computeAmortization } from "@/lib/amortization";
+import LiabilityAmortizationPanel from "@/components/LiabilityAmortizationPanel";
 
 export type LiabilityRow = {
   id: string;
@@ -52,13 +52,6 @@ export default function DebtOverview({ liabilities, baseCurrency }: { liabilitie
         <tbody>
           {liabilities.map((l) => {
             const isExpanded = expandedId === l.id;
-            const breakdown = computeAmortization({
-              outstandingBalance: Number(l.outstandingBalance),
-              originalAmount: l.originalAmount ? Number(l.originalAmount) : null,
-              interestRate: l.interestRate ? Number(l.interestRate) : null,
-              emiAmount: l.emiAmount ? Number(l.emiAmount) : null,
-              targetPayoffDate: l.targetPayoffDate ? new Date(l.targetPayoffDate) : null,
-            });
             return (
               <Fragment key={l.id}>
                 <tr
@@ -91,48 +84,14 @@ export default function DebtOverview({ liabilities, baseCurrency }: { liabilitie
                 {isExpanded && (
                   <tr className="border-b border-slate-100 bg-slate-50 dark:border-slate-800/60 dark:bg-white/5">
                     <td colSpan={6} className="px-4 py-3">
-                      {breakdown.isAmortizing ? (
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          <div>
-                            <p className="text-slate-500 dark:text-slate-400">Monthly interest</p>
-                            <p className="font-medium text-rose-600 dark:text-rose-400">
-                              {l.currency} {fmt(breakdown.monthlyInterest ?? 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-slate-500 dark:text-slate-400">Monthly principal</p>
-                            <p className="font-medium text-emerald-600 dark:text-cyan-400">
-                              {l.currency} {fmt(breakdown.monthlyPrincipal ?? 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-slate-500 dark:text-slate-400">Months remaining</p>
-                            <p className="font-medium text-slate-900 dark:text-white">
-                              {breakdown.monthsRemaining ?? "—"}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-slate-500 dark:text-slate-400">Running balance — no interest.</p>
-                      )}
-                      {breakdown.percentPaidOff !== null ? (
-                        <div className="mt-2 max-w-xs">
-                          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                            <span>Paid off</span>
-                            <span>{Math.round(breakdown.percentPaidOff)}%</span>
-                          </div>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded bg-slate-200 dark:bg-white/10">
-                            <div
-                              className="h-full bg-blue-600 dark:bg-lime-400"
-                              style={{ width: `${breakdown.percentPaidOff}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="mt-2 text-slate-500 dark:text-slate-400">
-                          Add original loan amount to track payoff progress.
-                        </p>
-                      )}
+                      <LiabilityAmortizationPanel
+                        currency={l.currency}
+                        outstandingBalance={l.outstandingBalance}
+                        originalAmount={l.originalAmount}
+                        interestRate={l.interestRate}
+                        emiAmount={l.emiAmount}
+                        targetPayoffDate={l.targetPayoffDate}
+                      />
                     </td>
                   </tr>
                 )}

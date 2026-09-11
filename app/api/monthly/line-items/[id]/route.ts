@@ -13,6 +13,7 @@ const patchSchema = z.object({
   repeatMonths: z.array(repeatMonthSchema).optional(),
   isActive: z.boolean().optional(),
   notes: z.string().nullable().optional(),
+  liabilityId: z.string().min(1).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: parsed.data.categoryId, householdId: session.householdId },
     });
     if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
+  }
+
+  if (parsed.data.liabilityId) {
+    const liability = await prisma.liability.findFirst({
+      where: { id: parsed.data.liabilityId, householdId: session.householdId },
+    });
+    if (!liability) return NextResponse.json({ error: "That liability wasn't found." }, { status: 400 });
   }
 
   // Only affects entries not yet generated — existing MonthlyEntry rows for

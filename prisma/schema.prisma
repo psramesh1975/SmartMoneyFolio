@@ -232,8 +232,13 @@ model Liability {
   emiAmount          Decimal?      // monthly payment, reference only, not wired to Monthly Tracking in this phase
   targetPayoffDate   DateTime?
   lastUpdated        DateTime      @default(now())
+  accountReference   String?       // loan A/C # or card last-4 digits — "Loan A/C: 0048-HL-91024"
+  isRevolving        Boolean       @default(false) // true for credit cards / lines of credit
+  statementDueDay    Int?          // day-of-month billing cycle closes, revolving lines only
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+
+  lineItems MonthlyLineItem[]
 
   @@index([householdId])
   @@index([familyMemberId])
@@ -322,6 +327,8 @@ model MonthlyLineItem {
   startMonth     Int             // i.e. whenever the line item was created.
   isActive       Boolean         @default(true) // "stopped" lines don't generate new entries but keep history
   notes          String?         // the "Remark" column on Monthly Base — not copied onto generated entries
+  liabilityId    String?         // opt-in: "this recurring expense is the EMI for that loan"
+  liability      Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -329,6 +336,7 @@ model MonthlyLineItem {
 
   @@index([householdId])
   @@index([categoryId])
+  @@index([liabilityId])
   @@map("monthly_line_items")
 }
 
@@ -353,6 +361,11 @@ model MonthlyEntry {
   actualAmount   Decimal?         // null until the user fills it in
   isSkipped      Boolean          @default(false) // skips this one occurrence without touching the line item
   notes          String?
+  // Idempotency guard for the EMI->principal auto-sync: set once, when this
+  // entry's EMI was applied to the linked liability's outstandingBalance, so
+  // re-editing or un-marking the entry later can't double-count or lose
+  // track of what already happened to the loan balance.
+  principalAppliedAmount Decimal?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

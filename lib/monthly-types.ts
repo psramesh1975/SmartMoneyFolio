@@ -49,6 +49,16 @@ export type MonthlyBaseRowDTO = {
   name: string;
   baseAmount: string;
   categoryId: string | null;
+  // Opt-in: "this recurring expense is the EMI for that loan" — null means
+  // not linked, the default and common case.
+  liabilityId: string | null;
+};
+
+// Option list for the Monthly Base line-item form's "Link to a loan" select.
+export type LiabilityOptionDTO = {
+  id: string;
+  name: string;
+  emiAmount: string | null;
 };
 
 export type MonthlyCategoryOptionDTO = {

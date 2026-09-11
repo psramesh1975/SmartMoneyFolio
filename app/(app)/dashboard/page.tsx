@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import AssetsOverview from "@/components/AssetsOverview";
 import DebtOverview from "@/components/DebtOverview";
 import { assetClassLabel } from "@/lib/asset-classes";
-import { getSolvencySnapshot, getGoalPacing } from "@/lib/dashboard-data";
+import { getSolvencySnapshot, getGoalPacing, ratioTone } from "@/lib/dashboard-data";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -21,13 +21,6 @@ const avatarPalette = [
   { bg: "bg-blue-50 dark:bg-blue-500/10", text: "text-blue-700 dark:text-blue-400", border: "border-blue-200/60 dark:border-blue-500/20" },
   { bg: "bg-pink-50 dark:bg-pink-500/10", text: "text-pink-700 dark:text-pink-400", border: "border-pink-200/60 dark:border-pink-500/20" },
 ];
-
-// Cosmetic health cue only, not a stored rule.
-function ratioTone(ratio: number) {
-  if (ratio < 20) return "text-emerald-600 dark:text-cyan-400";
-  if (ratio < 40) return "text-amber-600 dark:text-amber-400";
-  return "text-rose-600 dark:text-rose-400";
-}
 
 export default async function DashboardPage() {
   const session = await getSession();

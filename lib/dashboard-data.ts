@@ -117,6 +117,15 @@ export async function getLiquidBuffer(householdId: string): Promise<{ liquidBuff
   return { liquidBuffer };
 }
 
+// Color-band for a debt-to-asset ratio — shared by the dashboard's solvency
+// card and /liabilities' Debt-to-Asset Health KPI, so the two surfaces never
+// drift into disagreeing about what counts as "healthy" vs "risky".
+export function ratioTone(ratio: number) {
+  if (ratio < 20) return "text-emerald-600 dark:text-cyan-400";
+  if (ratio < 40) return "text-amber-600 dark:text-amber-400";
+  return "text-rose-600 dark:text-rose-400";
+}
+
 export type SolvencySnapshot = {
   baseCurrency: string;
   totalAssets: number;
@@ -142,6 +151,57 @@ export async function getSolvencySnapshot(householdId: string): Promise<Solvency
   const debtToAssetRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
 
   return { baseCurrency: base, totalAssets, totalLiabilities, netWorth, debtToAssetRatio };
+}
+
+export type DebtSnapshot = {
+  baseCurrency: string;
+  totalOutstandingPrincipal: number; // sum(outstandingBalance), base-currency liabilities only
+  activeLiabilityCount: number;
+  monthlyDebtService: number; // sum(emiAmount) where set, base-currency only
+  blendedInterestRate: number | null; // weighted avg APR over amortizing liabilities only; null if none
+  debtToAssetRatio: number; // reused from getSolvencySnapshot, not recomputed
+};
+
+// Powers the 4 KPI cards at the top of /liabilities. Reuses
+// getSolvencySnapshot() for the Debt-to-Asset figure rather than re-querying
+// assets a second way — that ratio needs to agree everywhere it's shown.
+export async function getDebtSnapshot(householdId: string): Promise<DebtSnapshot> {
+  const [solvency, liabilities] = await Promise.all([
+    getSolvencySnapshot(householdId),
+    prisma.liability.findMany({
+      where: { householdId },
+      select: { currency: true, outstandingBalance: true, emiAmount: true, interestRate: true },
+    }),
+  ]);
+
+  const baseCurrency = solvency.baseCurrency;
+  const baseRows = liabilities.filter((l) => l.currency === baseCurrency);
+
+  const totalOutstandingPrincipal = baseRows.reduce((sum, l) => sum + Number(l.outstandingBalance), 0);
+  const monthlyDebtService = baseRows
+    .filter((l) => l.emiAmount != null)
+    .reduce((sum, l) => sum + Number(l.emiAmount), 0);
+
+  // Non-amortizing liabilities (credit cards, 0% device EMIs — null/0
+  // interestRate) are excluded from the blended rate: including them would
+  // drag a "blended APR" figure toward zero in a way that misrepresents what
+  // you're actually paying interest on. Their balances still count fully in
+  // totalOutstandingPrincipal above.
+  const amortizingRows = baseRows.filter((l) => l.interestRate != null && Number(l.interestRate) > 0);
+  const amortizingBalance = amortizingRows.reduce((sum, l) => sum + Number(l.outstandingBalance), 0);
+  const blendedInterestRate =
+    amortizingBalance > 0
+      ? amortizingRows.reduce((sum, l) => sum + Number(l.outstandingBalance) * Number(l.interestRate), 0) / amortizingBalance
+      : null;
+
+  return {
+    baseCurrency,
+    totalOutstandingPrincipal,
+    activeLiabilityCount: baseRows.length,
+    monthlyDebtService,
+    blendedInterestRate,
+    debtToAssetRatio: solvency.debtToAssetRatio,
+  };
 }
 
 export type GoalPacing = {

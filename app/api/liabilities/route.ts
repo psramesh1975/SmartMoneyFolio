@@ -16,6 +16,9 @@ const createSchema = z.object({
   interestRate: z.coerce.number().min(0).max(100).optional(),
   emiAmount: z.coerce.number().nonnegative().optional(),
   targetPayoffDate: z.coerce.date().optional(),
+  accountReference: z.string().min(1).optional(),
+  isRevolving: z.boolean().optional(),
+  statementDueDay: z.coerce.number().int().min(1).max(31).optional(),
 });
 
 export async function GET() {

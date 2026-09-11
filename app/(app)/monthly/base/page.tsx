@@ -8,7 +8,7 @@ export default async function MonthlyBasePage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const { lineItems, categories } = await getFlatBasePayload(session.householdId);
+  const { lineItems, categories, liabilities } = await getFlatBasePayload(session.householdId);
 
   return (
     <section className="max-w-4xl px-6 py-10">
@@ -16,7 +16,7 @@ export default async function MonthlyBasePage() {
         Set up your recurring lines once — home loan, school fees, SIPs, rent, subscriptions —
         with their steady Base amount. No Planned or Actual here; that's the month, not the setup.
       </p>
-      <MonthlyBaseClient initialLineItems={lineItems} initialCategories={categories} />
+      <MonthlyBaseClient initialLineItems={lineItems} initialCategories={categories} liabilities={liabilities} />
     </section>
   );
 }
