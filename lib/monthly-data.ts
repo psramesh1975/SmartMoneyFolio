@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { ensureMonthGenerated } from "@/lib/monthly-generate";
 import { computeMonthlySummary } from "@/lib/monthly-summary";
 import type {
+  LiabilityOptionDTO,
   MonthlyBaseRowDTO,
   MonthlyCategoryDTO,
   MonthlyCategoryOptionDTO,
@@ -101,8 +102,9 @@ export async function getMonthPayload(
 export async function getFlatBasePayload(householdId: string): Promise<{
   lineItems: MonthlyBaseRowDTO[];
   categories: MonthlyCategoryOptionDTO[];
+  liabilities: LiabilityOptionDTO[];
 }> {
-  const [lineItems, categories] = await Promise.all([
+  const [lineItems, categories, liabilities] = await Promise.all([
     prisma.monthlyLineItem.findMany({
       where: { householdId, isActive: true },
       orderBy: { createdAt: "asc" },
@@ -110,6 +112,11 @@ export async function getFlatBasePayload(householdId: string): Promise<{
     prisma.monthlyCategory.findMany({
       where: { householdId },
       orderBy: { sortOrder: "asc" },
+    }),
+    prisma.liability.findMany({
+      where: { householdId },
+      select: { id: true, name: true, emiAmount: true },
+      orderBy: { createdAt: "asc" },
     }),
   ]);
 
@@ -119,6 +126,7 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       name: li.name,
       baseAmount: li.baseAmount.toString(),
       categoryId: li.categoryId,
+      liabilityId: li.liabilityId,
     })),
     categories: categories.map((c) => ({
       id: c.id,
@@ -126,6 +134,11 @@ export async function getFlatBasePayload(householdId: string): Promise<{
       type: c.type,
       spendKind: c.spendKind,
       isSubscription: c.isSubscription,
+    })),
+    liabilities: liabilities.map((l) => ({
+      id: l.id,
+      name: l.name,
+      emiAmount: l.emiAmount?.toString() ?? null,
     })),
   };
 }

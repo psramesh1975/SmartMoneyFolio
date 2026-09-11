@@ -14,6 +14,7 @@ const createSchema = z.object({
   // may genuinely be unknown yet), same as a freshly added spreadsheet row.
   baseAmount: z.coerce.number().nonnegative(),
   repeatMonths: z.array(repeatMonthSchema).default([]),
+  liabilityId: z.string().min(1).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
   });
   if (!category) return NextResponse.json({ error: "Category not found." }, { status: 404 });
 
+  if (parsed.data.liabilityId) {
+    const liability = await prisma.liability.findFirst({
+      where: { id: parsed.data.liabilityId, householdId: session.householdId },
+    });
+    if (!liability) return NextResponse.json({ error: "That liability wasn't found." }, { status: 400 });
+  }
+
   const timeZone = await getHouseholdTimeZone(session.householdId);
   const { year, month } = getCurrentPeriod(timeZone);
 
@@ -61,6 +69,7 @@ export async function POST(req: NextRequest) {
       name: parsed.data.name,
       baseAmount: parsed.data.baseAmount,
       repeatMonths: parsed.data.repeatMonths,
+      liabilityId: parsed.data.liabilityId,
       startYear: year,
       startMonth: month,
     },

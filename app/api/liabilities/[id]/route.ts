@@ -16,6 +16,9 @@ const updateSchema = z.object({
   interestRate: z.coerce.number().min(0).max(100).optional(),
   emiAmount: z.coerce.number().nonnegative().optional(),
   targetPayoffDate: z.coerce.date().optional(),
+  accountReference: z.string().min(1).nullable().optional(),
+  isRevolving: z.boolean().optional(),
+  statementDueDay: z.coerce.number().int().min(1).max(31).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
