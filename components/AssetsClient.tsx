@@ -399,6 +399,7 @@ export default function AssetsClient({
           <button
             type="button"
             onClick={() => setSelectedOwner("ALL")}
+            data-testid="owner-filter-all"
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               selectedOwner === "ALL"
                 ? "bg-blue-600 text-white dark:bg-lime-400 dark:text-slate-900"
@@ -412,6 +413,7 @@ export default function AssetsClient({
               key={m.id}
               type="button"
               onClick={() => setSelectedOwner(m.id)}
+              data-testid={`owner-filter-${m.id}`}
               className={`rounded-full px-3 py-1 text-xs font-medium ${
                 selectedOwner === m.id
                   ? "bg-blue-600 text-white dark:bg-lime-400 dark:text-slate-900"
