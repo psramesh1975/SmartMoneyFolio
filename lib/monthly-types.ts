@@ -40,36 +40,49 @@ export type MonthlyCategoryDTO = {
   entries: MonthlyEntryDTO[];
 };
 
-// --- Monthly Base (the setup page): one flat table, Expense | Category | Base.
-// Repeat-months/stop/rename live on the line item but aren't surfaced here —
-// this page only edits name, category, and base amount.
+// --- Monthly Base (the setup page): auto-linked EMI/SIP rows (read-only,
+// sourced from Liabilities/Assets by lib/monthly-auto-sync.ts) plus general
+// recurring expenses, grouped by category and freely editable.
 
-export type MonthlyBaseRowDTO = {
+export type MonthlyBaseAutoRowDTO = {
   id: string;
   name: string;
   baseAmount: string;
-  categoryId: string | null;
-  // Opt-in: "this recurring expense is the EMI for that loan" — null means
-  // not linked, the default and common case.
-  liabilityId: string | null;
-  // Opt-in: "this recurring expense is the SIP for that mutual fund
-  // holding" — null means not linked. Mutually exclusive with liabilityId.
-  accountId: string | null;
+  // Debt rows: the liability's accountReference for the subtitle line.
+  // SIP rows: the account's accountOrFolioNo for the subtitle line.
+  subtitle: string | null;
+  kind: "EMI" | "SIP";
 };
 
-// Option list for the Monthly Base line-item form's "Link to a loan" select.
-export type LiabilityOptionDTO = {
+export type MonthlyBaseGeneralRowDTO = {
   id: string;
   name: string;
-  emiAmount: string | null;
+  baseAmount: string;
+  categoryId: string;
 };
 
-// Option list for the Monthly Base line-item form's "Link to a mutual fund
-// SIP" select — Mutual Fund accounts only (assetClass = MUTUAL_FUNDS).
-export type AccountOptionDTO = {
-  id: string;
-  name: string; // holdingName
-  sipMonthlyAmount: string | null;
+export type MonthlyBaseCategoryGroupDTO = {
+  categoryId: string;
+  categoryName: string;
+  rows: MonthlyBaseGeneralRowDTO[];
+};
+
+export type MonthlyBaseKpisDTO = {
+  totalOutflow: string;
+  debtServicing: string; // EMI rows total
+  sipContributions: string; // SIP rows total
+  wealthBuilding: string; // debtServicing + sipContributions
+  wealthBuildingPercent: number; // 0-100, 0 when totalOutflow is 0
+  fixedLiving: string; // totalOutflow - wealthBuilding
+  fixedLivingPercent: number;
+};
+
+export type FlatBasePayload = {
+  debtRows: MonthlyBaseAutoRowDTO[];
+  sipRows: MonthlyBaseAutoRowDTO[];
+  generalGroups: MonthlyBaseCategoryGroupDTO[];
+  categories: MonthlyCategoryOptionDTO[]; // for the "add row" category picker — excludes the two system categories
+  kpis: MonthlyBaseKpisDTO;
 };
 
 export type MonthlyCategoryOptionDTO = {

@@ -2,8 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AccountOptionDTO, LiabilityOptionDTO, MonthlyBaseRowDTO, MonthlyCategoryOptionDTO } from "@/lib/monthly-types";
-import CategoryCombobox from "@/components/CategoryCombobox";
+import { Pencil, Trash2, ChevronRight, Landmark, TrendingUp } from "lucide-react";
+import type {
+  FlatBasePayload,
+  MonthlyBaseAutoRowDTO,
+  MonthlyCategoryOptionDTO,
+} from "@/lib/monthly-types";
+import { formatCurrency } from "@/lib/format-currency";
+import { linkedBadgeTone } from "@/lib/monthly-badge";
 import ManageCategoriesPanel from "@/components/ManageCategoriesPanel";
 
 async function postJSON(url: string, body: unknown) {
@@ -26,26 +32,15 @@ async function patchJSON(url: string, body: unknown) {
   return { ok: res.ok, data };
 }
 
-// Matches the mockup's formatNumber(): "-" for zero, otherwise a fixed
-// 2-decimal, comma-grouped figure.
-function formatTotal(n: number) {
-  if (n === 0) return "-";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
+// General recurring expense row — the only kind of row a person creates or
+// edits directly on this page. Debt (EMI) and SIP rows are auto-linked and
+// read-only here; see lib/monthly-auto-sync.ts.
 type Row = {
   id: string; // real MonthlyLineItem id once persisted, otherwise a local temp id
   name: string;
-  categoryId: string | null;
   baseAmount: string;
+  categoryId: string;
   persisted: boolean;
-  // Opt-in link: "this recurring expense is the EMI for that loan". null =
-  // not linked, the default and common case.
-  liabilityId: string | null;
-  // Opt-in link: "this recurring expense is the SIP for that mutual fund
-  // holding". Mutually exclusive with liabilityId — picking one clears the
-  // other, both here and server-side.
-  accountId: string | null;
 };
 
 function makeTempId() {
@@ -53,33 +48,25 @@ function makeTempId() {
 }
 
 export default function MonthlyBaseClient({
-  initialLineItems,
-  initialCategories,
-  liabilities,
-  accounts,
+  payload,
+  baseCurrency,
 }: {
-  initialLineItems: MonthlyBaseRowDTO[];
-  initialCategories: MonthlyCategoryOptionDTO[];
-  liabilities: LiabilityOptionDTO[];
-  accounts: AccountOptionDTO[];
+  payload: FlatBasePayload;
+  baseCurrency: string;
 }) {
   const router = useRouter();
-  const [categories, setCategories] = useState<MonthlyCategoryOptionDTO[]>(initialCategories);
+  const [categories, setCategories] = useState<MonthlyCategoryOptionDTO[]>(payload.categories);
   const [rows, setRows] = useState<Row[]>(
-    initialLineItems.map((li) => ({
-      id: li.id,
-      name: li.name,
-      categoryId: li.categoryId,
-      baseAmount: li.baseAmount,
-      persisted: true,
-      liabilityId: li.liabilityId,
-      accountId: li.accountId,
-    }))
+    payload.generalGroups.flatMap((g) => g.rows.map((r) => ({ ...r, persisted: true })))
   );
   const [showManageCategories, setShowManageCategories] = useState(false);
+  // Every section defaults open — undefined reads as "not collapsed" so a
+  // freshly-created category never needs its own state entry to start open.
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const total = rows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
+  const isOpen = (key: string) => !collapsedSections[key];
+  const toggleSection = (key: string) => setCollapsedSections((prev) => ({ ...prev, [key]: !isOpen(key) }));
 
   function updateRow(id: string, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -90,53 +77,28 @@ export default function MonthlyBaseClient({
     delete nameInputRefs.current[oldId];
   }
 
-  function handleAddRow() {
+  function handleAddRow(categoryId: string) {
     const tempId = makeTempId();
-    setRows((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        name: "",
-        categoryId: categories[0]?.id ?? null,
-        baseAmount: "0.00",
-        persisted: false,
-        liabilityId: null,
-        accountId: null,
-      },
-    ]);
+    setRows((prev) => [...prev, { id: tempId, name: "", baseAmount: "0.00", categoryId, persisted: false }]);
     requestAnimationFrame(() => nameInputRefs.current[tempId]?.focus());
   }
 
-  // Not created server-side until the user actually types a name (and a
-  // category is available) — a click on "+ Add Line Item" alone never hits
-  // the API.
-  async function createRow(
-    row: Row,
-    overrides: Partial<Pick<Row, "name" | "categoryId" | "baseAmount" | "liabilityId" | "accountId">>
-  ) {
+  // Not created server-side until the user actually types a name — a click
+  // on "+ Add Line Item" alone never hits the API. The row already knows
+  // its categoryId from the card it lives in, so no category picker here.
+  async function createRow(row: Row, overrides: Partial<Pick<Row, "name" | "baseAmount">>) {
     const name = (overrides.name ?? row.name).trim();
-    const categoryId = overrides.categoryId ?? row.categoryId;
     const baseAmount = overrides.baseAmount ?? row.baseAmount;
-    const liabilityId = overrides.liabilityId !== undefined ? overrides.liabilityId : row.liabilityId;
-    const accountId = overrides.accountId !== undefined ? overrides.accountId : row.accountId;
-    if (!name || !categoryId) return;
+    if (!name) return;
     const { ok, data } = await postJSON("/api/monthly/line-items", {
-      categoryId,
+      categoryId: row.categoryId,
       name,
       baseAmount: Number(baseAmount) || 0,
-      liabilityId: liabilityId ?? undefined,
-      accountId: accountId ?? undefined,
     });
     if (!ok) return;
     const newId = data.lineItem.id;
     rebindRef(row.id, newId);
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === row.id
-          ? { ...r, id: newId, name, categoryId, baseAmount, liabilityId, accountId, persisted: true }
-          : r
-      )
-    );
+    setRows((prev) => (prev.map((r) => (r.id === row.id ? { ...r, id: newId, name, baseAmount, persisted: true } : r))));
     router.refresh();
   }
 
@@ -154,77 +116,11 @@ export default function MonthlyBaseClient({
     }
 
     if (!trimmed) return; // still blank — nothing to create yet
-    if (!row.categoryId) {
-      updateRow(rowId, { name: trimmed }); // keep it for once a category exists
-      return;
-    }
     await createRow(row, { name: trimmed });
-  }
-
-  async function handleCategoryChange(rowId: string, categoryId: string) {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return;
-    updateRow(rowId, { categoryId });
-
-    if (row.persisted) {
-      await patchJSON(`/api/monthly/line-items/${rowId}`, { categoryId });
-    } else if (row.name.trim()) {
-      await createRow(row, { categoryId });
-    }
   }
 
   function handleBaseChange(rowId: string, value: string) {
     updateRow(rowId, { baseAmount: value });
-  }
-
-  // Selecting a liability suggests baseAmount = that loan's EMI (still
-  // freely editable afterward, in case the EMI shown on the loan doesn't
-  // match what's actually budgeted here). Mutually exclusive with the SIP
-  // account link — a line item represents one real-world payment, so
-  // picking a loan clears any linked account.
-  async function handleLiabilityChange(rowId: string, rawValue: string) {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return;
-    const liabilityId = rawValue || null;
-    const liability = liabilityId ? liabilities.find((l) => l.id === liabilityId) : undefined;
-    const suggestedBase = liability?.emiAmount;
-    const patch: Partial<Row> = { liabilityId, accountId: null };
-    if (suggestedBase) patch.baseAmount = suggestedBase;
-    updateRow(rowId, patch);
-
-    if (row.persisted) {
-      await patchJSON(`/api/monthly/line-items/${rowId}`, {
-        liabilityId,
-        accountId: null,
-        ...(suggestedBase ? { baseAmount: Number(suggestedBase) } : {}),
-      });
-    } else if (row.name.trim() && row.categoryId) {
-      await createRow(row, { liabilityId, accountId: null, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
-    }
-  }
-
-  // Selecting a mutual fund account suggests baseAmount = that fund's SIP
-  // amount (still freely editable). Mutually exclusive with the linked
-  // loan — picking an account clears any linked liability.
-  async function handleAccountChange(rowId: string, rawValue: string) {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return;
-    const accountId = rawValue || null;
-    const account = accountId ? accounts.find((a) => a.id === accountId) : undefined;
-    const suggestedBase = account?.sipMonthlyAmount;
-    const patch: Partial<Row> = { accountId, liabilityId: null };
-    if (suggestedBase) patch.baseAmount = suggestedBase;
-    updateRow(rowId, patch);
-
-    if (row.persisted) {
-      await patchJSON(`/api/monthly/line-items/${rowId}`, {
-        accountId,
-        liabilityId: null,
-        ...(suggestedBase ? { baseAmount: Number(suggestedBase) } : {}),
-      });
-    } else if (row.name.trim() && row.categoryId) {
-      await createRow(row, { accountId, liabilityId: null, ...(suggestedBase ? { baseAmount: suggestedBase } : {}) });
-    }
   }
 
   async function handleBaseBlur(rowId: string, value: string) {
@@ -233,7 +129,7 @@ export default function MonthlyBaseClient({
 
     if (row.persisted) {
       await patchJSON(`/api/monthly/line-items/${rowId}`, { baseAmount: Number(value) || 0 });
-    } else if (row.name.trim() && row.categoryId) {
+    } else if (row.name.trim()) {
       await createRow(row, { baseAmount: value });
     }
   }
@@ -251,9 +147,8 @@ export default function MonthlyBaseClient({
     }
   }
 
-  // Shared by the row-level CategoryCombobox (creating inline while typing)
-  // and the Manage Categories panel's own "+ Add category" form — either
-  // path just appends to the one shared list, deduped by id.
+  // Shared by the Manage Categories panel's own "+ Add category" form — a
+  // newly created category shows up here as an empty card immediately.
   function handleCategoryCreated(category: MonthlyCategoryOptionDTO) {
     setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
     router.refresh();
@@ -269,11 +164,46 @@ export default function MonthlyBaseClient({
     router.refresh();
   }
 
+  const { kpis } = payload;
+
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-slate-200/80 px-6 py-4 dark:border-slate-800">
-        <h1 className="text-base font-bold text-slate-900 dark:text-white">Monthly Base</h1>
-        <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      {/* KPI row */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Total Monthly Base Outflow
+          </span>
+          <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            {formatCurrency(kpis.totalOutflow, baseCurrency)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Wealth Building
+          </span>
+          <p className="mt-1 text-2xl font-black tracking-tight text-blue-600 dark:text-lime-400">
+            {formatCurrency(kpis.wealthBuilding, baseCurrency)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {kpis.wealthBuildingPercent}% of total · Debt Servicing + SIPs
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Fixed Living &amp; Overhead
+          </span>
+          <p className="mt-1 text-2xl font-black tracking-tight text-amber-600 dark:text-amber-400">
+            {formatCurrency(kpis.fixedLiving, baseCurrency)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{kpis.fixedLivingPercent}% of total</p>
+        </div>
+      </div>
+
+      {/* Header + Manage Categories */}
+      <div className="rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+          <h1 className="text-base font-bold text-slate-900 dark:text-white">Monthly Base</h1>
           <button
             type="button"
             onClick={() => setShowManageCategories((s) => !s)}
@@ -281,132 +211,233 @@ export default function MonthlyBaseClient({
           >
             {showManageCategories ? "Hide Categories" : "Manage Categories"}
           </button>
-          <button
-            type="button"
-            onClick={handleAddRow}
-            className="focus-ring rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 dark:bg-lime-400 dark:text-slate-900 dark:hover:bg-lime-300"
-          >
-            + Add Line Item
-          </button>
         </div>
+        {showManageCategories && (
+          <ManageCategoriesPanel
+            categories={categories}
+            onCategoryCreated={handleCategoryCreated}
+            onCategoryUpdated={handleCategoryUpdated}
+            onCategoryDeleted={handleCategoryDeleted}
+          />
+        )}
       </div>
 
-      {showManageCategories && (
-        <ManageCategoriesPanel
-          categories={categories}
-          onCategoryCreated={handleCategoryCreated}
-          onCategoryUpdated={handleCategoryUpdated}
-          onCategoryDeleted={handleCategoryDeleted}
-        />
-      )}
+      {/* Auto-linked, read-only sections */}
+      <AutoSection
+        title="Investments & SIPs"
+        icon={TrendingUp}
+        rows={payload.sipRows}
+        baseCurrency={baseCurrency}
+        isOpen={isOpen("sip")}
+        onToggle={() => toggleSection("sip")}
+        emptyLabel="No active SIPs yet — set a monthly SIP amount on a Mutual Fund asset to see it here."
+      />
+      <AutoSection
+        title="Debt & Loan Obligations"
+        icon={Landmark}
+        rows={payload.debtRows}
+        baseCurrency={baseCurrency}
+        isOpen={isOpen("debt")}
+        onToggle={() => toggleSection("debt")}
+        emptyLabel="No loan EMIs yet — set an EMI amount on a Liability to see it here."
+      />
 
-      <table className="w-full table-fixed border-collapse text-sm">
-        <thead>
-          <tr className="bg-slate-900 text-white">
-            <th className="w-[28%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
-              Expense
-            </th>
-            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
-              Category
-            </th>
-            <th className="w-[14%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right font-bold">
-              Base
-            </th>
-            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
-              Linked Loan
-            </th>
-            <th className="w-[18%] border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-left font-bold">
-              Linked SIP
-            </th>
-            <th className="w-10 border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="group bg-white dark:bg-canvas-card">
-              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
-                <input
-                  ref={(el) => {
-                    nameInputRefs.current[row.id] = el;
-                  }}
-                  defaultValue={row.name}
-                  placeholder="Expense description…"
-                  onBlur={(e) => handleNameBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                />
-              </td>
-              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
-                <CategoryCombobox
-                  categories={categories}
-                  value={row.categoryId}
-                  onChange={(categoryId) => handleCategoryChange(row.id, categoryId)}
-                  onCreated={handleCategoryCreated}
-                />
-              </td>
-              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
-                <input
-                  type="number"
-                  step="any"
-                  value={row.baseAmount}
-                  onChange={(e) => handleBaseChange(row.id, e.target.value)}
-                  onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-right text-slate-900 dark:text-white [font-variant-numeric:tabular-nums] focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                />
-              </td>
-              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
-                <select
-                  value={row.liabilityId ?? ""}
-                  onChange={(e) => handleLiabilityChange(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                >
-                  <option value="">— None —</option>
-                  {liabilities.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td className="border border-slate-200/80 dark:border-slate-800 p-0">
-                <select
-                  value={row.accountId ?? ""}
-                  onChange={(e) => handleAccountChange(row.id, e.target.value)}
-                  className="w-full border-0 bg-transparent px-3 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                >
-                  <option value="">— None —</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => handleDelete(row.id)}
-                  title="Delete row"
-                  className="text-lg font-bold leading-none text-rose-600 opacity-40 transition-opacity group-hover:opacity-100"
-                >
-                  ×
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-slate-900 text-white font-bold">
-            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2">Total</td>
-            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
-            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2 text-right [font-variant-numeric:tabular-nums]">
-              {formatTotal(total)}
-            </td>
-            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
-            <td className="border border-slate-200/80 dark:border-slate-800 px-3 py-2" />
-            <td className="border border-slate-200/80 dark:border-slate-800 px-2 py-2" />
-          </tr>
-        </tfoot>
-      </table>
+      {/* General Recurring Expenses */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-bold text-slate-900 dark:text-white">General Recurring Expenses</h2>
+        {categories.map((c) => {
+          const categoryRows = rows.filter((r) => r.categoryId === c.id);
+          const subtotal = categoryRows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
+          const open = isOpen(c.id);
+          return (
+            <div
+              key={c.id}
+              className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card"
+            >
+              <button
+                type="button"
+                onClick={() => toggleSection(c.id)}
+                className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
+                aria-expanded={open}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{c.name}</span>
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                    {categoryRows.length}
+                  </span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
+                    {formatCurrency(subtotal, baseCurrency)}
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className={`text-slate-400 transition-transform dark:text-slate-500 ${open ? "rotate-90" : ""}`}
+                  />
+                </span>
+              </button>
+
+              {open && (
+                <div className="border-t border-slate-200/80 dark:border-slate-800">
+                  {categoryRows.length > 0 && (
+                    <table className="w-full table-fixed text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                          <th className="w-[70%] px-4 py-2 font-medium">Name</th>
+                          <th className="px-2 py-2 text-right font-medium">Amount</th>
+                          <th className="w-16 px-4 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {categoryRows.map((row) => (
+                          <tr key={row.id} className="group border-t border-slate-100 dark:border-slate-800/60">
+                            <td className="p-0">
+                              <input
+                                ref={(el) => {
+                                  nameInputRefs.current[row.id] = el;
+                                }}
+                                defaultValue={row.name}
+                                placeholder="Expense description…"
+                                onBlur={(e) => handleNameBlur(row.id, e.target.value)}
+                                className="w-full border-0 bg-transparent px-4 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
+                              />
+                            </td>
+                            <td className="p-0">
+                              <input
+                                type="number"
+                                step="any"
+                                value={row.baseAmount}
+                                onChange={(e) => handleBaseChange(row.id, e.target.value)}
+                                onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
+                                className="w-full border-0 bg-transparent px-2 py-2 text-right text-slate-900 dark:text-white [font-variant-numeric:tabular-nums] focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => nameInputRefs.current[row.id]?.focus()}
+                                  aria-label="Edit"
+                                  className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(row.id)}
+                                  aria-label="Delete"
+                                  className="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {categoryRows.length === 0 && (
+                    <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No line items yet.</p>
+                  )}
+                  <div className="border-t border-slate-100 px-4 py-2 dark:border-slate-800/60">
+                    <button
+                      type="button"
+                      onClick={() => handleAddRow(c.id)}
+                      className="focus-ring text-sm font-medium text-blue-600 hover:underline dark:text-lime-400"
+                    >
+                      + Add Line Item
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Read-only collapsible section for the auto-linked Debt/SIP rows — no
+// edit/delete controls, these are sourced from Liabilities/Assets and can
+// only be changed there.
+function AutoSection({
+  title,
+  icon: Icon,
+  rows,
+  baseCurrency,
+  isOpen,
+  onToggle,
+  emptyLabel,
+}: {
+  title: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  rows: MonthlyBaseAutoRowDTO[];
+  baseCurrency: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  emptyLabel: string;
+}) {
+  const subtotal = rows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
+        aria-expanded={isOpen}
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 dark:border-lime-400/20 dark:bg-lime-400/10 dark:text-lime-400">
+            <Icon size={16} />
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">{title}</span>
+            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/5 dark:text-slate-400">
+              {rows.length}
+            </span>
+          </span>
+        </span>
+        <span className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
+            {formatCurrency(subtotal, baseCurrency)}
+          </span>
+          <ChevronRight
+            size={16}
+            className={`text-slate-400 transition-transform dark:text-slate-500 ${isOpen ? "rotate-90" : ""}`}
+          />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-slate-200/80 dark:border-slate-800">
+          {rows.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{emptyLabel}</p>
+          ) : (
+            rows.map((row) => (
+              <div
+                key={row.id}
+                className="flex items-center justify-between border-t border-slate-100 px-4 py-3 first:border-t-0 dark:border-slate-800/60"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">{row.name}</p>
+                  {row.subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{row.subtitle}</p>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${linkedBadgeTone(row.kind)}`}>
+                    {row.kind === "SIP" ? "Active SIP" : "EMI"}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
+                    {formatCurrency(row.baseAmount, baseCurrency)}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
