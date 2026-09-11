@@ -231,6 +231,7 @@ export default function MonthlyBaseClient({
         isOpen={isOpen("sip")}
         onToggle={() => toggleSection("sip")}
         emptyLabel="No active SIPs yet — set a monthly SIP amount on a Mutual Fund asset to see it here."
+        testId="sip-section"
       />
       <AutoSection
         title="Debt & Loan Obligations"
@@ -240,6 +241,7 @@ export default function MonthlyBaseClient({
         isOpen={isOpen("debt")}
         onToggle={() => toggleSection("debt")}
         emptyLabel="No loan EMIs yet — set an EMI amount on a Liability to see it here."
+        testId="debt-section"
       />
 
       {/* General Recurring Expenses */}
@@ -370,6 +372,7 @@ function AutoSection({
   isOpen,
   onToggle,
   emptyLabel,
+  testId,
 }: {
   title: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -378,6 +381,7 @@ function AutoSection({
   isOpen: boolean;
   onToggle: () => void;
   emptyLabel: string;
+  testId: string;
 }) {
   const subtotal = rows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
 
@@ -388,6 +392,7 @@ function AutoSection({
         onClick={onToggle}
         className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
         aria-expanded={isOpen}
+        data-testid={`${testId}-toggle`}
       >
         <span className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 dark:border-lime-400/20 dark:bg-lime-400/10 dark:text-lime-400">
@@ -419,6 +424,7 @@ function AutoSection({
             rows.map((row) => (
               <div
                 key={row.id}
+                data-testid={`${testId}-row-${row.id}`}
                 className="flex items-center justify-between border-t border-slate-100 px-4 py-3 first:border-t-0 dark:border-slate-800/60"
               >
                 <div>
@@ -426,7 +432,10 @@ function AutoSection({
                   {row.subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{row.subtitle}</p>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${linkedBadgeTone(row.kind)}`}>
+                  <span
+                    data-testid={`${testId}-row-badge-${row.id}`}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${linkedBadgeTone(row.kind)}`}
+                  >
                     {row.kind === "SIP" ? "Active SIP" : "EMI"}
                   </span>
                   <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
