@@ -5,3 +5,6 @@ node_modules
 *.log
 .DS_Store
 *.tsbuildinfo
+playwright/.auth/
+playwright-report/
+test-results/
