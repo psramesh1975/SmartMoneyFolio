@@ -6,7 +6,6 @@ import { verifyPassword, createSession } from "@/lib/auth";
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
-  rememberMe: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -16,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
   }
 
-  const { email, password, rememberMe } = parsed.data;
+  const { email, password } = parsed.data;
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     include: { household: { select: { isSuspended: true } } },
@@ -38,15 +37,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No account matches that email and password." }, { status: 401 });
   }
 
-  await createSession(
-    {
-      userId: user.id,
-      householdId: user.householdId,
-      email: user.email,
-      isPlatformOwner: user.isPlatformOwner,
-    },
-    rememberMe
-  );
+  await createSession({
+    userId: user.id,
+    householdId: user.householdId,
+    email: user.email,
+    isPlatformOwner: user.isPlatformOwner,
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -3,8 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "wb_session";
-const SHORT_SESSION_SECONDS = 60 * 60 * 24; // 24h — default
-const LONG_SESSION_SECONDS = 60 * 60 * 24 * 7; // 7d — opt-in via "Remember me"
+const SESSION_MAX_SECONDS = 60 * 60 * 12; // 12h hard cap — safety net only, cookie itself is session-scoped
 
 function getSecretKey() {
   const secret = process.env.SESSION_SECRET;
@@ -31,12 +30,11 @@ export type SessionPayload = {
   isPlatformOwner: boolean;
 };
 
-export async function createSession(payload: SessionPayload, rememberMe = false) {
-  const durationSeconds = rememberMe ? LONG_SESSION_SECONDS : SHORT_SESSION_SECONDS;
+export async function createSession(payload: SessionPayload) {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${durationSeconds}s`)
+    .setExpirationTime(`${SESSION_MAX_SECONDS}s`)
     .sign(getSecretKey());
 
   const cookieStore = await cookies();
@@ -45,7 +43,8 @@ export async function createSession(payload: SessionPayload, rememberMe = false)
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: durationSeconds,
+    // Deliberately no maxAge / no expires: this makes it a session cookie,
+    // cleared by the browser when fully closed. Do not add maxAge back.
   });
 }
 
