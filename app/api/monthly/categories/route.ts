@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
@@ -55,16 +56,33 @@ export async function POST(req: NextRequest) {
     select: { sortOrder: true },
   });
 
-  const category = await prisma.monthlyCategory.create({
-    data: {
-      householdId: session.householdId,
-      name: parsed.data.name,
-      type: parsed.data.type,
-      spendKind: parsed.data.spendKind ?? null,
-      isSubscription: parsed.data.isSubscription,
-      sortOrder: (last?.sortOrder ?? -1) + 1,
-    },
-  });
+  // The findFirst check above is a best-effort, case-insensitive guard for
+  // a friendly error on the common path — it has the same race window any
+  // check-then-create does. The DB's @@unique([householdId, name, type])
+  // constraint is the real backstop for two concurrent creates of the same
+  // exact name; P2002 here means that constraint caught a race the
+  // pre-check missed.
+  let category;
+  try {
+    category = await prisma.monthlyCategory.create({
+      data: {
+        householdId: session.householdId,
+        name: parsed.data.name,
+        type: parsed.data.type,
+        spendKind: parsed.data.spendKind ?? null,
+        isSubscription: parsed.data.isSubscription,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json(
+        { error: "A category with that name already exists." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 
   return NextResponse.json({ category });
 }

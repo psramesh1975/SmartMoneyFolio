@@ -1,16 +1,88 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 const DEBT_CATEGORY_NAME = "Loan EMIs";
 const SIP_CATEGORY_NAME = "Investments & SIPs";
 
+// reconcileAutoLinkedLineItems() runs on every /monthly/base load, so
+// concurrent requests for the same household (multiple tabs, or just two
+// page loads racing) hit this at once. A plain findFirst-then-create here
+// let both requests pass the check before either finished creating,
+// producing duplicate categories.
+//
+// upsert() alone is not enough to close that race: under real concurrency
+// against this DB (verified with 12 parallel calls via
+// scripts/_race-check.ts during development), multiple upserts can each
+// attempt the create side and one throws P2002 from the @@unique
+// ([householdId, name, type]) constraint rather than silently resolving to
+// the update side — Prisma's upsert is not a single atomic statement here.
+// So P2002 is caught explicitly: whichever call lost the race just reads
+// back the row the winner created, which by definition now exists.
 async function getOrCreateSystemCategory(householdId: string, name: string) {
-  const existing = await prisma.monthlyCategory.findFirst({
-    where: { householdId, name, type: "OUTFLOW" },
-  });
-  if (existing) return existing;
-  return prisma.monthlyCategory.create({
-    data: { householdId, name, type: "OUTFLOW", spendKind: "FIXED" },
-  });
+  try {
+    return await prisma.monthlyCategory.upsert({
+      where: { householdId_name_type: { householdId, name, type: "OUTFLOW" } },
+      update: {},
+      create: { householdId, name, type: "OUTFLOW", spendKind: "FIXED" },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return prisma.monthlyCategory.findFirstOrThrow({
+        where: { householdId, name, type: "OUTFLOW" },
+      });
+    }
+    throw err;
+  }
+}
+
+// reconcileAutoLinkedLineItems() previously decided create-vs-sync from a
+// single snapshot read of existing linked line items taken at the top of
+// the function — under concurrent calls for the same household, several
+// could each see "nothing linked to this liability/account yet" and each
+// create their own row, producing duplicates that then double-count the
+// EMI/SIP amount in Total Monthly Base Outflow (empirically reproduced: 12
+// concurrent calls against a fresh household produced 12 duplicate rows for
+// the same single liability). This upsert against the DB's
+// @@unique([householdId, liabilityId]) / @@unique([householdId, accountId])
+// constraints closes that race the same way getOrCreateSystemCategory does
+// above — including the same P2002 catch-and-refetch, since a bare
+// upsert() alone was proven not to be atomic against this DB under real
+// concurrency (see the comment on getOrCreateSystemCategory).
+async function upsertLinkedLineItem(params: {
+  householdId: string;
+  categoryId: string;
+  liabilityId?: string;
+  accountId?: string;
+  name: string;
+  baseAmount: Prisma.Decimal | number;
+}) {
+  const { householdId, categoryId, liabilityId, accountId, name, baseAmount } = params;
+  const where = liabilityId
+    ? { householdId_liabilityId: { householdId, liabilityId } }
+    : { householdId_accountId: { householdId, accountId: accountId! } };
+  const update = { name, baseAmount, isActive: true };
+
+  try {
+    return await prisma.monthlyLineItem.upsert({
+      where,
+      update,
+      create: {
+        householdId,
+        categoryId,
+        liabilityId,
+        accountId,
+        name,
+        baseAmount,
+        startYear: new Date().getFullYear(),
+        startMonth: new Date().getMonth() + 1,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return prisma.monthlyLineItem.update({ where, data: update });
+    }
+    throw err;
+  }
 }
 
 // Called at the top of every read path that needs an up-to-date Monthly
@@ -52,32 +124,28 @@ export async function reconcileAutoLinkedLineItems(householdId: string) {
   const byLiabilityId = new Map(linkedLineItems.filter((li) => li.liabilityId).map((li) => [li.liabilityId!, li]));
   const byAccountId = new Map(linkedLineItems.filter((li) => li.accountId).map((li) => [li.accountId!, li]));
 
-  // Create or sync a Debt row for every qualifying liability.
+  // Create or sync a Debt row for every qualifying liability. Skips the
+  // no-op case (already active, name/amount unchanged) to avoid a write on
+  // every single page load; upsertLinkedLineItem's own update branch always
+  // sets isActive: true regardless, so a stopped row with an unchanged
+  // name/amount still gets correctly reactivated by falling through to it.
   for (const liability of qualifyingLiabilities) {
     const existing = byLiabilityId.get(liability.id);
     const name = liability.name;
     const baseAmount = liability.emiAmount!; // Decimal, qualifying filter already checked > 0
 
-    if (!existing) {
-      await prisma.monthlyLineItem.create({
-        data: {
-          householdId,
-          categoryId: debtCategory.id,
-          liabilityId: liability.id,
-          name,
-          baseAmount,
-          startYear: new Date().getFullYear(),
-          startMonth: new Date().getMonth() + 1,
-        },
-      });
-    } else if (
+    if (
+      !existing ||
       !existing.isActive ||
       existing.name !== name ||
       Number(existing.baseAmount) !== Number(baseAmount)
     ) {
-      await prisma.monthlyLineItem.update({
-        where: { id: existing.id },
-        data: { name, baseAmount, isActive: true },
+      await upsertLinkedLineItem({
+        householdId,
+        categoryId: debtCategory.id,
+        liabilityId: liability.id,
+        name,
+        baseAmount,
       });
     }
   }
@@ -88,26 +156,18 @@ export async function reconcileAutoLinkedLineItems(householdId: string) {
     const name = account.holdingName;
     const baseAmount = account.sipMonthlyAmount!;
 
-    if (!existing) {
-      await prisma.monthlyLineItem.create({
-        data: {
-          householdId,
-          categoryId: sipCategory.id,
-          accountId: account.id,
-          name,
-          baseAmount,
-          startYear: new Date().getFullYear(),
-          startMonth: new Date().getMonth() + 1,
-        },
-      });
-    } else if (
+    if (
+      !existing ||
       !existing.isActive ||
       existing.name !== name ||
       Number(existing.baseAmount) !== Number(baseAmount)
     ) {
-      await prisma.monthlyLineItem.update({
-        where: { id: existing.id },
-        data: { name, baseAmount, isActive: true },
+      await upsertLinkedLineItem({
+        householdId,
+        categoryId: sipCategory.id,
+        accountId: account.id,
+        name,
+        baseAmount,
       });
     }
   }
