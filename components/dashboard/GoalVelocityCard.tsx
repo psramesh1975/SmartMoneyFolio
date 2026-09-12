@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/format-currency";
+import { formatDashboardAmount } from "@/lib/dashboard-format";
 import type { PrimaryGoal } from "@/lib/dashboard-data";
 
 const MONTH_YEAR = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -22,9 +22,15 @@ function projectCompletion(remaining: number, monthlySipTotal: number, now: Date
 export default function GoalVelocityCard({
   goal,
   monthlySipTotal,
+  householdWideNote = false,
 }: {
   goal: PrimaryGoal | null;
   monthlySipTotal: number;
+  // The Goal model has no familyMemberId — goals are always household-wide,
+  // so this card never actually narrows down when the dashboard's member
+  // filter is active. True while that filter is active, to caption the
+  // card rather than silently ignore the filter.
+  householdWideNote?: boolean;
 }) {
   if (!goal) {
     return (
@@ -55,7 +61,7 @@ export default function GoalVelocityCard({
     <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          Milestone Engine
+          Milestone Engine{householdWideNote && <span className="font-normal normal-case tracking-normal"> (household-wide)</span>}
         </span>
         <span
           className={`shrink-0 text-xs font-bold ${
@@ -71,7 +77,7 @@ export default function GoalVelocityCard({
       </div>
 
       <h4 className="mt-2 truncate text-sm font-extrabold text-slate-900 dark:text-white">
-        {formatCurrency(goal.targetAmount, goal.currency)} {goal.name}
+        {formatDashboardAmount(goal.targetAmount, goal.currency)} {goal.name}
       </h4>
 
       <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
@@ -79,7 +85,7 @@ export default function GoalVelocityCard({
       </div>
 
       <div className="mt-2 flex justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-        <span>{formatCurrency(goal.currentAmount, goal.currency)} accumulated</span>
+        <span>{formatDashboardAmount(goal.currentAmount, goal.currency)} accumulated</span>
         <span className="font-bold text-slate-900 dark:text-white">{pct}%</span>
       </div>
 
@@ -87,7 +93,7 @@ export default function GoalVelocityCard({
         {targetReached
           ? "Target reached 🎉"
           : projected
-            ? `Projected completion: ${MONTH_YEAR.format(projected)} at current ${formatCurrency(monthlySipTotal, goal.currency)} monthly SIP pace.`
+            ? `Projected completion: ${MONTH_YEAR.format(projected)} at current ${formatDashboardAmount(monthlySipTotal, goal.currency)} monthly SIP pace.`
             : "No active SIPs recorded yet — projected completion can't be estimated."}
       </p>
     </div>

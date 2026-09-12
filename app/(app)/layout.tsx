@@ -6,9 +6,22 @@ import AppHeader from "@/components/AppHeader";
 import { SectionThemeInit } from "@/components/SectionThemeInit";
 import { MobileNavProvider } from "@/components/MobileNavContext";
 import { getPreviousPeriod, getCurrentPeriod, getNextPeriod, MONTH_LABELS_SHORT } from "@/lib/monthly-periods";
+import { getPrimaryGoal, getLatestPriceSyncAt } from "@/lib/dashboard-data";
+import { getMarketTicker } from "@/lib/market-ticker";
+import { formatINRCompact } from "@/lib/format-indian-currency";
 
 function periodLabel({ year, month }: { year: number; month: number }) {
   return `${MONTH_LABELS_SHORT[month - 1]} ${year}`;
+}
+
+// Compact target label for the sidebar's "Goals (... Target)" nav item —
+// INR gets the mockup's "₹6 Cr" style; other currencies (this app is
+// multi-currency) fall back to a plain rounded-crore-less figure since
+// formatINRCompact's Lakh/Crore grouping is INR-specific.
+function goalTargetLabel(goal: { targetAmount: number; currency: string } | null): string | null {
+  if (!goal) return null;
+  if (goal.currency === "INR") return formatINRCompact(goal.targetAmount);
+  return `${goal.currency} ${Math.round(goal.targetAmount).toLocaleString()}`;
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,10 +31,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const household = await prisma.household.findUnique({
-    where: { id: session.householdId },
-    select: { name: true, timeZone: true },
-  });
+  const [household, familyMembers, primaryGoal, marketTicker, lastUpdatedAt] = await Promise.all([
+    prisma.household.findUnique({
+      where: { id: session.householdId },
+      select: { name: true, timeZone: true, baseCurrency: true },
+    }),
+    prisma.familyMember.findMany({
+      where: { householdId: session.householdId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, relationship: true },
+    }),
+    getPrimaryGoal(session.householdId),
+    getMarketTicker(),
+    getLatestPriceSyncAt(),
+  ]);
   const timeZone = household?.timeZone || "UTC";
 
   return (
@@ -34,6 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           previousLabel={periodLabel(getPreviousPeriod(timeZone))}
           currentLabel={periodLabel(getCurrentPeriod(timeZone))}
           nextLabel={periodLabel(getNextPeriod(timeZone))}
+          goalTargetLabel={goalTargetLabel(primaryGoal)}
+          baseCurrency={household?.baseCurrency ?? "USD"}
         />
         {/* min-w-0 overrides the flex item default of min-width: auto (sized
             to content's intrinsic width) — without it, wide unwrappable
@@ -44,8 +69,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             fixed width at <768px and stopped being the first thing a click
             landed on instead. */}
         <main className="flex min-w-0 flex-1 flex-col">
-          <AppHeader householdName={household?.name ?? ""} />
-          <div className="px-8 py-10">{children}</div>
+          <AppHeader
+            baseCurrency={household?.baseCurrency ?? "USD"}
+            familyMembers={familyMembers}
+            marketTicker={marketTicker}
+            lastUpdatedAt={lastUpdatedAt}
+          />
+          {/* pt dropped (was py-10): every page's own top-level <section>
+              already carries its own py-10, so this used to stack two lots
+              of top padding under the header. Harmless before, but the
+              header grew a second row (the market ticker strip) for the
+              dashboard mockup, and the doubled gap became visually obvious
+              underneath it. pb-10 is kept since no page supplies its own
+              bottom padding beyond its section's. */}
+          <div className="px-8 pb-10">{children}</div>
         </main>
       </div>
     </MobileNavProvider>

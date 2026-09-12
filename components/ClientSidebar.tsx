@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { ChevronRight, LayoutDashboard, Target, Landmark, CreditCard, Settings as SettingsIcon } from "lucide-react";
 import { useMobileNav } from "@/components/MobileNavContext";
 
 export default function ClientSidebar({
@@ -13,12 +12,20 @@ export default function ClientSidebar({
   previousLabel,
   currentLabel,
   nextLabel,
+  goalTargetLabel,
+  baseCurrency,
 }: {
   isPlatformOwner: boolean;
   householdName: string;
   previousLabel: string;
   currentLabel: string;
   nextLabel: string;
+  // e.g. "₹6 Cr" — the primary goal's target amount, compact-formatted by
+  // the caller (app/(app)/layout.tsx); null when the household has no goals
+  // yet, in which case the nav item drops the "(... Target)" suffix rather
+  // than showing a placeholder figure.
+  goalTargetLabel: string | null;
+  baseCurrency: string;
 }) {
   const pathname = usePathname(); // still needed for per-link active highlighting
   const { isOpen, close } = useMobileNav();
@@ -65,27 +72,37 @@ export default function ClientSidebar({
   // drawer, so the nav markup isn't duplicated. Called as a plain function
   // rather than rendered as a JSX component tag, so it doesn't get treated
   // as a new component type (and remounted) on every render.
+  const iconLinkClass = (href: string) =>
+    `flex items-center gap-3 px-3 py-2 text-sm ${
+      pathname === href ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+    }`;
+
   function renderNavContent(onNavigate?: () => void) {
     return (
       <>
         <div className="px-4 py-4">
-          <Link href="/dashboard" className="text-base font-bold text-blue-600 dark:text-lime-400" onClick={onNavigate}>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">Wealth OS</span>
+          <Link href="/dashboard" className="block text-base font-extrabold text-white" onClick={onNavigate}>
             Smart Money Folio
           </Link>
           <p className="mt-0.5 text-xs text-slate-400">{householdName}</p>
         </div>
         <nav className="px-2">
-          <Link href="/dashboard" className={linkClass("/dashboard")} onClick={onNavigate}>
+          <Link href="/dashboard" className={iconLinkClass("/dashboard")} onClick={onNavigate}>
+            <LayoutDashboard size={16} className="shrink-0" />
             Dashboard
           </Link>
-          <Link href="/goals" className={linkClass("/goals")} onClick={onNavigate}>
-            Goals
+          <Link href="/goals" className={iconLinkClass("/goals")} onClick={onNavigate}>
+            <Target size={16} className="shrink-0" />
+            Goals{goalTargetLabel ? ` (${goalTargetLabel} Target)` : ""}
           </Link>
-          <Link href="/assets" className={linkClass("/assets")} onClick={onNavigate}>
-            Assets
+          <Link href="/assets" className={iconLinkClass("/assets")} onClick={onNavigate}>
+            <Landmark size={16} className="shrink-0" />
+            Assets &amp; Holdings
           </Link>
-          <Link href="/liabilities" className={linkClass("/liabilities")} onClick={onNavigate}>
-            Liabilities
+          <Link href="/liabilities" className={iconLinkClass("/liabilities")} onClick={onNavigate}>
+            <CreditCard size={16} className="shrink-0" />
+            Liabilities &amp; Loans
           </Link>
           <button
             type="button"
@@ -130,35 +147,52 @@ export default function ClientSidebar({
               </Link>
             </div>
           )}
-          <Link href="/settings" className={linkClass("/settings")} onClick={onNavigate}>
-            Settings
-          </Link>
           {isPlatformOwner && (
             <Link href="/platform" className={linkClass("/platform")} onClick={onNavigate}>
               Admin
             </Link>
           )}
         </nav>
-        <div className="mt-6 flex items-center gap-2 px-4">
-          <ThemeToggle />
-        </div>
       </>
+    );
+  }
+
+  // Bottom-of-sidebar profile/settings block — separate from renderNavContent
+  // so it can sit at the bottom of the flex column (justify-between on the
+  // <aside>/drawer) instead of scrolling away with a long nav list.
+  function renderFooter(onNavigate?: () => void) {
+    return (
+      <div className="space-y-2 border-t border-slate-800/60 p-4">
+        <Link href="/settings" className={iconLinkClass("/settings")} onClick={onNavigate}>
+          <SettingsIcon size={16} className="shrink-0" />
+          Settings
+        </Link>
+        <div className="flex items-center justify-between px-1 pt-2 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>{baseCurrency} Standard</span>
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
     <>
-      {/* Desktop: unchanged — always visible at md (768px) and up. */}
-      <aside className="hidden w-52 shrink-0 bg-slate-900 text-slate-300 dark:bg-sidebar-dark md:block">
-        {renderNavContent()}
+      {/* Desktop: always visible at md (768px) and up. flex/justify-between
+          pins renderFooter() to the bottom per the approved mockup. */}
+      <aside className="hidden w-52 shrink-0 flex-col justify-between bg-slate-900 text-slate-300 dark:bg-sidebar-dark md:flex">
+        <div>{renderNavContent()}</div>
+        {renderFooter()}
       </aside>
 
       {/* Mobile: hidden by default, opened via the hamburger in AppHeader. */}
       {isOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={close} aria-hidden="true" />
-          <aside className="fixed inset-y-0 left-0 z-50 w-64 max-w-[80%] overflow-y-auto bg-slate-900 text-slate-300 dark:bg-sidebar-dark">
-            {renderNavContent(close)}
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[80%] flex-col justify-between overflow-y-auto bg-slate-900 text-slate-300 dark:bg-sidebar-dark">
+            <div>{renderNavContent(close)}</div>
+            {renderFooter(close)}
           </aside>
         </div>
       )}

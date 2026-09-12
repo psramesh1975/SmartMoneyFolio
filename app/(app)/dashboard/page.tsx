@@ -7,7 +7,7 @@ import UpcomingDebitsCard from "@/components/dashboard/UpcomingDebitsCard";
 import GoalVelocityCard from "@/components/dashboard/GoalVelocityCard";
 import EmergencyRunwayCard from "@/components/dashboard/EmergencyRunwayCard";
 import { assetClassLabel } from "@/lib/asset-classes";
-import { formatCurrency } from "@/lib/format-currency";
+import { formatDashboardAmount } from "@/lib/dashboard-format";
 import {
   getDashboardHeadlineKPIs,
   getUpcomingAutoDebits,
@@ -49,22 +49,25 @@ const MACRO_ALLOCATION_GROUPS: { label: string; classes: string[]; color: string
   },
 ];
 
-// Abbreviated Indian numbering (Cr/Lakh) in the mockup is demo flavor for
-// one currency; formatCurrency() is used instead throughout this page to
-// stay consistent with the rest of this multi-currency app.
 function formatMacroPercent(pct: number): string {
   if (pct > 0 && pct < 0.1) return "<0.1%";
   return `${pct.toFixed(1)}%`;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ member?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (!session.householdId) {
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const [household, headlineKpis, upcomingDebits, primaryGoal, currentMonthLabel, monthlySipTotal] = await Promise.all([
+  const { member: memberParam } = await searchParams;
+
+  const [household, headlineKpisAll, currentMonthLabel, monthlySipTotal] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       include: {
@@ -75,8 +78,6 @@ export default async function DashboardPage() {
       },
     }),
     getDashboardHeadlineKPIs(session.householdId),
-    getUpcomingAutoDebits(session.householdId),
-    getPrimaryGoal(session.householdId),
     getCurrentMonthLabel(session.householdId),
     getMonthlySipTotal(session.householdId),
   ]);
@@ -85,10 +86,25 @@ export default async function DashboardPage() {
 
   const baseCurrency = household.baseCurrency;
 
+  // The "Household" dropdown in the header is really a family-member filter
+  // (see components/dashboard/MemberFilterSelect.tsx) — validate the id
+  // against this household's own members rather than trusting the query
+  // string outright, falling back to "All Members" for anything else
+  // (a stale id from another household, a typo, etc).
+  const selectedMember = memberParam ? household.familyMembers.find((m) => m.id === memberParam) : undefined;
+  const selectedMemberId = selectedMember?.id;
+
+  const [headlineKpis, primaryGoal, upcomingDebitsAll] = await Promise.all([
+    selectedMemberId ? getDashboardHeadlineKPIs(session.householdId, selectedMemberId) : Promise.resolve(headlineKpisAll),
+    getPrimaryGoal(session.householdId),
+    getUpcomingAutoDebits(session.householdId, 15, selectedMemberId),
+  ]);
+  const upcomingDebits = upcomingDebitsAll;
+
   // Only accounts in the household's base currency count toward net worth,
   // since there's no FX conversion yet — mixing currencies into one total
   // would be misleading rather than useful.
-  let netWorth = 0;
+  let netWorth = 0; // always household-wide — used as the %-share denominator below, even while filtered
   const otherCurrencyCount = { count: 0 };
   const accountRows: {
     id: string;
@@ -138,12 +154,25 @@ export default async function DashboardPage() {
     };
   });
 
+  // "By family member" grid: shows every member when unfiltered (as before);
+  // narrows to just the selected member's card when a filter is active.
+  // Share % keeps dividing by the whole household's netWorth either way —
+  // "this member holds X% of the household" stays meaningful even when
+  // their card is the only one on screen.
+  const visibleMemberBreakdowns = selectedMemberId
+    ? memberBreakdowns.filter((m) => m.id === selectedMemberId)
+    : memberBreakdowns;
+
   // Macro Allocation — base-currency accounts only, grouped into the
-  // mockup's 4 named buckets + an "Other" catch-all.
+  // mockup's 4 named buckets + an "Other" catch-all. Scoped to the selected
+  // member's own holdings when filtered.
+  const macroSourceRows = selectedMemberId
+    ? accountRows.filter((a) => a.familyMemberId === selectedMemberId)
+    : accountRows;
   const macroGroups = MACRO_ALLOCATION_GROUPS.map((group) => ({
     label: group.label,
     color: group.color,
-    total: accountRows
+    total: macroSourceRows
       .filter((a) => a.currency === baseCurrency && group.classes.includes(a.assetClass))
       .reduce((sum, a) => sum + Number(a.currentValue), 0),
   })).filter((g) => g.total > 0);
@@ -159,6 +188,11 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h1 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">
               {household.name}
+              {selectedMember && (
+                <span className="ml-2 text-sm font-semibold text-emerald-600 dark:text-cyan-400">
+                  — {selectedMember.name}&rsquo;s view
+                </span>
+              )}
             </h1>
             <span className="text-xs text-slate-500 dark:text-slate-400">
               Base {household.baseCurrency} · Operational {household.operationalCurrency}
@@ -168,7 +202,7 @@ export default async function DashboardPage() {
 
         {/* 1. Solvency Snapshot — full-width KPI strip */}
         <div>
-          <SolvencyKPIRow kpis={headlineKpis} memberCount={household.familyMembers.length} />
+          <SolvencyKPIRow kpis={headlineKpis} memberCount={selectedMember ? 1 : household.familyMembers.length} />
 
           {otherCurrencyCount.count > 0 && (
             <p className="mt-4 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
@@ -197,7 +231,8 @@ export default async function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {memberBreakdowns.map((m, i) => {
+                {visibleMemberBreakdowns.map((m) => {
+                  const i = memberBreakdowns.findIndex((x) => x.id === m.id);
                   const palette = avatarPalette[i % avatarPalette.length];
                   const sharePct = netWorth > 0 ? Math.round((m.total / netWorth) * 100 * 10) / 10 : null;
                   return (
@@ -243,7 +278,7 @@ export default async function DashboardPage() {
                             <div key={cls} className="flex justify-between">
                               <span>{assetClassLabel(cls)}</span>
                               <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                                {formatCurrency(value, baseCurrency)}
+                                {formatDashboardAmount(value, baseCurrency)}
                               </span>
                             </div>
                           ))}
@@ -252,7 +287,7 @@ export default async function DashboardPage() {
                               <span>
                                 {h.holdingName} ({h.currency})
                               </span>
-                              <span className="font-mono">{formatCurrency(h.value, h.currency)}</span>
+                              <span className="font-mono">{formatDashboardAmount(h.value, h.currency)}</span>
                             </div>
                           ))}
                         </div>
@@ -260,7 +295,7 @@ export default async function DashboardPage() {
                       <div className="mt-3 flex items-center justify-between border-t border-slate-200/60 pt-2.5 text-xs dark:border-slate-800/60">
                         <span className="font-semibold text-slate-400 dark:text-slate-500">Total</span>
                         <span className="font-mono font-extrabold text-slate-900 dark:text-white">
-                          {formatCurrency(m.total, baseCurrency)}
+                          {formatDashboardAmount(m.total, baseCurrency)}
                         </span>
                       </div>
                     </div>
@@ -296,7 +331,7 @@ export default async function DashboardPage() {
                     {macroGroups.map((g) => (
                       <span key={g.label} className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                         <span className={`h-2.5 w-2.5 rounded-full ${g.color}`} />
-                        {g.label}: {formatCurrency(g.total, baseCurrency)} (
+                        {g.label}: {formatDashboardAmount(g.total, baseCurrency)} (
                         {formatMacroPercent((g.total / macroTotal) * 100)})
                       </span>
                     ))}
@@ -309,8 +344,8 @@ export default async function DashboardPage() {
           {/* Operational Context Rail */}
           <div className="space-y-6 lg:col-span-4">
             <UpcomingDebitsCard debits={upcomingDebits} baseCurrency={baseCurrency} currentMonthLabel={currentMonthLabel} />
-            <GoalVelocityCard goal={primaryGoal} monthlySipTotal={monthlySipTotal} />
-            <EmergencyRunwayCard financialRunway={headlineKpis.financialRunway} />
+            <GoalVelocityCard goal={primaryGoal} monthlySipTotal={monthlySipTotal} householdWideNote={Boolean(selectedMember)} />
+            <EmergencyRunwayCard financialRunway={headlineKpis.financialRunway} householdWideNote={Boolean(selectedMember)} />
           </div>
         </div>
       </div>
