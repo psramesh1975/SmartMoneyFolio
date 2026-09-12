@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
-import { getHouseholdTimeZone, getMonthPayload } from "@/lib/monthly-data";
-import { computeMonthlySummary } from "@/lib/monthly-summary";
+import { getHouseholdTimeZone } from "@/lib/monthly-data";
+import { computeMonthlySummary, type MonthlySummaryInput } from "@/lib/monthly-summary";
 import { getCurrentPeriod, getPreviousPeriod, MONTH_LABELS, type Period } from "@/lib/monthly-periods";
 
 export type DashboardCashFlow = {
@@ -28,29 +28,53 @@ function lastThreeCompletedMonths(timeZone: string): Period[] {
   return months;
 }
 
-export async function getDashboardCashFlow(householdId: string): Promise<DashboardCashFlow> {
-  const timeZone = await getHouseholdTimeZone(householdId);
+function toSummaryInput(
+  e: { categoryId: string; plannedAmount: { toString(): string }; actualAmount: { toString(): string } | null; isSkipped: boolean },
+  categoryType: Map<string, "INCOME" | "OUTFLOW">
+): MonthlySummaryInput {
+  return {
+    categoryType: categoryType.get(e.categoryId) ?? "OUTFLOW",
+    plannedAmount: e.plannedAmount.toString(),
+    actualAmount: e.actualAmount?.toString() ?? null,
+    isSkipped: e.isSkipped,
+  };
+}
+
+// PERF-01: previously called getMonthPayload() for the current month, which
+// (correctly, for the actual Current Month *page*) calls
+// reconcileAutoLinkedLineItems() and ensureMonthGenerated() before reading
+// anything — write/reconcile work the dashboard has no business triggering
+// on every single visit. The dashboard only needs aggregated trailing
+// numbers, so this reads whatever Monthly Tracking entries already exist for
+// the current + 3 trailing completed months (one combined query, covering
+// all 4 periods with a single OR list, alongside the category-type lookup in
+// one Promise.all) and never writes anything.
+//
+// Also split out (see computeLiquidBuffer's comment) so
+// getDashboardHeadlineKPIs() can pass in an already-fetched timeZone instead
+// of this function re-fetching the household itself.
+//
+// Trade-off this accepts: if the current calendar month has never been
+// generated yet for this household (nobody has opened /monthly/current, and
+// no linked EMI/SIP has been reconciled this month), monthlyInflow/
+// monthlyOutflow will read as 0 here until that happens on its own accord —
+// where previously a dashboard visit would have silently generated it as a
+// side effect. That's the intended behavior per PERF-01: generation is
+// /monthly/current's job, not a side effect of viewing read-only KPIs.
+// Historical completed-month figures (avgMonthlyOutflow) are unaffected
+// either way, since those months are already finalized.
+async function computeDashboardCashFlow(householdId: string, timeZone: string): Promise<DashboardCashFlow> {
   const { year, month } = getCurrentPeriod(timeZone);
+  const trailingMonths = lastThreeCompletedMonths(timeZone);
+  const allPeriods: Period[] = [{ year, month }, ...trailingMonths];
 
-  // Reuses getMonthPayload directly (same call the Current Month page makes)
-  // rather than re-deriving the query — this also means ensureMonthGenerated
-  // runs here too, the same side effect that already happens on every visit
-  // to /monthly/current. Not new behavior, just now also triggered by the
-  // dashboard if it's opened first.
-  const currentPayload = await getMonthPayload(householdId, year, month);
-
-  const months = lastThreeCompletedMonths(timeZone);
-
-  // One batched query across the whole 3-month range (which may cross a
-  // calendar-year boundary in Jan/Feb, unlike getYearPayload's single-year
-  // window) rather than one query per month.
   const [categories, entries] = await Promise.all([
     prisma.monthlyCategory.findMany({
       where: { householdId },
       select: { id: true, type: true },
     }),
     prisma.monthlyEntry.findMany({
-      where: { householdId, OR: months.map((p) => ({ year: p.year, month: p.month })) },
+      where: { householdId, OR: allPeriods.map((p) => ({ year: p.year, month: p.month })) },
       select: {
         categoryId: true,
         year: true,
@@ -63,19 +87,17 @@ export async function getDashboardCashFlow(householdId: string): Promise<Dashboa
   ]);
 
   const categoryType = new Map(categories.map((c) => [c.id, c.type] as const));
+  const entriesFor = (p: Period) => entries.filter((e) => e.year === p.year && e.month === p.month);
+
+  const currentSummary = computeMonthlySummary(
+    entriesFor({ year, month }).map((e) => toSummaryInput(e, categoryType))
+  );
 
   const completedMonthOutflows: number[] = [];
-  for (const p of months) {
-    const monthEntries = entries.filter((e) => e.year === p.year && e.month === p.month);
+  for (const p of trailingMonths) {
+    const monthEntries = entriesFor(p);
     if (monthEntries.length === 0) continue; // no Monthly Tracking history for this month
-    const summary = computeMonthlySummary(
-      monthEntries.map((e) => ({
-        categoryType: categoryType.get(e.categoryId) ?? "OUTFLOW",
-        plannedAmount: e.plannedAmount.toString(),
-        actualAmount: e.actualAmount?.toString() ?? null,
-        isSkipped: e.isSkipped,
-      }))
-    );
+    const summary = computeMonthlySummary(monthEntries.map((e) => toSummaryInput(e, categoryType)));
     completedMonthOutflows.push(summary.actualOutflow);
   }
 
@@ -86,16 +108,41 @@ export async function getDashboardCashFlow(householdId: string): Promise<Dashboa
 
   return {
     currentMonthLabel: `${MONTH_LABELS[month - 1]} ${year}`,
-    monthlyInflow: currentPayload.summary.actualIncome,
-    monthlyOutflow: currentPayload.summary.actualOutflow,
+    monthlyInflow: currentSummary.actualIncome,
+    monthlyOutflow: currentSummary.actualOutflow,
     avgMonthlyOutflow,
   };
+}
+
+export async function getDashboardCashFlow(householdId: string): Promise<DashboardCashFlow> {
+  const timeZone = await getHouseholdTimeZone(householdId);
+  return computeDashboardCashFlow(householdId, timeZone);
 }
 
 // "Liquid" here is a product decision baked into this phase, not a schema
 // flag: Cash + Fixed Deposits, in the household's base currency only (same
 // no-FX-conversion convention as net worth/allocation elsewhere).
 const LIQUID_ASSET_CLASSES = ["CASH", "FIXED_DEPOSIT"] as const;
+
+// Split out so getDashboardHeadlineKPIs() can share one household lookup
+// across all three branches instead of each of getLiquidBuffer(),
+// getSolvencySnapshot(), and getDashboardCashFlow() independently re-fetching
+// it (PERF-01) — every concurrent query still needing its own connection
+// against this DB, redundant household round trips were pure waste. The
+// public getLiquidBuffer() below is unchanged for other callers.
+async function computeLiquidBuffer(householdId: string, baseCurrency: string): Promise<{ liquidBuffer: number }> {
+  const accounts = await prisma.account.findMany({
+    where: {
+      householdId,
+      currency: baseCurrency,
+      assetClass: { in: [...LIQUID_ASSET_CLASSES] },
+    },
+    select: { currentValue: true },
+  });
+
+  const liquidBuffer = accounts.reduce((sum, a) => sum + Number(a.currentValue), 0);
+  return { liquidBuffer };
+}
 
 export async function getLiquidBuffer(householdId: string): Promise<{ liquidBuffer: number }> {
   const household = await prisma.household.findUnique({
@@ -104,17 +151,7 @@ export async function getLiquidBuffer(householdId: string): Promise<{ liquidBuff
   });
   if (!household) return { liquidBuffer: 0 };
 
-  const accounts = await prisma.account.findMany({
-    where: {
-      householdId,
-      currency: household.baseCurrency,
-      assetClass: { in: [...LIQUID_ASSET_CLASSES] },
-    },
-    select: { currentValue: true },
-  });
-
-  const liquidBuffer = accounts.reduce((sum, a) => sum + Number(a.currentValue), 0);
-  return { liquidBuffer };
+  return computeLiquidBuffer(householdId, household.baseCurrency);
 }
 
 // Color-band for a debt-to-asset ratio — shared by the dashboard's solvency
@@ -134,15 +171,11 @@ export type SolvencySnapshot = {
   debtToAssetRatio: number; // percent, 0 if totalAssets is 0
 };
 
-// Base-currency-only, same no-FX-conversion convention as everywhere else —
-// other-currency accounts/liabilities are listed separately, not netted in.
-export async function getSolvencySnapshot(householdId: string): Promise<SolvencySnapshot> {
-  const household = await prisma.household.findUnique({ where: { id: householdId }, select: { baseCurrency: true } });
-  const base = household?.baseCurrency ?? "USD";
-
+// See computeLiquidBuffer's comment — same household-fetch-sharing reason.
+async function computeSolvencySnapshot(householdId: string, baseCurrency: string): Promise<SolvencySnapshot> {
   const [accounts, liabilities] = await Promise.all([
-    prisma.account.findMany({ where: { householdId, currency: base }, select: { currentValue: true } }),
-    prisma.liability.findMany({ where: { householdId, currency: base }, select: { outstandingBalance: true } }),
+    prisma.account.findMany({ where: { householdId, currency: baseCurrency }, select: { currentValue: true } }),
+    prisma.liability.findMany({ where: { householdId, currency: baseCurrency }, select: { outstandingBalance: true } }),
   ]);
 
   const totalAssets = accounts.reduce((sum, a) => sum + Number(a.currentValue), 0);
@@ -150,7 +183,16 @@ export async function getSolvencySnapshot(householdId: string): Promise<Solvency
   const netWorth = totalAssets - totalLiabilities;
   const debtToAssetRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
 
-  return { baseCurrency: base, totalAssets, totalLiabilities, netWorth, debtToAssetRatio };
+  return { baseCurrency, totalAssets, totalLiabilities, netWorth, debtToAssetRatio };
+}
+
+// Base-currency-only, same no-FX-conversion convention as everywhere else —
+// other-currency accounts/liabilities are listed separately, not netted in.
+export async function getSolvencySnapshot(householdId: string): Promise<SolvencySnapshot> {
+  const household = await prisma.household.findUnique({ where: { id: householdId }, select: { baseCurrency: true } });
+  const base = household?.baseCurrency ?? "USD";
+
+  return computeSolvencySnapshot(householdId, base);
 }
 
 export type DebtSnapshot = {
@@ -219,11 +261,27 @@ export type DashboardHeadlineKPIs = {
 // is liquidBuffer ÷ avgMonthlyOutflow — null (not 0 or Infinity) when there's
 // no completed-month history yet, so the UI can render "Not enough history"
 // instead of a misleading number.
+//
+// PERF-01: fetches the household once (baseCurrency + timeZone together)
+// and calls the three compute*() helpers directly instead of Promise.all-ing
+// getSolvencySnapshot()/getLiquidBuffer()/getDashboardCashFlow() themselves —
+// each of those, called standalone, does its own household round trip first.
+// Concurrent though those three household lookups were, each still needed
+// its own connection against this DB, so cutting three down to one measurably
+// helps. getSolvencySnapshot()/getLiquidBuffer()/getDashboardCashFlow()
+// remain as they were for every other caller (e.g. getDebtSnapshot()).
 export async function getDashboardHeadlineKPIs(householdId: string): Promise<DashboardHeadlineKPIs> {
+  const household = await prisma.household.findUnique({
+    where: { id: householdId },
+    select: { baseCurrency: true, timeZone: true },
+  });
+  const baseCurrency = household?.baseCurrency ?? "USD";
+  const timeZone = household?.timeZone || "UTC";
+
   const [solvency, liquid, cashFlow] = await Promise.all([
-    getSolvencySnapshot(householdId),
-    getLiquidBuffer(householdId),
-    getDashboardCashFlow(householdId),
+    computeSolvencySnapshot(householdId, baseCurrency),
+    computeLiquidBuffer(householdId, baseCurrency),
+    computeDashboardCashFlow(householdId, timeZone),
   ]);
 
   const netCashFlow = cashFlow.monthlyInflow - cashFlow.monthlyOutflow;

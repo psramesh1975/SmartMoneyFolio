@@ -20,14 +20,12 @@ async function login(page: import("@playwright/test").Page, email: string, passw
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
   // Successful login redirects away from /login (to /dashboard for a
-  // household user, or /platform for the platform admin). 20s (not the
-  // previous 10s) because /dashboard's Phase 8 headline row calls
-  // getDashboardCashFlow() -> getMonthPayload(), which runs
-  // ensureMonthGenerated()/reconcileAutoLinkedLineItems() against the
-  // remote dev Postgres on every load — a real ~8s render cost, not test
-  // flakiness. Tracked as a follow-up perf item; not fixed here since the
-  // Phase 8 spec explicitly leaves getDashboardCashFlow() untouched.
-  await expect(page).not.toHaveURL(/\/login$/, { timeout: 20_000 });
+  // household user, or /platform for the platform admin). Back to the
+  // original 10s (PERF-01): /dashboard's headline row no longer calls
+  // getMonthPayload()'s write/reconcile path on every load (see
+  // computeDashboardCashFlow() in lib/dashboard-data.ts) — the 20s bump from
+  // Phase 8 was a bandage for that ~8s render cost, not a real requirement.
+  await expect(page).not.toHaveURL(/\/login$/, { timeout: 10_000 });
 }
 
 setup("authenticate as household client", async ({ page }) => {
