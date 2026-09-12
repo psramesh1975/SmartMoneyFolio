@@ -172,10 +172,23 @@ export type SolvencySnapshot = {
 };
 
 // See computeLiquidBuffer's comment — same household-fetch-sharing reason.
-async function computeSolvencySnapshot(householdId: string, baseCurrency: string): Promise<SolvencySnapshot> {
+// `familyMemberId` is optional and additive (added for the dashboard's
+// per-member filter): omitted, this is the existing household-wide snapshot
+// every other caller (getDebtSnapshot, etc.) already relies on.
+async function computeSolvencySnapshot(
+  householdId: string,
+  baseCurrency: string,
+  familyMemberId?: string
+): Promise<SolvencySnapshot> {
   const [accounts, liabilities] = await Promise.all([
-    prisma.account.findMany({ where: { householdId, currency: baseCurrency }, select: { currentValue: true } }),
-    prisma.liability.findMany({ where: { householdId, currency: baseCurrency }, select: { outstandingBalance: true } }),
+    prisma.account.findMany({
+      where: { householdId, currency: baseCurrency, ...(familyMemberId ? { familyMemberId } : {}) },
+      select: { currentValue: true },
+    }),
+    prisma.liability.findMany({
+      where: { householdId, currency: baseCurrency, ...(familyMemberId ? { familyMemberId } : {}) },
+      select: { outstandingBalance: true },
+    }),
   ]);
 
   const totalAssets = accounts.reduce((sum, a) => sum + Number(a.currentValue), 0);
@@ -188,11 +201,11 @@ async function computeSolvencySnapshot(householdId: string, baseCurrency: string
 
 // Base-currency-only, same no-FX-conversion convention as everywhere else —
 // other-currency accounts/liabilities are listed separately, not netted in.
-export async function getSolvencySnapshot(householdId: string): Promise<SolvencySnapshot> {
+export async function getSolvencySnapshot(householdId: string, familyMemberId?: string): Promise<SolvencySnapshot> {
   const household = await prisma.household.findUnique({ where: { id: householdId }, select: { baseCurrency: true } });
   const base = household?.baseCurrency ?? "USD";
 
-  return computeSolvencySnapshot(householdId, base);
+  return computeSolvencySnapshot(householdId, base, familyMemberId);
 }
 
 export type DebtSnapshot = {
@@ -255,6 +268,16 @@ export type DashboardHeadlineKPIs = {
   totalLiabilities: number;
   netWorth: number;
   debtToAssetRatio: number;
+  // True when totalAssets/totalLiabilities/netWorth/debtToAssetRatio above
+  // are scoped to one family member rather than the whole household — see
+  // the `familyMemberId` param below. netCashFlow/financialRunway/
+  // liquidBuffer are NEVER member-scoped: Monthly Tracking entries
+  // (lib/dashboard-data.ts's MonthlyEntry/MonthlyCategory) have no
+  // familyMemberId in the schema, so cash flow and the runway derived from
+  // it are inherently household-wide figures. Callers should caption those
+  // two as "household-wide" whenever isMemberFiltered is true, rather than
+  // implying they narrowed down with the rest of the row.
+  isMemberFiltered: boolean;
 };
 
 // Combines getLiquidBuffer() and getDashboardCashFlow() (previously written
@@ -272,7 +295,10 @@ export type DashboardHeadlineKPIs = {
 // its own connection against this DB, so cutting three down to one measurably
 // helps. getSolvencySnapshot()/getLiquidBuffer()/getDashboardCashFlow()
 // remain as they were for every other caller (e.g. getDebtSnapshot()).
-export async function getDashboardHeadlineKPIs(householdId: string): Promise<DashboardHeadlineKPIs> {
+export async function getDashboardHeadlineKPIs(
+  householdId: string,
+  familyMemberId?: string
+): Promise<DashboardHeadlineKPIs> {
   const household = await prisma.household.findUnique({
     where: { id: householdId },
     select: { baseCurrency: true, timeZone: true },
@@ -280,8 +306,10 @@ export async function getDashboardHeadlineKPIs(householdId: string): Promise<Das
   const baseCurrency = household?.baseCurrency ?? "USD";
   const timeZone = household?.timeZone || "UTC";
 
+  // liquidBuffer/cashFlow are always computed household-wide — see
+  // DashboardHeadlineKPIs.isMemberFiltered's comment for why.
   const [solvency, liquid, cashFlow] = await Promise.all([
-    computeSolvencySnapshot(householdId, baseCurrency),
+    computeSolvencySnapshot(householdId, baseCurrency, familyMemberId),
     computeLiquidBuffer(householdId, baseCurrency),
     computeDashboardCashFlow(householdId, timeZone),
   ]);
@@ -302,6 +330,7 @@ export async function getDashboardHeadlineKPIs(householdId: string): Promise<Das
     totalLiabilities: solvency.totalLiabilities,
     netWorth: solvency.netWorth,
     debtToAssetRatio: solvency.debtToAssetRatio,
+    isMemberFiltered: Boolean(familyMemberId),
   };
 }
 
@@ -351,6 +380,7 @@ export type UpcomingAutoDebit = {
                     // wraparound itself (dueDay alone can't tell you which month it falls in)
   type: "EMI" | "SIP";
   memberName?: string;
+  familyMemberId: string;
 };
 
 function getHouseholdTodayYMD(timeZone: string): { year: number; month: number; day: number } {
@@ -406,21 +436,24 @@ function nextOccurrenceWithinWindow(
 // createdAt) to fill the gap.
 export async function getUpcomingAutoDebits(
   householdId: string,
-  daysAhead = 15
+  daysAhead = 15,
+  familyMemberId?: string
 ): Promise<UpcomingAutoDebit[]> {
   const timeZone = await getHouseholdTimeZone(householdId);
   const today = getHouseholdTodayYMD(timeZone);
   const todayMs = Date.UTC(today.year, today.month - 1, today.day);
   const windowEndMs = todayMs + daysAhead * 24 * 60 * 60 * 1000;
+  const memberFilter = familyMemberId ? { familyMemberId } : {};
 
   const [liabilities, accounts] = await Promise.all([
     prisma.liability.findMany({
-      where: { householdId, emiDueDay: { not: null }, emiAmount: { not: null } },
+      where: { householdId, emiDueDay: { not: null }, emiAmount: { not: null }, ...memberFilter },
       select: {
         id: true,
         name: true,
         emiAmount: true,
         emiDueDay: true,
+        familyMemberId: true,
         familyMember: { select: { name: true } },
       },
     }),
@@ -430,12 +463,14 @@ export async function getUpcomingAutoDebits(
         assetClass: "MUTUAL_FUNDS",
         sipDueDay: { not: null },
         sipMonthlyAmount: { not: null },
+        ...memberFilter,
       },
       select: {
         id: true,
         holdingName: true,
         sipMonthlyAmount: true,
         sipDueDay: true,
+        familyMemberId: true,
         familyMember: { select: { name: true } },
       },
     }),
@@ -456,6 +491,7 @@ export async function getUpcomingAutoDebits(
       dueDate: new Date(occurrenceMs).toISOString(),
       type: "EMI",
       memberName: l.familyMember.name,
+      familyMemberId: l.familyMemberId,
       occurrenceMs,
     });
   }
@@ -473,6 +509,7 @@ export async function getUpcomingAutoDebits(
       dueDate: new Date(occurrenceMs).toISOString(),
       type: "SIP",
       memberName: a.familyMember.name,
+      familyMemberId: a.familyMemberId,
       occurrenceMs,
     });
   }
@@ -518,6 +555,17 @@ export async function getPrimaryGoal(householdId: string): Promise<PrimaryGoal |
 // household-wide aggregate used as the closest honest proxy for "money
 // currently flowing toward goals" rather than inventing a per-goal
 // contribution figure that doesn't exist anywhere in the data model.
+// Real freshness signal for the dashboard header's "Last updated" line —
+// the most recent price sync across the whole securities catalog (global,
+// not household-scoped; see SecuritiesMaster's comment). Null until the
+// price-sync cron (app/api/cron/sync-prices) has ever run.
+export async function getLatestPriceSyncAt(): Promise<Date | null> {
+  const result = await prisma.securitiesMaster.aggregate({
+    _max: { priceUpdatedAt: true },
+  });
+  return result._max.priceUpdatedAt ?? null;
+}
+
 export async function getMonthlySipTotal(householdId: string): Promise<number> {
   const household = await prisma.household.findUnique({
     where: { id: householdId },

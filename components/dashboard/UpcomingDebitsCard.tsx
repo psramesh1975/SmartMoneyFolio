@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatCurrency } from "@/lib/format-currency";
+import { formatDashboardAmount } from "@/lib/dashboard-format";
 import type { UpcomingAutoDebit } from "@/lib/dashboard-data";
 
 // A debit due within this many days gets the amber "Due in N days" urgency
@@ -46,7 +46,7 @@ export default function UpcomingDebitsCard({
           </h4>
         </div>
         <span className="shrink-0 text-[11px] font-bold text-slate-400 dark:text-slate-500">
-          Total: {formatCurrency(total, baseCurrency)}
+          Total: {formatDashboardAmount(total, baseCurrency)}
         </span>
       </div>
 
@@ -77,7 +77,7 @@ export default function UpcomingDebitsCard({
                   </p>
                 </div>
                 <span className="shrink-0 font-mono text-xs font-extrabold text-slate-900 dark:text-white">
-                  {formatCurrency(d.amount, baseCurrency)}
+                  {formatDashboardAmount(d.amount, baseCurrency)}
                 </span>
               </div>
             );

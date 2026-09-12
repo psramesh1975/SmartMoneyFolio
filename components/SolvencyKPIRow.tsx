@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/format-currency";
+import { formatDashboardAmount } from "@/lib/dashboard-format";
 import type { DashboardHeadlineKPIs } from "@/lib/dashboard-data";
 
 // Restored per the approved mockup (gemini-code-1789190462523-.html): 4
@@ -22,10 +22,10 @@ const DEBT_HEALTHY_THRESHOLD = 30;
 
 function accrualLine(netCashFlow: number, baseCurrency: string) {
   if (netCashFlow > 0) {
-    return { text: `+${formatCurrency(netCashFlow, baseCurrency)} accrued this month`, tone: "text-emerald-600 dark:text-cyan-400" };
+    return { text: `+${formatDashboardAmount(netCashFlow, baseCurrency)} accrued this month`, tone: "text-emerald-600 dark:text-cyan-400" };
   }
   if (netCashFlow < 0) {
-    return { text: `${formatCurrency(netCashFlow, baseCurrency)} this month`, tone: "text-rose-600 dark:text-rose-400" };
+    return { text: `${formatDashboardAmount(netCashFlow, baseCurrency)} this month`, tone: "text-rose-600 dark:text-rose-400" };
   }
   return { text: "No change this month", tone: "text-slate-500 dark:text-slate-400" };
 }
@@ -37,7 +37,7 @@ export default function SolvencyKPIRow({
   kpis: DashboardHeadlineKPIs;
   memberCount: number;
 }) {
-  const { baseCurrency, totalAssets, totalLiabilities, netWorth, netCashFlow, debtToAssetRatio } = kpis;
+  const { baseCurrency, totalAssets, totalLiabilities, netWorth, netCashFlow, debtToAssetRatio, isMemberFiltered } = kpis;
   const accrual = accrualLine(netCashFlow, baseCurrency);
   const isHealthy = debtToAssetRatio < DEBT_HEALTHY_THRESHOLD;
 
@@ -50,7 +50,7 @@ export default function SolvencyKPIRow({
           <div className={iconBadgeClass("bg-emerald-50 dark:bg-emerald-500/10", "text-emerald-600 dark:text-cyan-400")}>🏛️</div>
         </div>
         <p className="mt-2 text-2xl font-extrabold text-emerald-600 dark:text-cyan-400">
-          {formatCurrency(totalAssets, baseCurrency)}
+          {formatDashboardAmount(totalAssets, baseCurrency)}
         </p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Across {memberCount} family portfolio{memberCount === 1 ? "" : "s"}
@@ -64,7 +64,7 @@ export default function SolvencyKPIRow({
           <div className={iconBadgeClass("bg-rose-50 dark:bg-rose-500/10", "text-rose-600 dark:text-rose-400")}>💳</div>
         </div>
         <p className="mt-2 text-2xl font-extrabold text-rose-600 dark:text-rose-400">
-          {formatCurrency(totalLiabilities, baseCurrency)}
+          {formatDashboardAmount(totalLiabilities, baseCurrency)}
         </p>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Home loan &amp; active obligations</p>
       </div>
@@ -81,9 +81,16 @@ export default function SolvencyKPIRow({
           data-testid="net-worth-value"
           className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white"
         >
-          {formatCurrency(netWorth, baseCurrency)}
+          {formatDashboardAmount(netWorth, baseCurrency)}
         </p>
-        <p className={`mt-1 text-xs font-semibold ${accrual.tone}`}>{accrual.text}</p>
+        <p className={`mt-1 text-xs font-semibold ${accrual.tone}`}>
+          {accrual.text}
+          {/* netCashFlow comes from Monthly Tracking, which has no
+              per-member scoping in the schema — always the household's
+              figure, so say so rather than implying it narrowed down with
+              the Net Worth number above it. */}
+          {isMemberFiltered && <span className="font-normal text-slate-400 dark:text-slate-500"> (household-wide)</span>}
+        </p>
       </div>
 
       {/* 4. Debt-to-Asset Ratio */}
