@@ -2,15 +2,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AssetsOverview from "@/components/AssetsOverview";
-import DebtOverview from "@/components/DebtOverview";
 import SolvencyKPIRow from "@/components/SolvencyKPIRow";
-import { assetClassLabel } from "@/lib/asset-classes";
-import { getDashboardHeadlineKPIs, getGoalPacing } from "@/lib/dashboard-data";
-
-function fmt(n: number) {
-  return Math.round(n).toLocaleString();
-}
+import UpcomingDebitsCard from "@/components/dashboard/UpcomingDebitsCard";
+import GoalVelocityCard from "@/components/dashboard/GoalVelocityCard";
+import EmergencyRunwayCard from "@/components/dashboard/EmergencyRunwayCard";
+import { assetClassLabel, ASSET_GROUPS } from "@/lib/asset-classes";
+import { formatCurrency } from "@/lib/format-currency";
+import { getDashboardHeadlineKPIs, getUpcomingAutoDebits, getPrimaryGoal } from "@/lib/dashboard-data";
 
 // Pure decoration — cycles a small fixed palette per card index so family
 // member avatars stay visually distinct. No data behind this beyond the
@@ -22,6 +20,20 @@ const avatarPalette = [
   { bg: "bg-pink-50 dark:bg-pink-500/10", text: "text-pink-700 dark:text-pink-400", border: "border-pink-200/60 dark:border-pink-500/20" },
 ];
 
+// Fixed color per ASSET_GROUPS label for the Macro Allocation segmented bar
+// + legend — same 6 groups the (now-retired) dashboard AssetsOverview used,
+// reused rather than inventing a third asset-categorization scheme
+// alongside lib/asset-classes.ts's ASSET_GROUPS and lib/asset-categories.ts's
+// 7-category /assets accordion (that one's final per the Phase 9 spec).
+const macroGroupColor: Record<string, string> = {
+  "Liquid Cash & Banking": "bg-blue-500 dark:bg-lime-400",
+  "Market Investments": "bg-emerald-500 dark:bg-cyan-400",
+  "Fixed Capital & Guaranteed": "bg-indigo-500",
+  "Retirement & Locked Funds": "bg-amber-500",
+  "Physical Assets / Real Estate": "bg-purple-500",
+  Other: "bg-slate-400",
+};
+
 export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -29,7 +41,7 @@ export default async function DashboardPage() {
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const [household, liabilitiesRaw, headlineKpis] = await Promise.all([
+  const [household, headlineKpis, upcomingDebits, primaryGoal] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       include: {
@@ -37,15 +49,11 @@ export default async function DashboardPage() {
           orderBy: { createdAt: "asc" },
           include: { accounts: true },
         },
-        goals: { orderBy: { createdAt: "asc" } },
       },
     }),
-    prisma.liability.findMany({
-      where: { householdId: session.householdId },
-      include: { familyMember: { select: { id: true, name: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
     getDashboardHeadlineKPIs(session.householdId),
+    getUpcomingAutoDebits(session.householdId),
+    getPrimaryGoal(session.householdId),
   ]);
 
   if (!household) redirect("/login");
@@ -105,21 +113,19 @@ export default async function DashboardPage() {
     };
   });
 
-  const liabilityRows = liabilitiesRaw.map((l) => ({
-    id: l.id,
-    familyMemberName: l.familyMember.name,
-    liabilityType: l.liabilityType,
-    name: l.name,
-    currency: l.currency,
-    outstandingBalance: l.outstandingBalance.toString(),
-    originalAmount: l.originalAmount?.toString() ?? null,
-    interestRate: l.interestRate?.toString() ?? null,
-    emiAmount: l.emiAmount?.toString() ?? null,
-    targetPayoffDate: l.targetPayoffDate?.toISOString() ?? null,
-  }));
+  // Macro Allocation — base-currency accounts only, grouped the same way the
+  // dashboard's asset view always has (ASSET_GROUPS), rolled up into one
+  // segmented bar + legend rather than the old expandable per-group tables.
+  const macroGroups = ASSET_GROUPS.map((group) => ({
+    label: group.label,
+    total: accountRows
+      .filter((a) => a.currency === baseCurrency && (group.classes as string[]).includes(a.assetClass))
+      .reduce((sum, a) => sum + Number(a.currentValue), 0),
+  })).filter((g) => g.total > 0);
+  const macroTotal = macroGroups.reduce((sum, g) => sum + g.total, 0);
 
   return (
-    <section className="max-w-5xl px-6 py-10">
+    <section className="max-w-6xl px-6 py-10">
       <div className="space-y-8">
         <div className="border-b border-slate-200/80 pb-6 dark:border-slate-800">
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -135,7 +141,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* 1. Solvency Snapshot */}
+        {/* 1. Solvency Snapshot — full-width KPI strip */}
         <div>
           <SolvencyKPIRow kpis={headlineKpis} />
 
@@ -148,182 +154,148 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* 2. By family member */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
-            <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage assets →
-            </Link>
-          </div>
+        {/* 2. Workspace (left, 8/12) + Operational Context Rail (right, 4/12) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            {/* By family member — bento grid */}
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">By family member</h2>
+                <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+                  Manage assets →
+                </Link>
+              </div>
 
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
-            {memberBreakdowns.map((m, i) => {
-              const palette = avatarPalette[i % avatarPalette.length];
-              const sharePct = netWorth > 0 ? Math.round((m.total / netWorth) * 100 * 10) / 10 : null;
-              return (
-                <div key={m.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${palette.bg} ${palette.text} ${palette.border}`}>
-                      {m.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.name}</p>
-                        {sharePct !== null && (
-                          <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
-                            {sharePct}%
-                          </span>
-                        )}
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                {memberBreakdowns.map((m, i) => {
+                  const palette = avatarPalette[i % avatarPalette.length];
+                  const sharePct = netWorth > 0 ? Math.round((m.total / netWorth) * 100 * 10) / 10 : null;
+                  return (
+                    <div key={m.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${palette.bg} ${palette.text} ${palette.border}`}>
+                          {m.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.name}</p>
+                            {sharePct !== null && (
+                              <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
+                                {sharePct}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              {m.relationship}
+                            </span>
+                            {m.residencyStatus === "NRI" && (
+                              <span className="rounded-full bg-amber-600/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
+                                NRI
+                              </span>
+                            )}
+                            {m.isMinor && (
+                              <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
+                                Minor
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                          {m.relationship}
-                        </span>
-                        {m.residencyStatus === "NRI" && (
-                          <span className="rounded-full bg-amber-600/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
-                            NRI
+
+                      {sharePct !== null && (
+                        <div className="mt-3 h-1.5 overflow-hidden rounded bg-slate-100 dark:bg-white/5">
+                          <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${sharePct}%` }} />
+                        </div>
+                      )}
+
+                      {Object.keys(m.byClass).length === 0 && m.otherCurrencyHoldings.length === 0 ? (
+                        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
+                      ) : (
+                        <table className="mt-3 w-full text-xs">
+                          <tbody>
+                            {Object.entries(m.byClass).map(([cls, value]) => (
+                              <tr key={cls}>
+                                <td className="py-0.5 text-slate-500 dark:text-slate-400">{assetClassLabel(cls)}</td>
+                                <td className="py-0.5 text-right text-slate-900 dark:text-white">
+                                  {formatCurrency(value, baseCurrency)}
+                                </td>
+                              </tr>
+                            ))}
+                            {m.otherCurrencyHoldings.map((h, i) => (
+                              <tr key={`other-${i}`}>
+                                <td className="py-0.5 text-slate-500 dark:text-slate-400">
+                                  {h.holdingName} <span className="text-slate-500 dark:text-slate-400">({h.currency})</span>
+                                </td>
+                                <td className="py-0.5 text-right text-slate-500 dark:text-slate-400">
+                                  {formatCurrency(h.value, h.currency)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                      {m.total > 0 && (
+                        <div className="mt-2 flex justify-between border-t border-slate-200/80 pt-2 text-sm dark:border-slate-800">
+                          <span className="font-medium text-slate-900 dark:text-white">Total ({baseCurrency})</span>
+                          <span className="font-medium text-slate-900 dark:text-white">
+                            {formatCurrency(m.total, baseCurrency)}
                           </span>
-                        )}
-                        {m.isMinor && (
-                          <span className="rounded-full bg-blue-600/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-lime-400/10 dark:text-lime-400">
-                            Minor
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Macro Allocation — what we own */}
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">What we own</h2>
+                <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
+                  Manage assets →
+                </Link>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+                {macroGroups.length === 0 ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
+                ) : (
+                  <>
+                    <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
+                      {macroGroups.map((g) => (
+                        <div
+                          key={g.label}
+                          className={macroGroupColor[g.label] ?? "bg-slate-400"}
+                          style={{ width: `${(g.total / macroTotal) * 100}%` }}
+                          title={`${g.label}: ${formatCurrency(g.total, baseCurrency)}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                      {macroGroups.map((g) => (
+                        <div key={g.label} className="flex items-center gap-2 text-xs">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${macroGroupColor[g.label] ?? "bg-slate-400"}`} />
+                          <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-400">{g.label}</span>
+                          <span className="shrink-0 font-medium text-slate-900 dark:text-white">
+                            {Math.round((g.total / macroTotal) * 100)}%
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  {Object.keys(m.byClass).length === 0 && m.otherCurrencyHoldings.length === 0 ? (
-                    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
-                  ) : (
-                    <table className="mt-3 w-full text-xs">
-                      <tbody>
-                        {Object.entries(m.byClass).map(([cls, value]) => (
-                          <tr key={cls}>
-                            <td className="py-0.5 text-slate-500 dark:text-slate-400">{assetClassLabel(cls)}</td>
-                            <td className="py-0.5 text-right text-slate-900 dark:text-white">{fmt(value)}</td>
-                          </tr>
-                        ))}
-                        {m.otherCurrencyHoldings.map((h, i) => (
-                          <tr key={`other-${i}`}>
-                            <td className="py-0.5 text-slate-500 dark:text-slate-400">
-                              {h.holdingName} <span className="text-slate-500 dark:text-slate-400">({h.currency})</span>
-                            </td>
-                            <td className="py-0.5 text-right text-slate-500 dark:text-slate-400">{fmt(h.value)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {m.total > 0 && (
-                    <div className="mt-2 flex justify-between border-t border-slate-200/80 pt-2 text-sm dark:border-slate-800">
-                      <span className="font-medium text-slate-900 dark:text-white">Total ({baseCurrency})</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{fmt(m.total)}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 3. Assets — grouped */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Assets — what we own</h2>
-            <Link href="/assets" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage assets →
-            </Link>
-          </div>
-
-          {accountRows.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No assets added yet.</p>
-          ) : (
-            <div className="mt-4">
-              <AssetsOverview
-                accounts={accountRows}
-                familyMembers={household.familyMembers.map((m) => ({ id: m.id, name: m.name }))}
-                baseCurrency={baseCurrency}
-              />
+                  </>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* 4. Debt & Liabilities */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Debt &amp; liabilities — what we owe</h2>
-            <Link href="/liabilities" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage liabilities →
-            </Link>
           </div>
-          <div className="mt-4">
-            <DebtOverview liabilities={liabilityRows} baseCurrency={baseCurrency} />
-          </div>
-        </div>
 
-        {/* 5. Goals */}
-        <div>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white">Goals</h2>
-            <Link href="/goals" className="text-sm text-blue-600 hover:underline dark:text-lime-400">
-              Manage goals →
-            </Link>
+          {/* Operational Context Rail */}
+          <div className="space-y-6 lg:col-span-4">
+            <UpcomingDebitsCard debits={upcomingDebits} baseCurrency={baseCurrency} />
+            <GoalVelocityCard goal={primaryGoal} />
+            <EmergencyRunwayCard financialRunway={headlineKpis.financialRunway} />
           </div>
-          {household.goals.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No goals added yet.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {household.goals.map((g) => {
-                const target = Number(g.targetAmount) || 1;
-                const current = Number(g.currentAmount) || 0;
-                const pct = Math.min(100, Math.round((current / target) * 100));
-                const pacing = getGoalPacing({
-                  targetAmount: Number(g.targetAmount),
-                  currentAmount: current,
-                  targetDate: g.targetDate,
-                });
-                return (
-                  <div key={g.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-900 dark:text-white">{g.name}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {g.currency} {fmt(current)} of {fmt(target)} ({pct}%)
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded bg-slate-50 dark:bg-white/5">
-                      <div className="h-full bg-blue-600 dark:bg-lime-400" style={{ width: `${pct}%` }} />
-                    </div>
-
-                    {pacing.isOverdue ? (
-                      <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
-                        Target date passed — {g.currency} {fmt(Math.max(0, target - current))} still needed.
-                      </p>
-                    ) : g.targetDate === null ? (
-                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        No target date set —{" "}
-                        <Link href="/goals" className="text-blue-600 hover:underline dark:text-lime-400">
-                          add one
-                        </Link>{" "}
-                        to see pacing.
-                      </p>
-                    ) : pacing.requiredMonthlyRate === 0 ? (
-                      <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-cyan-400">
-                        Target reached 🎉
-                      </p>
-                    ) : (
-                      pacing.requiredMonthlyRate !== null && (
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          {pacing.monthsRemaining} months left · needs {g.currency}{" "}
-                          {fmt(pacing.requiredMonthlyRate)}/mo to hit target
-                        </p>
-                      )
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </section>

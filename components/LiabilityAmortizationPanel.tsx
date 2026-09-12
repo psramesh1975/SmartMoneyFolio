@@ -5,9 +5,10 @@ function fmt(n: number) {
 }
 
 // The "Inspect" breakdown — monthly interest/principal split + payoff
-// progress bar — shared by the dashboard's DebtOverview and the full
-// /liabilities page's category tables, so there's exactly one place that
-// renders this instead of two copies drifting apart.
+// progress bar — used by the full /liabilities page's category tables, so
+// there's exactly one place that renders this instead of copies drifting
+// apart. (Previously also shared with the dashboard's own DebtOverview,
+// retired in the dashboard visual revamp.)
 export default function LiabilityAmortizationPanel({
   currency,
   outstandingBalance,

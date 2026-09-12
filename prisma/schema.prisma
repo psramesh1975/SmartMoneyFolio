@@ -162,6 +162,8 @@ model Account {
 
   // Mutual Fund specific
   sipMonthlyAmount Decimal?
+  sipDueDay        Int?     // day-of-month (1-31) the SIP is auto-debited — dashboard's
+                             // "Upcoming Debits" card only; null until set (no edit UI yet)
 
   lastUpdated    DateTime     @default(now())
   createdAt      DateTime     @default(now())
@@ -253,6 +255,8 @@ model Liability {
   accountReference   String?       // loan A/C # or card last-4 digits — "Loan A/C: 0048-HL-91024"
   isRevolving        Boolean       @default(false) // true for credit cards / lines of credit
   statementDueDay    Int?          // day-of-month billing cycle closes, revolving lines only
+  emiDueDay          Int?          // day-of-month (1-31) the EMI is auto-debited — dashboard's
+                                    // "Upcoming Debits" card only; null until set (no edit UI yet)
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
