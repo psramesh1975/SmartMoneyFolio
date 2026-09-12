@@ -5,14 +5,43 @@ import ClientSidebar from "@/components/ClientSidebar";
 import AppHeader from "@/components/AppHeader";
 import { SectionThemeInit } from "@/components/SectionThemeInit";
 import { MobileNavProvider } from "@/components/MobileNavContext";
-import { getPreviousPeriod, getCurrentPeriod, getNextPeriod, MONTH_LABELS_SHORT } from "@/lib/monthly-periods";
+import {
+  getPreviousPeriod,
+  getCurrentPeriod,
+  getNextPeriod,
+  getEarlierMonthsOfCurrentYear,
+  getMostRecentArchivedYear,
+  MONTH_LABELS_SHORT,
+} from "@/lib/monthly-periods";
 import { getPrimaryGoal, getLatestPriceSyncAt } from "@/lib/dashboard-data";
 import { getMarketTicker } from "@/lib/market-ticker";
 import { formatINRCompact } from "@/lib/format-indian-currency";
 import { getDraftMonths } from "@/lib/tracking-data";
+import { version as appVersion } from "@/package.json";
 
 function periodLabel({ year, month }: { year: number; month: number }) {
   return `${MONTH_LABELS_SHORT[month - 1]} ${year}`;
+}
+
+// "Jan – Jul 2026", or just "Jul 2026" when there's only the one month —
+// null (dropping the sidebar's trailing label entirely) when there are none
+// yet, same "no data yet" case /monthly/earlier itself shows.
+function earlierMonthsRangeLabel(periods: { year: number; month: number }[]): string | null {
+  if (periods.length === 0) return null;
+  const first = periods[0];
+  const last = periods[periods.length - 1];
+  if (first.month === last.month && first.year === last.year) {
+    return periodLabel(first);
+  }
+  return `${MONTH_LABELS_SHORT[first.month - 1]} – ${periodLabel(last)}`;
+}
+
+// "2023 – 2025", or a single "2025" — null when nothing's archived yet.
+function earlierYearsRangeLabel(years: number[]): string | null {
+  if (years.length === 0) return null;
+  const min = Math.min(...years);
+  const max = Math.max(...years);
+  return min === max ? String(min) : `${min} – ${max}`;
 }
 
 // Compact target label for the sidebar's "Goals (... Target)" nav item —
@@ -47,7 +76,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getLatestPriceSyncAt(),
   ]);
   const timeZone = household?.timeZone || "UTC";
-  const draftMonths = await getDraftMonths(session.householdId, timeZone);
+  const archivedYearCutoff = getMostRecentArchivedYear(timeZone);
+  const [draftMonths, archivedYearRows] = await Promise.all([
+    getDraftMonths(session.householdId, timeZone),
+    // Same query /monthly/years itself runs — every year this household
+    // actually has entries for, at or before the most recently archived
+    // year, so the sidebar's range label only ever reflects real data.
+    prisma.monthlyEntry.findMany({
+      where: { householdId: session.householdId, year: { lte: archivedYearCutoff } },
+      select: { year: true },
+      distinct: ["year"],
+    }),
+  ]);
 
   return (
     <MobileNavProvider>
@@ -63,6 +103,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           baseCurrency={household?.baseCurrency ?? "USD"}
           draftMonths={draftMonths}
           nextPeriod={getNextPeriod(timeZone)}
+          earlierMonthsRangeLabel={earlierMonthsRangeLabel(getEarlierMonthsOfCurrentYear(timeZone))}
+          earlierYearsRangeLabel={earlierYearsRangeLabel(archivedYearRows.map((r) => r.year))}
+          appVersion={appVersion}
         />
         {/* min-w-0 overrides the flex item default of min-width: auto (sized
             to content's intrinsic width) — without it, wide unwrappable

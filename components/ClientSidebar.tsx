@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, LayoutDashboard, Target, Landmark, CreditCard, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, Target, Landmark, CreditCard, CalendarDays, Settings as SettingsIcon } from "lucide-react";
 import { useMobileNav } from "@/components/MobileNavContext";
 import FutureMonthsSection, { type DraftMonth } from "@/components/FutureMonthsSection";
 import AddDraftMonthModal from "@/components/AddDraftMonthModal";
@@ -19,6 +19,9 @@ export default function ClientSidebar({
   baseCurrency,
   draftMonths,
   nextPeriod,
+  earlierMonthsRangeLabel,
+  earlierYearsRangeLabel,
+  appVersion,
 }: {
   isPlatformOwner: boolean;
   householdName: string;
@@ -36,6 +39,14 @@ export default function ClientSidebar({
   // state, not hardcoded, per FutureMonthsSection.tsx's own setup note.
   draftMonths: { year: number; month: number; label: string }[];
   nextPeriod: Period;
+  // e.g. "Jan – Jul 2026" — this year's months before Previous Month, or
+  // null when there are none yet (January, or a brand-new household).
+  earlierMonthsRangeLabel: string | null;
+  // e.g. "2023 – 2025" — every archived year with actual data, or null
+  // when nothing's been archived yet.
+  earlierYearsRangeLabel: string | null;
+  // package.json's own version — real, not a marketing "v2.4"-style figure.
+  appVersion: string;
 }) {
   const pathname = usePathname(); // still needed for per-link active highlighting
   const { isOpen, close } = useMobileNav();
@@ -46,16 +57,6 @@ export default function ClientSidebar({
     return { label: d.label, href, status: pathname === href ? "active-draft" : "draft" };
   });
 
-  // Default false on first render to avoid a hydration mismatch, then sync
-  // from localStorage after mount — same pattern as ThemeToggle and the
-  // Phase 7 breakdown panel. Driven purely by the manual toggle — no
-  // route-based override, so it can be collapsed even while on a
-  // /monthly/* page.
-  const [monthlyExpanded, setMonthlyExpanded] = useState(false);
-  useEffect(() => {
-    setMonthlyExpanded(localStorage.getItem("smf-sidebar-monthly-open") === "true");
-  }, []);
-
   // The mobile drawer shouldn't survive a navigation — close it whenever the
   // path changes. Deliberately depends on `pathname` alone, not `close`
   // (whose identity from context isn't memoized): this should fire once per
@@ -65,23 +66,22 @@ export default function ClientSidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  function toggleMonthly() {
-    const next = !monthlyExpanded;
-    setMonthlyExpanded(next);
-    localStorage.setItem("smf-sidebar-monthly-open", String(next));
-  }
-
+  // Row height standardized to py-1.5 everywhere under Monthly Tracking —
+  // previously this was py-2, one notch taller than Future Months' own rows
+  // (components/FutureMonthsSection.tsx, given as-is), which read as
+  // inconsistent once the two sat directly next to each other.
   const linkClass = (href: string) =>
-    `block px-3 py-2 text-sm ${
+    `block px-3 py-1.5 text-sm ${
       pathname === href ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
     }`;
 
-  // Current Month gets a distinct emerald badge instead of the plain
-  // active-link highlight, so it reads as "you are here" at a glance even
-  // when the group is collapsed and re-opened.
+  // Status-pill language shared with Future Months' Draft/Active Draft pills
+  // (same sizing/shape) — "Current" is the third status in that family, so
+  // it gets the same solid treatment Active Draft uses rather than the
+  // plain month-abbreviation text this row used to show.
   const currentMonthActive = pathname === "/monthly/current";
   const currentMonthClass = currentMonthActive
-    ? "flex items-center justify-between py-2 px-2 text-sm font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+    ? "flex items-center justify-between py-1.5 px-2 text-sm font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
     : `${linkClass("/monthly/current")} flex items-center justify-between`;
 
   // Shared between the always-visible desktop <aside> and the mobile
@@ -120,52 +120,66 @@ export default function ClientSidebar({
             <CreditCard size={16} className="shrink-0" />
             Liabilities &amp; Loans
           </Link>
-          <button
-            type="button"
-            onClick={toggleMonthly}
-            className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white"
-            aria-expanded={monthlyExpanded}
-          >
-            <span>Monthly Tracking</span>
-            <ChevronRight size={16} className={`w-4 h-4 shrink-0 transition-transform ${monthlyExpanded ? "rotate-90" : ""}`} />
-          </button>
 
-          {monthlyExpanded && (
-            <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-3">
-              <Link href="/monthly/base" className={linkClass("/monthly/base")} onClick={onNavigate}>
-                Monthly Base
-              </Link>
-              <Link
-                href="/monthly/previous"
-                className={`${linkClass("/monthly/previous")} flex items-center justify-between`}
-                onClick={onNavigate}
-              >
-                <span>Previous Month</span>
-                <span className="text-xs opacity-70">{previousLabel}</span>
-              </Link>
-              <Link href="/monthly/current" className={currentMonthClass} onClick={onNavigate}>
-                <span>Current Month</span>
-                <span className="font-mono text-[10px] opacity-90">{currentLabel}</span>
-              </Link>
-              <Link
-                href="/monthly/next"
-                className={`${linkClass("/monthly/next")} flex items-center justify-between`}
-                onClick={onNavigate}
-              >
-                <span>Next Month</span>
-                <span className="text-xs opacity-70">{nextLabel}</span>
-              </Link>
-              <FutureMonthsSection draftMonths={futureMonthItems} onAddMonth={() => setShowAddMonthModal(true)} />
-              <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")} onClick={onNavigate}>
-                Earlier Months
-              </Link>
-              <Link href="/monthly/years" className={linkClass("/monthly/years")} onClick={onNavigate}>
-                Earlier Years
-              </Link>
-            </div>
-          )}
+          {/* Static uppercase section label — replaces the old expand/
+              collapse button. Every row underneath is always visible now;
+              Future Months keeps its own independent collapse (it's a
+              genuinely long, growable list), but the group itself no longer
+              needs one on top of that. */}
+          <div className="mt-4 flex items-center gap-2 px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <CalendarDays size={12} className="shrink-0" />
+            Monthly Tracking
+          </div>
+
+          <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
+            <Link href="/monthly/base" className={linkClass("/monthly/base")} onClick={onNavigate}>
+              Monthly Base
+            </Link>
+            <Link
+              href="/monthly/previous"
+              className={`${linkClass("/monthly/previous")} flex items-center justify-between`}
+              onClick={onNavigate}
+            >
+              {/* "Previous"/"Next" rather than "Previous Month"/"Next Month" —
+                  MONTHLY TRACKING already establishes the context above, and
+                  the full wording didn't leave room for the trailing month
+                  label at the sidebar's 208px width without wrapping. */}
+              <span>Previous</span>
+              <span className="text-xs opacity-70">{previousLabel}</span>
+            </Link>
+            {/* Current Month follows Future Months' own label+pill shape
+                (month on the left, status on the right) instead of
+                "Current Month" + a same-word pill, which said "Current"
+                twice. */}
+            <Link href="/monthly/current" className={currentMonthClass} onClick={onNavigate}>
+              <span>{currentLabel}</span>
+              <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-bold text-slate-900">Current</span>
+            </Link>
+            <Link
+              href="/monthly/next"
+              className={`${linkClass("/monthly/next")} flex items-center justify-between`}
+              onClick={onNavigate}
+            >
+              <span>Next</span>
+              <span className="text-xs opacity-70">{nextLabel}</span>
+            </Link>
+            <FutureMonthsSection draftMonths={futureMonthItems} onAddMonth={() => setShowAddMonthModal(true)} />
+            {/* Earlier Months/Years: the range label ("Jan – Jul 2026",
+                "2023 – 2025") runs too long to sit on the same line as the
+                label at this width — stacked underneath instead, same
+                pattern as the brand block's name + household subtitle. */}
+            <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")} onClick={onNavigate}>
+              <span className="block">Earlier Months</span>
+              {earlierMonthsRangeLabel && <span className="block text-xs opacity-70">{earlierMonthsRangeLabel}</span>}
+            </Link>
+            <Link href="/monthly/years" className={linkClass("/monthly/years")} onClick={onNavigate}>
+              <span className="block">Earlier Years</span>
+              {earlierYearsRangeLabel && <span className="block text-xs opacity-70">{earlierYearsRangeLabel}</span>}
+            </Link>
+          </div>
+
           {isPlatformOwner && (
-            <Link href="/platform" className={linkClass("/platform")} onClick={onNavigate}>
+            <Link href="/platform" className={`${linkClass("/platform")} mt-4`} onClick={onNavigate}>
               Admin
             </Link>
           )}
@@ -189,6 +203,7 @@ export default function ClientSidebar({
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             <span>{baseCurrency} Standard</span>
           </div>
+          <span className="font-mono">v{appVersion}</span>
         </div>
       </div>
     );
