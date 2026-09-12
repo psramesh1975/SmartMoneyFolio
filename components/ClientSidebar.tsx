@@ -143,7 +143,8 @@ export default function ClientSidebar({
               {/* "Previous"/"Next" rather than "Previous Month"/"Next Month" —
                   MONTHLY TRACKING already establishes the context above, and
                   the full wording didn't leave room for the trailing month
-                  label at the sidebar's 208px width without wrapping. */}
+                  label without wrapping even at the sidebar's current
+                  256px (bumped from 208px after it still read as cramped). */}
               <span>Previous</span>
               <span className="text-xs opacity-70">{previousLabel}</span>
             </Link>
@@ -213,7 +214,7 @@ export default function ClientSidebar({
     <>
       {/* Desktop: always visible at md (768px) and up. flex/justify-between
           pins renderFooter() to the bottom per the approved mockup. */}
-      <aside className="hidden w-52 shrink-0 flex-col justify-between bg-slate-900 text-slate-300 dark:bg-sidebar-dark md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col justify-between bg-slate-900 text-slate-300 dark:bg-sidebar-dark md:flex">
         <div>{renderNavContent()}</div>
         {renderFooter()}
       </aside>
