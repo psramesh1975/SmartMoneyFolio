@@ -197,10 +197,26 @@ model SecuritiesMaster {
   priceUpdatedAt DateTime?
   createdAt      DateTime     @default(now())
 
+  // Generated tsvector (name weighted 'A', tickerOrCode weighted 'B'), with
+  // a GIN index — added via prisma/sql/add_securities_fulltext_search.sql
+  // through `prisma db execute` rather than a tracked migration, since this
+  // repo has no prisma/migrations history and evolves its schema via
+  // `db push`, which can't express a generated tsvector column itself.
+  // Declared here as Unsupported purely so `db push` recognizes the column
+  // and leaves it alone instead of trying to manage/drop it.
+  searchVector   Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
+
   accounts       Account[]
 
   @@unique([tickerOrCode, securityType])
   @@index([name])
+  // Declares the GIN index Prisma otherwise doesn't know about (it lives
+  // over the raw-SQL search_vector column above), so `db push` treats it as
+  // already accounted for instead of dropping it as an "unrecognized" index
+  // on every run — confirmed by testing: without this line, `db push`
+  // silently DROP INDEXes securities_master_search_vector_idx every time,
+  // which would degrade search back to an unindexed scan as the table grows.
+  @@index([searchVector], type: Gin)
   @@map("securities_master")
 }
 
