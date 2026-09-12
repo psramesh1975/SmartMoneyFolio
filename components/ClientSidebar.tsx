@@ -5,6 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, LayoutDashboard, Target, Landmark, CreditCard, Settings as SettingsIcon } from "lucide-react";
 import { useMobileNav } from "@/components/MobileNavContext";
+import FutureMonthsSection, { type DraftMonth } from "@/components/FutureMonthsSection";
+import AddDraftMonthModal from "@/components/AddDraftMonthModal";
+import { MONTH_LABELS, type Period } from "@/lib/monthly-periods";
 
 export default function ClientSidebar({
   isPlatformOwner,
@@ -14,6 +17,8 @@ export default function ClientSidebar({
   nextLabel,
   goalTargetLabel,
   baseCurrency,
+  draftMonths,
+  nextPeriod,
 }: {
   isPlatformOwner: boolean;
   householdName: string;
@@ -26,9 +31,20 @@ export default function ClientSidebar({
   // than showing a placeholder figure.
   goalTargetLabel: string | null;
   baseCurrency: string;
+  // Forward Simulation draft months beyond Next Month that this household
+  // has already initialized (lib/tracking-data.ts's getDraftMonths) — real
+  // state, not hardcoded, per FutureMonthsSection.tsx's own setup note.
+  draftMonths: { year: number; month: number; label: string }[];
+  nextPeriod: Period;
 }) {
   const pathname = usePathname(); // still needed for per-link active highlighting
   const { isOpen, close } = useMobileNav();
+  const [showAddMonthModal, setShowAddMonthModal] = useState(false);
+
+  const futureMonthItems: DraftMonth[] = draftMonths.map((d) => {
+    const href = `/tracking/${d.year}/${MONTH_LABELS[d.month - 1].toLowerCase()}`;
+    return { label: d.label, href, status: pathname === href ? "active-draft" : "draft" };
+  });
 
   // Default false on first render to avoid a hydration mismatch, then sync
   // from localStorage after mount — same pattern as ThemeToggle and the
@@ -139,6 +155,7 @@ export default function ClientSidebar({
                 <span>Next Month</span>
                 <span className="text-xs opacity-70">{nextLabel}</span>
               </Link>
+              <FutureMonthsSection draftMonths={futureMonthItems} onAddMonth={() => setShowAddMonthModal(true)} />
               <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")} onClick={onNavigate}>
                 Earlier Months
               </Link>
@@ -195,6 +212,14 @@ export default function ClientSidebar({
             {renderFooter(close)}
           </aside>
         </div>
+      )}
+
+      {showAddMonthModal && (
+        <AddDraftMonthModal
+          nextPeriod={nextPeriod}
+          existingDrafts={draftMonths}
+          onClose={() => setShowAddMonthModal(false)}
+        />
       )}
     </>
   );

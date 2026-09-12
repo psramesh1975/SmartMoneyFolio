@@ -18,6 +18,10 @@ export type MonthlyEntryDTO = {
   actualAmount: string | null;
   isSkipped: boolean;
   notes: string | null;
+  // Day-of-month (1-31) this one-off entry is expected to fall on — see
+  // MonthlyEntry.scheduledDay in the schema. Null for ordinary one-offs;
+  // set for Forward Simulation "Advance Entry" rows.
+  scheduledDay: number | null;
   // Present only when lineItemId is set — the recurring line's own current
   // settings, used to pre-fill the "edit recurring line" control.
   lineItem: {

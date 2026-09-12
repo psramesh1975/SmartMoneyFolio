@@ -409,6 +409,14 @@ model MonthlyEntry {
   actualAmount   Decimal?         // null until the user fills it in
   isSkipped      Boolean          @default(false) // skips this one occurrence without touching the line item
   notes          String?
+  // Day-of-month (1-31) a standalone one-off entry is expected to fall on —
+  // same convention as Liability.emiDueDay/Account.sipDueDay, just on the
+  // entry itself since a one-off has no recurring line item to hang it off
+  // of. Null for ordinary Current/Next Month one-offs (no UI sets it there
+  // today); populated by the Forward Simulation "+ Log Advance Expense"
+  // flow on a future draft month, where showing a genuine schedule date
+  // matters. Purely informational — never affects generation or reconciliation.
+  scheduledDay   Int?
   // Idempotency guard for the EMI->principal auto-sync: set once, when this
   // entry's EMI was applied to the linked liability's outstandingBalance, so
   // re-editing or un-marking the entry later can't double-count or lose

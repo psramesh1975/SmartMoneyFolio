@@ -1,8 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
-const DEBT_CATEGORY_NAME = "Loan EMIs";
-const SIP_CATEGORY_NAME = "Investments & SIPs";
+// Exported so callers that need to tell an auto-linked EMI/SIP row apart
+// from a general recurring line item (e.g. lib/tracking-data.ts's Forward
+// Simulation source-type labeling) match against the same two literal names
+// this file creates, instead of a second, driftable copy of the strings.
+export const DEBT_CATEGORY_NAME = "Loan EMIs";
+export const SIP_CATEGORY_NAME = "Investments & SIPs";
 
 // reconcileAutoLinkedLineItems() runs on every /monthly/base load, so
 // concurrent requests for the same household (multiple tabs, or just two
