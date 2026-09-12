@@ -94,6 +94,7 @@ function AddOneOffForm({
       actualAmount: actualAmount === "" ? null : String(actualAmount),
       isSkipped: false,
       notes: null,
+      scheduledDay: null,
       lineItem: null,
     });
   }

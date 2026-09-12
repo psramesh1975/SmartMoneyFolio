@@ -9,6 +9,7 @@ import { getPreviousPeriod, getCurrentPeriod, getNextPeriod, MONTH_LABELS_SHORT 
 import { getPrimaryGoal, getLatestPriceSyncAt } from "@/lib/dashboard-data";
 import { getMarketTicker } from "@/lib/market-ticker";
 import { formatINRCompact } from "@/lib/format-indian-currency";
+import { getDraftMonths } from "@/lib/tracking-data";
 
 function periodLabel({ year, month }: { year: number; month: number }) {
   return `${MONTH_LABELS_SHORT[month - 1]} ${year}`;
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getLatestPriceSyncAt(),
   ]);
   const timeZone = household?.timeZone || "UTC";
+  const draftMonths = await getDraftMonths(session.householdId, timeZone);
 
   return (
     <MobileNavProvider>
@@ -59,6 +61,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           nextLabel={periodLabel(getNextPeriod(timeZone))}
           goalTargetLabel={goalTargetLabel(primaryGoal)}
           baseCurrency={household?.baseCurrency ?? "USD"}
+          draftMonths={draftMonths}
+          nextPeriod={getNextPeriod(timeZone)}
         />
         {/* min-w-0 overrides the flex item default of min-width: auto (sized
             to content's intrinsic width) — without it, wide unwrappable

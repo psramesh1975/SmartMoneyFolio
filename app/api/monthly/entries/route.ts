@@ -10,6 +10,11 @@ const createSchema = z.object({
   name: z.string().min(1),
   plannedAmount: z.coerce.number().positive(),
   actualAmount: z.coerce.number().nonnegative().optional(),
+  // Optional day-of-month this one-off is expected to fall on — used by the
+  // Forward Simulation "Log Advance Expense" flow to show a real schedule
+  // date; ordinary Current/Next Month one-offs simply don't pass it.
+  scheduledDay: z.coerce.number().int().min(1).max(31).optional(),
+  notes: z.string().min(1).optional(),
 });
 
 // Adds a one-off entry directly into a specific month — lineItemId stays
@@ -42,6 +47,8 @@ export async function POST(req: NextRequest) {
       baseAmount: parsed.data.plannedAmount,
       plannedAmount: parsed.data.plannedAmount,
       actualAmount: parsed.data.actualAmount ?? null,
+      scheduledDay: parsed.data.scheduledDay ?? null,
+      notes: parsed.data.notes ?? null,
     },
   });
 

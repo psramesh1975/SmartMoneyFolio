@@ -57,6 +57,7 @@ export async function getMonthPayload(
       actualAmount: e.actualAmount?.toString() ?? null,
       isSkipped: e.isSkipped,
       notes: e.notes,
+      scheduledDay: e.scheduledDay,
       lineItem: e.lineItem
         ? {
             id: e.lineItem.id,
@@ -215,6 +216,7 @@ export async function getReadOnlyMonthPayload(
       actualAmount: e.actualAmount?.toString() ?? null,
       isSkipped: e.isSkipped,
       notes: e.notes,
+      scheduledDay: e.scheduledDay,
       lineItem: null,
     };
     const list = entriesByCategory.get(e.categoryId) ?? [];
@@ -282,6 +284,7 @@ export async function getYearPayload(
         actualAmount: e.actualAmount?.toString() ?? null,
         isSkipped: e.isSkipped,
         notes: e.notes,
+        scheduledDay: e.scheduledDay,
         lineItem: null, // read-only view — recurring-line editing isn't offered here
       };
       const list = entriesByCategory.get(e.categoryId) ?? [];
