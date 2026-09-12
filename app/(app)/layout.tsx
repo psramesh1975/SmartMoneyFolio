@@ -17,7 +17,11 @@ import { getPrimaryGoal, getLatestPriceSyncAt } from "@/lib/dashboard-data";
 import { getMarketTicker } from "@/lib/market-ticker";
 import { formatINRCompact } from "@/lib/format-indian-currency";
 import { getDraftMonths } from "@/lib/tracking-data";
-import { version as appVersion } from "@/package.json";
+// Default import + property access, not `import { version } from "@/package.json"` —
+// Next's bundler warns that named imports from a JSON module (which it
+// treats as a single default export) are on their way out.
+import packageJson from "@/package.json";
+const appVersion = packageJson.version;
 
 function periodLabel({ year, month }: { year: number; month: number }) {
   return `${MONTH_LABELS_SHORT[month - 1]} ${year}`;
