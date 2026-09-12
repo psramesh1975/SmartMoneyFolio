@@ -1,9 +1,9 @@
 import type { AssetClassValue } from "@/lib/asset-classes";
 
 // Groups the asset classes into the 7 accordion sections on /assets. Distinct
-// from lib/asset-classes.ts's ASSET_GROUPS, which drives the dashboard's own
-// (simpler) grouped view — this one carries the icon/subtitle metadata the
-// full Assets page needs.
+// from lib/asset-classes.ts's ASSET_GROUPS (currently unused — see its own
+// comment) — this one carries the icon/subtitle metadata the full Assets
+// page needs.
 export const ASSET_CATEGORIES: {
   id: string;
   label: string;

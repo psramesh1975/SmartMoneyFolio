@@ -29,10 +29,12 @@ export function assetClassLabel(value: string): string {
   return ASSET_CLASSES.find((a) => a.value === value)?.label ?? value;
 }
 
-// Groups the asset classes into the collapsible sections shown on the
-// dashboard's Assets area. holdingName free text already covers sub-labels
-// like "HDFC", "Emirates NBD", "SBI Life" — no schema change needed there,
-// it's just what the user types into the existing name field.
+// Grouped asset classes — previously drove the dashboard's own Assets area
+// (AssetsOverview.tsx) before that section was retired in the dashboard
+// visual revamp; currently unused, kept in case a similar grouped view is
+// needed again. holdingName free text already covers sub-labels like
+// "HDFC", "Emirates NBD", "SBI Life" — no schema change needed there, it's
+// just what the user types into the existing name field.
 export const ASSET_GROUPS: { label: string; classes: AssetClassValue[] }[] = [
   { label: "Liquid Cash & Banking", classes: ["CASH"] },
   { label: "Market Investments", classes: ["STOCKS", "MUTUAL_FUNDS", "BONDS", "CRYPTOCURRENCY"] },

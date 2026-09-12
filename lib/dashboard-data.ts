@@ -251,6 +251,8 @@ export type DashboardHeadlineKPIs = {
   liquidBuffer: number;
   netCashFlow: number; // current month actualIncome - actualOutflow
   financialRunway: number | null; // months, 1 decimal; null if no 3-month outflow history yet
+  totalAssets: number;
+  totalLiabilities: number;
   netWorth: number;
   debtToAssetRatio: number;
 };
@@ -296,9 +298,21 @@ export async function getDashboardHeadlineKPIs(householdId: string): Promise<Das
     liquidBuffer: liquid.liquidBuffer,
     netCashFlow,
     financialRunway,
+    totalAssets: solvency.totalAssets,
+    totalLiabilities: solvency.totalLiabilities,
     netWorth: solvency.netWorth,
     debtToAssetRatio: solvency.debtToAssetRatio,
   };
+}
+
+// Current-month label for the "Upcoming Debits (Sep 2026)"-style header —
+// split out from computeDashboardCashFlow() (which already derives the same
+// value internally) so page.tsx can show it without pulling in the whole
+// cash-flow computation just for a label.
+export async function getCurrentMonthLabel(householdId: string): Promise<string> {
+  const timeZone = await getHouseholdTimeZone(householdId);
+  const { year, month } = getCurrentPeriod(timeZone);
+  return `${MONTH_LABELS[month - 1]} ${year}`;
 }
 
 export type GoalPacing = {
@@ -332,6 +346,9 @@ export type UpcomingAutoDebit = {
   title: string;
   amount: number;
   dueDay: number; // day-of-month (1-31), not "days from now" — see nextOccurrenceWithinWindow
+  dueDate: string; // ISO date (UTC midnight) of the actual upcoming occurrence — lets the UI
+                    // compute "due in N days" and format "15 Sep" without re-deriving month
+                    // wraparound itself (dueDay alone can't tell you which month it falls in)
   type: "EMI" | "SIP";
   memberName?: string;
 };
@@ -436,6 +453,7 @@ export async function getUpcomingAutoDebits(
       title: l.name,
       amount,
       dueDay: l.emiDueDay,
+      dueDate: new Date(occurrenceMs).toISOString(),
       type: "EMI",
       memberName: l.familyMember.name,
       occurrenceMs,
@@ -452,6 +470,7 @@ export async function getUpcomingAutoDebits(
       title: a.holdingName,
       amount,
       dueDay: a.sipDueDay,
+      dueDate: new Date(occurrenceMs).toISOString(),
       type: "SIP",
       memberName: a.familyMember.name,
       occurrenceMs,
@@ -490,4 +509,31 @@ export async function getPrimaryGoal(householdId: string): Promise<PrimaryGoal |
     currency: goal.currency,
     targetDate: goal.targetDate,
   };
+}
+
+// "Current pace" for the Goal Velocity card's projected-completion line —
+// the household's total active SIP commitment (base-currency Mutual Fund
+// accounts only, same qualifying filter as reconcileAutoLinkedLineItems()).
+// The schema doesn't scope a SIP to a specific goal, so this is a
+// household-wide aggregate used as the closest honest proxy for "money
+// currently flowing toward goals" rather than inventing a per-goal
+// contribution figure that doesn't exist anywhere in the data model.
+export async function getMonthlySipTotal(householdId: string): Promise<number> {
+  const household = await prisma.household.findUnique({
+    where: { id: householdId },
+    select: { baseCurrency: true },
+  });
+  if (!household) return 0;
+
+  const accounts = await prisma.account.findMany({
+    where: {
+      householdId,
+      currency: household.baseCurrency,
+      assetClass: "MUTUAL_FUNDS",
+      sipMonthlyAmount: { not: null },
+    },
+    select: { sipMonthlyAmount: true },
+  });
+
+  return accounts.reduce((sum, a) => sum + Number(a.sipMonthlyAmount), 0);
 }
