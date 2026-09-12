@@ -204,6 +204,45 @@ export async function getDebtSnapshot(householdId: string): Promise<DebtSnapshot
   };
 }
 
+export type DashboardHeadlineKPIs = {
+  baseCurrency: string;
+  liquidBuffer: number;
+  netCashFlow: number; // current month actualIncome - actualOutflow
+  financialRunway: number | null; // months, 1 decimal; null if no 3-month outflow history yet
+  netWorth: number;
+  debtToAssetRatio: number;
+};
+
+// Combines getLiquidBuffer() and getDashboardCashFlow() (previously written
+// but never wired into any component) with getSolvencySnapshot() into the
+// single payload the Phase 8 dashboard headline row needs. Financial Runway
+// is liquidBuffer ÷ avgMonthlyOutflow — null (not 0 or Infinity) when there's
+// no completed-month history yet, so the UI can render "Not enough history"
+// instead of a misleading number.
+export async function getDashboardHeadlineKPIs(householdId: string): Promise<DashboardHeadlineKPIs> {
+  const [solvency, liquid, cashFlow] = await Promise.all([
+    getSolvencySnapshot(householdId),
+    getLiquidBuffer(householdId),
+    getDashboardCashFlow(householdId),
+  ]);
+
+  const netCashFlow = cashFlow.monthlyInflow - cashFlow.monthlyOutflow;
+
+  const financialRunway =
+    cashFlow.avgMonthlyOutflow && cashFlow.avgMonthlyOutflow > 0
+      ? Math.round((liquid.liquidBuffer / cashFlow.avgMonthlyOutflow) * 10) / 10
+      : null;
+
+  return {
+    baseCurrency: solvency.baseCurrency,
+    liquidBuffer: liquid.liquidBuffer,
+    netCashFlow,
+    financialRunway,
+    netWorth: solvency.netWorth,
+    debtToAssetRatio: solvency.debtToAssetRatio,
+  };
+}
+
 export type GoalPacing = {
   monthsRemaining: number | null; // null if no targetDate set
   requiredMonthlyRate: number | null; // null if no targetDate, or if already at/past target

@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Landmark, CreditCard, Scale, Gauge } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AssetsOverview from "@/components/AssetsOverview";
 import DebtOverview from "@/components/DebtOverview";
+import SolvencyKPIRow from "@/components/SolvencyKPIRow";
 import { assetClassLabel } from "@/lib/asset-classes";
-import { getSolvencySnapshot, getGoalPacing, ratioTone } from "@/lib/dashboard-data";
+import { getDashboardHeadlineKPIs, getGoalPacing } from "@/lib/dashboard-data";
 
 function fmt(n: number) {
   return Math.round(n).toLocaleString();
@@ -29,7 +29,7 @@ export default async function DashboardPage() {
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const [household, liabilitiesRaw, snapshot] = await Promise.all([
+  const [household, liabilitiesRaw, headlineKpis] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       include: {
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
       include: { familyMember: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
     }),
-    getSolvencySnapshot(session.householdId),
+    getDashboardHeadlineKPIs(session.householdId),
   ]);
 
   if (!household) redirect("/login");
@@ -137,64 +137,7 @@ export default async function DashboardPage() {
 
         {/* 1. Solvency Snapshot */}
         <div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Total assets
-                </span>
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-emerald-600 dark:border-cyan-500/20 dark:bg-emerald-500/10 dark:text-cyan-400">
-                  <Landmark size={16} />
-                </div>
-              </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-emerald-600 dark:text-cyan-400">
-                {snapshot.baseCurrency} {fmt(snapshot.totalAssets)}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Total liabilities
-                </span>
-                <div className="rounded-xl border border-rose-100 bg-rose-50 p-2 text-rose-600 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-400">
-                  <CreditCard size={16} />
-                </div>
-              </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-rose-600 dark:text-rose-400">
-                {snapshot.baseCurrency} {fmt(snapshot.totalLiabilities)}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Net worth
-                </span>
-                <div className="rounded-xl border border-blue-100 bg-blue-50 p-2 text-blue-600 dark:border-lime-400/20 dark:bg-blue-500/10 dark:text-lime-400">
-                  <Scale size={16} />
-                </div>
-              </div>
-              <p className="mt-1 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                {snapshot.baseCurrency} {fmt(snapshot.netWorth)}
-              </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Total assets − total liabilities</p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40">
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Debt-to-asset ratio
-                </span>
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-2 text-indigo-600 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-400">
-                  <Gauge size={16} />
-                </div>
-              </div>
-              <p className={`mt-1 text-2xl font-black tracking-tight ${ratioTone(snapshot.debtToAssetRatio)}`}>
-                {snapshot.debtToAssetRatio.toFixed(1)}%
-              </p>
-            </div>
-          </div>
+          <SolvencyKPIRow kpis={headlineKpis} />
 
           {otherCurrencyCount.count > 0 && (
             <p className="mt-4 border border-slate-200/80 bg-slate-50 px-4 py-2 text-xs text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400">
