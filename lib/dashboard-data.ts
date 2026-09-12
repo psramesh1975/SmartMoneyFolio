@@ -326,3 +326,168 @@ export function getGoalPacing(
     isOverdue: false,
   };
 }
+
+export type UpcomingAutoDebit = {
+  id: string;
+  title: string;
+  amount: number;
+  dueDay: number; // day-of-month (1-31), not "days from now" — see nextOccurrenceWithinWindow
+  type: "EMI" | "SIP";
+  memberName?: string;
+};
+
+function getHouseholdTodayYMD(timeZone: string): { year: number; month: number; day: number } {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value),
+    month: Number(parts.find((p) => p.type === "month")?.value),
+    day: Number(parts.find((p) => p.type === "day")?.value),
+  };
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+// A fixed monthly due day can fall due in the current month or, once the
+// window crosses a month boundary, the next one — this checks both and
+// returns whichever occurrence (if either) lands inside
+// [todayMs, windowEndMs], as a UTC-midnight timestamp for sorting. A due day
+// past a short month's end clamps to that month's last day (day 31 in a
+// 30-day month), the usual recurring-billing convention.
+function nextOccurrenceWithinWindow(
+  dueDay: number,
+  today: { year: number; month: number },
+  todayMs: number,
+  windowEndMs: number
+): number | null {
+  for (const offset of [0, 1]) {
+    let year = today.year;
+    let month = today.month + offset;
+    if (month > 12) {
+      month -= 12;
+      year += 1;
+    }
+    const clampedDay = Math.min(dueDay, daysInMonth(year, month));
+    const occurrenceMs = Date.UTC(year, month - 1, clampedDay);
+    if (occurrenceMs >= todayMs && occurrenceMs <= windowEndMs) return occurrenceMs;
+  }
+  return null;
+}
+
+// Powers the dashboard's "Upcoming Debits" card: active EMIs and SIPs whose
+// due day falls within the next `daysAhead` days. Only liabilities/accounts
+// with an explicitly-set emiDueDay/sipDueDay are considered — there's no
+// edit UI for those fields yet, so most existing rows simply won't appear
+// here until a real due day is recorded. Never fabricates a date (e.g. from
+// createdAt) to fill the gap.
+export async function getUpcomingAutoDebits(
+  householdId: string,
+  daysAhead = 15
+): Promise<UpcomingAutoDebit[]> {
+  const timeZone = await getHouseholdTimeZone(householdId);
+  const today = getHouseholdTodayYMD(timeZone);
+  const todayMs = Date.UTC(today.year, today.month - 1, today.day);
+  const windowEndMs = todayMs + daysAhead * 24 * 60 * 60 * 1000;
+
+  const [liabilities, accounts] = await Promise.all([
+    prisma.liability.findMany({
+      where: { householdId, emiDueDay: { not: null }, emiAmount: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        emiAmount: true,
+        emiDueDay: true,
+        familyMember: { select: { name: true } },
+      },
+    }),
+    prisma.account.findMany({
+      where: {
+        householdId,
+        assetClass: "MUTUAL_FUNDS",
+        sipDueDay: { not: null },
+        sipMonthlyAmount: { not: null },
+      },
+      select: {
+        id: true,
+        holdingName: true,
+        sipMonthlyAmount: true,
+        sipDueDay: true,
+        familyMember: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  const debits: (UpcomingAutoDebit & { occurrenceMs: number })[] = [];
+
+  for (const l of liabilities) {
+    const amount = Number(l.emiAmount);
+    if (!(amount > 0) || l.emiDueDay == null) continue;
+    const occurrenceMs = nextOccurrenceWithinWindow(l.emiDueDay, today, todayMs, windowEndMs);
+    if (occurrenceMs === null) continue;
+    debits.push({
+      id: l.id,
+      title: l.name,
+      amount,
+      dueDay: l.emiDueDay,
+      type: "EMI",
+      memberName: l.familyMember.name,
+      occurrenceMs,
+    });
+  }
+
+  for (const a of accounts) {
+    const amount = Number(a.sipMonthlyAmount);
+    if (!(amount > 0) || a.sipDueDay == null) continue;
+    const occurrenceMs = nextOccurrenceWithinWindow(a.sipDueDay, today, todayMs, windowEndMs);
+    if (occurrenceMs === null) continue;
+    debits.push({
+      id: a.id,
+      title: a.holdingName,
+      amount,
+      dueDay: a.sipDueDay,
+      type: "SIP",
+      memberName: a.familyMember.name,
+      occurrenceMs,
+    });
+  }
+
+  debits.sort((a, b) => a.occurrenceMs - b.occurrenceMs);
+  return debits.map(({ occurrenceMs: _occurrenceMs, ...rest }) => rest);
+}
+
+export type PrimaryGoal = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  currency: string;
+  targetDate: Date | null;
+};
+
+// Picks the dashboard's featured goal: the household's active goal with the
+// largest target amount, on the assumption a "corpus"/retirement-style goal
+// is usually the biggest one. The Goal model has no explicit "primary" flag
+// (confirmed with the user before choosing this heuristic over adding one).
+export async function getPrimaryGoal(householdId: string): Promise<PrimaryGoal | null> {
+  const goal = await prisma.goal.findFirst({
+    where: { householdId },
+    orderBy: { targetAmount: "desc" },
+  });
+  if (!goal) return null;
+
+  return {
+    id: goal.id,
+    name: goal.name,
+    targetAmount: Number(goal.targetAmount),
+    currentAmount: Number(goal.currentAmount),
+    currency: goal.currency,
+    targetDate: goal.targetDate,
+  };
+}
