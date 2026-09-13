@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
@@ -21,6 +22,23 @@ export async function hashPassword(plain: string): Promise<string> {
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash);
+}
+
+// Password reset tokens. Plaintext token goes in the emailed link; only its
+// hash is ever stored (User.resetTokenHash), mirroring how passwords are
+// handled (bcrypt hash stored, plaintext never persisted). A plain SHA-256
+// hash (not bcrypt) is fine here — unlike a password, this token is 32
+// random bytes with no guessable structure to brute-force, and the lookup
+// needs a fast, direct hash match rather than bcrypt's deliberately slow
+// per-guess comparison.
+export function generateResetToken(): { token: string; tokenHash: string } {
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  return { token, tokenHash };
+}
+
+export function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 export type SessionPayload = {

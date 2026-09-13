@@ -36,76 +36,74 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      className="relative flex min-h-screen items-center justify-center p-4 selection:bg-blue-600 selection:text-white"
-      style={{
-        backgroundColor: "#FFFFFF",
-        backgroundImage:
-          "linear-gradient(215deg, transparent 40%, rgba(59, 130, 246, 0.22) 100%), " +
-          "linear-gradient(145deg, transparent 40%, rgba(79, 70, 229, 0.22) 100%), " +
-          "radial-gradient(ellipse 130% 70% at 50% 100%, #2563EB 0%, #1D4ED8 35%, #93C5FD 75%, transparent 100%), " +
-          "linear-gradient(180deg, #FFFFFF 0%, #F0F9FF 35%, #BAE6FD 65%, #3B82F6 100%)",
-        backgroundAttachment: "fixed",
-      }}
-    >
-      <div className="w-full max-w-sm rounded-2xl border border-white/40 bg-white/90 p-8 shadow-xl backdrop-blur-sm">
-        <Link href="/" className="text-base font-bold text-slate-900">
-          Smart Money Folio
-        </Link>
-        <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Log in</h1>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-500">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              data-testid="login-email"
-              className="focus-ring mt-1 w-full rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-500">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              data-testid="login-password"
-              className="focus-ring mt-1 w-full rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900"
-            />
-          </div>
-
-          {error && (
-            <p className="rounded-lg border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-sm text-amber-600">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            data-testid="login-submit"
-            className="focus-ring w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? "Logging in…" : "Log in"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-sm text-slate-500">
-          New here?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign up
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <Link href="/" className="text-base font-bold text-slate-900">
+            Smart Money Folio
           </Link>
-        </p>
+          <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Log in</h1>
+
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-500">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                data-testid="login-email"
+                className="focus-ring mt-1 w-full rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-500">
+                  Password
+                </label>
+                <Link href="/forgot-password" className="text-sm font-medium text-emerald-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                data-testid="login-password"
+                className="focus-ring mt-1 w-full rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900"
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-lg border border-amber-600/40 bg-amber-600/5 px-3 py-2 text-sm text-amber-600">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              data-testid="login-submit"
+              className="focus-ring w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-white hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {loading ? "Logging in…" : "Log in"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-slate-500">
+            No account?{" "}
+            <Link href="/signup" className="text-emerald-600 hover:underline">
+              Create household
+            </Link>
+          </p>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-slate-400">🔒 256-bit encryption • One single truth</p>
       </div>
     </main>
   );
