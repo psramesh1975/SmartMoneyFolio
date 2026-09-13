@@ -95,7 +95,11 @@ test.describe("Monthly Base blueprint (/monthly/base)", () => {
     const debtToggle = await openAutoSection(page, "debt-section");
     const debtSubtotal = parseCurrency(await debtToggle.locator("span").filter({ hasText: CURRENCY_TOKEN }).last().innerText());
 
-    const allToggles = page.locator("button[aria-expanded]");
+    // Section-divider toggles are now table rows (role="button", not a
+    // literal <button> tag) per the table-theme redesign — match by
+    // aria-expanded regardless of tag so this still enumerates every
+    // section (auto-linked and general category alike).
+    const allToggles = page.locator("[aria-expanded]");
     const toggleCount = await allToggles.count();
     let manualSubtotal = 0;
     for (let i = 0; i < toggleCount; i++) {

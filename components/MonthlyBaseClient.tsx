@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Pencil, Trash2, ChevronRight, Landmark, TrendingUp } from "lucide-react";
 import type {
   FlatBasePayload,
@@ -30,6 +31,13 @@ async function patchJSON(url: string, body: unknown) {
   });
   const data = await res.json().catch(() => ({}));
   return { ok: res.ok, data };
+}
+
+// "10th" / "1st" / "22nd" — for the Schedule column's "10th of Month".
+function ordinal(n: number): string {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0]}`;
 }
 
 // General recurring expense row — the only kind of row a person creates or
@@ -85,7 +93,7 @@ export default function MonthlyBaseClient({
 
   // Not created server-side until the user actually types a name — a click
   // on "+ Add Line Item" alone never hits the API. The row already knows
-  // its categoryId from the card it lives in, so no category picker here.
+  // its categoryId from the section it lives in, so no category picker here.
   async function createRow(row: Row, overrides: Partial<Pick<Row, "name" | "baseAmount">>) {
     const name = (overrides.name ?? row.name).trim();
     const baseAmount = overrides.baseAmount ?? row.baseAmount;
@@ -148,7 +156,7 @@ export default function MonthlyBaseClient({
   }
 
   // Shared by the Manage Categories panel's own "+ Add category" form — a
-  // newly created category shows up here as an empty card immediately.
+  // newly created category shows up here as an empty section immediately.
   function handleCategoryCreated(category: MonthlyCategoryOptionDTO) {
     setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
     router.refresh();
@@ -165,12 +173,14 @@ export default function MonthlyBaseClient({
   }
 
   const { kpis } = payload;
+  const sipSubtotal = payload.sipRows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
+  const debtSubtotal = payload.debtRows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* KPI row */}
+      {/* KPI row — border follows the household's chosen table theme */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+        <div className="rounded-2xl border border-[var(--table-border)] bg-white p-5 shadow-sm dark:bg-canvas-card">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Total Monthly Base Outflow
           </span>
@@ -178,7 +188,7 @@ export default function MonthlyBaseClient({
             {formatCurrency(kpis.totalOutflow, baseCurrency)}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+        <div className="rounded-2xl border border-[var(--table-border)] bg-white p-5 shadow-sm dark:bg-canvas-card">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Wealth Building
           </span>
@@ -189,7 +199,7 @@ export default function MonthlyBaseClient({
             {kpis.wealthBuildingPercent}% of total · Debt Servicing + SIPs
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+        <div className="rounded-2xl border border-[var(--table-border)] bg-white p-5 shadow-sm dark:bg-canvas-card">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Fixed Living &amp; Overhead
           </span>
@@ -200,7 +210,7 @@ export default function MonthlyBaseClient({
         </div>
       </div>
 
-      {/* Header + Manage Categories */}
+      {/* Header + Manage Categories — unchanged, sits above the table */}
       <div className="rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <h1 className="text-base font-bold text-slate-900 dark:text-white">Monthly Base</h1>
@@ -222,231 +232,299 @@ export default function MonthlyBaseClient({
         )}
       </div>
 
-      {/* Auto-linked, read-only sections */}
-      <AutoSection
-        title="Investments & SIPs"
-        icon={TrendingUp}
-        rows={payload.sipRows}
-        baseCurrency={baseCurrency}
-        isOpen={isOpen("sip")}
-        onToggle={() => toggleSection("sip")}
-        emptyLabel="No active SIPs yet — set a monthly SIP amount on a Mutual Fund asset to see it here."
-        testId="sip-section"
-      />
-      <AutoSection
-        title="Debt & Loan Obligations"
-        icon={Landmark}
-        rows={payload.debtRows}
-        baseCurrency={baseCurrency}
-        isOpen={isOpen("debt")}
-        onToggle={() => toggleSection("debt")}
-        emptyLabel="No loan EMIs yet — set an EMI amount on a Liability to see it here."
-        testId="debt-section"
-      />
-
-      {/* General Recurring Expenses */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-white">General Recurring Expenses</h2>
-        {categories.map((c) => {
-          const categoryRows = rows.filter((r) => r.categoryId === c.id);
-          const subtotal = categoryRows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
-          const open = isOpen(c.id);
-          return (
-            <div
-              key={c.id}
-              className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card"
+      {/* One continuous table: section-divider rows separate Investments &
+          SIPs, Debt & Loan Obligations, then each general category — same
+          collapse/expand interaction as the old cards, restyled as table
+          rows. Kept SIP/Debt as two separate dividers rather than merging
+          them into one "Auto-Synced Commitments" row (per the mockup) so
+          the existing sip-section-toggle/debt-section-toggle test ids and
+          independent collapse state carry over unchanged. */}
+      <div className="overflow-hidden rounded-lg border-2 border-[var(--table-border)] bg-white shadow-sm dark:bg-canvas-card">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <thead>
+            <tr
+              style={{ backgroundColor: "var(--table-header-bg)", color: "var(--table-header-text)" }}
+              className="text-left text-xs font-bold uppercase tracking-wider"
             >
-              <button
-                type="button"
-                onClick={() => toggleSection(c.id)}
-                className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
-                aria-expanded={open}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{c.name}</span>
-                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/5 dark:text-slate-400">
-                    {categoryRows.length}
-                  </span>
-                </span>
-                <span className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
-                    {formatCurrency(subtotal, baseCurrency)}
-                  </span>
-                  <ChevronRight
-                    size={16}
-                    className={`text-slate-400 transition-transform dark:text-slate-500 ${open ? "rotate-90" : ""}`}
-                  />
-                </span>
-              </button>
+              <th className="w-[26%] px-4 py-3">Commitment/Expense</th>
+              <th className="w-[18%] px-4 py-3">Category</th>
+              <th className="w-[14%] px-4 py-3">Source/Sync</th>
+              <th className="w-[14%] px-4 py-3">Schedule</th>
+              <th className="w-[14%] px-4 py-3 text-right">Base</th>
+              <th className="w-[14%] px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <SectionDividerRow
+              icon={TrendingUp}
+              title="Investments & SIPs"
+              count={payload.sipRows.length}
+              subtotal={sipSubtotal}
+              baseCurrency={baseCurrency}
+              isOpen={isOpen("sip")}
+              onToggle={() => toggleSection("sip")}
+              testId="sip-section-toggle"
+            />
+            {isOpen("sip") &&
+              (payload.sipRows.length === 0 ? (
+                <EmptyRow label="No active SIPs yet — set a monthly SIP amount on a Mutual Fund asset to see it here." />
+              ) : (
+                payload.sipRows.map((row) => (
+                  <AutoTableRow key={row.id} row={row} baseCurrency={baseCurrency} prefix="sip-section" />
+                ))
+              ))}
 
-              {open && (
-                <div className="border-t border-slate-200/80 dark:border-slate-800">
-                  {categoryRows.length > 0 && (
-                    <table className="w-full table-fixed text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 text-left text-slate-500 dark:bg-white/5 dark:text-slate-400">
-                          <th className="w-[70%] px-4 py-2 font-medium">Name</th>
-                          <th className="px-2 py-2 text-right font-medium">Amount</th>
-                          <th className="w-16 px-4 py-2" />
+            <SectionDividerRow
+              icon={Landmark}
+              title="Debt & Loan Obligations"
+              count={payload.debtRows.length}
+              subtotal={debtSubtotal}
+              baseCurrency={baseCurrency}
+              isOpen={isOpen("debt")}
+              onToggle={() => toggleSection("debt")}
+              testId="debt-section-toggle"
+            />
+            {isOpen("debt") &&
+              (payload.debtRows.length === 0 ? (
+                <EmptyRow label="No loan EMIs yet — set an EMI amount on a Liability to see it here." />
+              ) : (
+                payload.debtRows.map((row) => (
+                  <AutoTableRow key={row.id} row={row} baseCurrency={baseCurrency} prefix="debt-section" />
+                ))
+              ))}
+
+            {categories.map((c) => {
+              const categoryRows = rows.filter((r) => r.categoryId === c.id);
+              const subtotal = categoryRows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
+              const open = isOpen(c.id);
+              return (
+                <Fragment key={c.id}>
+                  <SectionDividerRow
+                    key={`${c.id}-divider`}
+                    title={c.name}
+                    count={categoryRows.length}
+                    subtotal={subtotal}
+                    baseCurrency={baseCurrency}
+                    isOpen={open}
+                    onToggle={() => toggleSection(c.id)}
+                  />
+                  {open &&
+                    (categoryRows.length === 0 ? (
+                      <EmptyRow key={`${c.id}-empty`} label="No line items yet." />
+                    ) : (
+                      categoryRows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="group border-t border-[var(--table-border)] hover:bg-[var(--table-hover-bg)]"
+                        >
+                          <td className="p-0">
+                            <input
+                              ref={(el) => {
+                                nameInputRefs.current[row.id] = el;
+                              }}
+                              defaultValue={row.name}
+                              placeholder="Expense description…"
+                              onBlur={(e) => handleNameBlur(row.id, e.target.value)}
+                              className="w-full border-0 bg-transparent px-4 py-2 text-slate-900 dark:text-white focus:outline-2 focus:outline-[var(--table-primary)]"
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{c.name}</td>
+                          <td className="px-4 py-2 text-slate-400 dark:text-slate-500">Manual Entry</td>
+                          <td className="px-4 py-2 text-slate-400 dark:text-slate-500">—</td>
+                          <td className="p-0">
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.baseAmount}
+                              onChange={(e) => handleBaseChange(row.id, e.target.value)}
+                              onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
+                              className="w-full border-0 bg-transparent px-2 py-2 text-right font-mono text-slate-900 [font-variant-numeric:tabular-nums] focus:outline-2 focus:outline-[var(--table-primary)] dark:text-white"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+                              <button
+                                type="button"
+                                onClick={() => nameInputRefs.current[row.id]?.focus()}
+                                aria-label="Edit"
+                                className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(row.id)}
+                                aria-label="Delete"
+                                className="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {categoryRows.map((row) => (
-                          <tr key={row.id} className="group border-t border-slate-100 dark:border-slate-800/60">
-                            <td className="p-0">
-                              <input
-                                ref={(el) => {
-                                  nameInputRefs.current[row.id] = el;
-                                }}
-                                defaultValue={row.name}
-                                placeholder="Expense description…"
-                                onBlur={(e) => handleNameBlur(row.id, e.target.value)}
-                                className="w-full border-0 bg-transparent px-4 py-2 text-slate-900 dark:text-white focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                              />
-                            </td>
-                            <td className="p-0">
-                              <input
-                                type="number"
-                                step="any"
-                                value={row.baseAmount}
-                                onChange={(e) => handleBaseChange(row.id, e.target.value)}
-                                onBlur={(e) => handleBaseBlur(row.id, e.target.value)}
-                                className="w-full border-0 bg-transparent px-2 py-2 text-right text-slate-900 dark:text-white [font-variant-numeric:tabular-nums] focus:bg-slate-50 dark:focus:bg-white/5 focus:outline-none"
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
-                                <button
-                                  type="button"
-                                  onClick={() => nameInputRefs.current[row.id]?.focus()}
-                                  aria-label="Edit"
-                                  className="text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(row.id)}
-                                  aria-label="Delete"
-                                  className="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                      ))
+                    ))}
+                  {open && (
+                    <tr key={`${c.id}-add`} className="border-t border-[var(--table-border)]">
+                      <td colSpan={6} className="px-4 py-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAddRow(c.id)}
+                          className="focus-ring text-sm font-medium text-blue-600 hover:underline dark:text-lime-400"
+                        >
+                          + Add Line Item
+                        </button>
+                      </td>
+                    </tr>
                   )}
-                  {categoryRows.length === 0 && (
-                    <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No line items yet.</p>
-                  )}
-                  <div className="border-t border-slate-100 px-4 py-2 dark:border-slate-800/60">
-                    <button
-                      type="button"
-                      onClick={() => handleAddRow(c.id)}
-                      className="focus-ring text-sm font-medium text-blue-600 hover:underline dark:text-lime-400"
-                    >
-                      + Add Line Item
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                </Fragment>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr
+              style={{ backgroundColor: "var(--table-footer-bg)", color: "var(--table-footer-text)" }}
+              className="text-sm font-semibold"
+            >
+              <td className="px-4 py-3" colSpan={4}>
+                Total Base Outflow
+              </td>
+              <td className="px-4 py-3 text-right font-mono [font-variant-numeric:tabular-nums]">
+                {formatCurrency(kpis.totalOutflow, baseCurrency)}
+              </td>
+              <td className="px-4 py-3" />
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );
 }
 
-// Read-only collapsible section for the auto-linked Debt/SIP rows — no
-// edit/delete controls, these are sourced from Liabilities/Assets and can
-// only be changed there.
-function AutoSection({
-  title,
+// Section-divider row — replaces the old AutoSection/card header buttons.
+// Clicking it hides/shows the rows underneath, same interaction as before,
+// just a table row instead of a card. `role="button"` + `aria-expanded` +
+// keyboard activation make it behave like the <button> it replaces.
+function SectionDividerRow({
   icon: Icon,
-  rows,
+  title,
+  count,
+  subtotal,
   baseCurrency,
   isOpen,
   onToggle,
-  emptyLabel,
   testId,
 }: {
+  icon?: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  rows: MonthlyBaseAutoRowDTO[];
+  count: number;
+  subtotal: number;
   baseCurrency: string;
   isOpen: boolean;
   onToggle: () => void;
-  emptyLabel: string;
-  testId: string;
+  testId?: string;
 }) {
-  const subtotal = rows.reduce((sum, r) => sum + (Number(r.baseAmount) || 0), 0);
-
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-canvas-card">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="focus-ring flex w-full items-center justify-between px-4 py-3 text-left"
-        aria-expanded={isOpen}
-        data-testid={`${testId}-toggle`}
-      >
-        <span className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 dark:border-lime-400/20 dark:bg-lime-400/10 dark:text-lime-400">
-            <Icon size={16} />
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">{title}</span>
-            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-white/5 dark:text-slate-400">
-              {rows.length}
+    <tr
+      role="button"
+      tabIndex={0}
+      aria-expanded={isOpen}
+      data-testid={testId}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className="cursor-pointer"
+      style={{ backgroundColor: "var(--table-divider-bg)", color: "var(--table-divider-text)" }}
+    >
+      <td colSpan={6} className="px-4 py-2">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+            {Icon && <Icon size={14} className="shrink-0" />}
+            {title}
+            <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-medium dark:bg-white/10">
+              {count}
             </span>
           </span>
-        </span>
-        <span className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
-            {formatCurrency(subtotal, baseCurrency)}
+          <span className="flex items-center gap-3">
+            <span className="font-mono text-xs font-bold [font-variant-numeric:tabular-nums]">
+              {formatCurrency(subtotal, baseCurrency)}
+            </span>
+            <ChevronRight size={14} className={`shrink-0 transition-transform ${isOpen ? "rotate-90" : ""}`} />
           </span>
-          <ChevronRight
-            size={16}
-            className={`text-slate-400 transition-transform dark:text-slate-500 ${isOpen ? "rotate-90" : ""}`}
-          />
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="border-t border-slate-200/80 dark:border-slate-800">
-          {rows.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">{emptyLabel}</p>
-          ) : (
-            rows.map((row) => (
-              <div
-                key={row.id}
-                data-testid={`${testId}-row-${row.id}`}
-                className="flex items-center justify-between border-t border-slate-100 px-4 py-3 first:border-t-0 dark:border-slate-800/60"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">{row.name}</p>
-                  {row.subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{row.subtitle}</p>}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    data-testid={`${testId}-row-badge-${row.id}`}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${linkedBadgeTone(row.kind)}`}
-                  >
-                    {row.kind === "SIP" ? "Active SIP" : "EMI"}
-                  </span>
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white [font-variant-numeric:tabular-nums]">
-                    {formatCurrency(row.baseAmount, baseCurrency)}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
         </div>
-      )}
-    </div>
+      </td>
+    </tr>
+  );
+}
+
+// Read-only row for an auto-linked Debt/SIP line — no edit/delete controls,
+// these are sourced from Liabilities/Assets and can only be changed there.
+// `prefix` reproduces the old AutoSection's data-testid contract exactly
+// ("sip-section"/"debt-section") so the existing Playwright suite keeps
+// matching sip-section-row-<id> / sip-section-row-badge-<id> unchanged.
+function AutoTableRow({
+  row,
+  baseCurrency,
+  prefix,
+}: {
+  row: MonthlyBaseAutoRowDTO;
+  baseCurrency: string;
+  prefix: "sip-section" | "debt-section";
+}) {
+  const isSip = row.kind === "SIP";
+  const sourceHref = isSip ? "/assets" : "/liabilities";
+  const sourceLabel = isSip ? "Assets ↗" : "Liabilities ↗";
+
+  return (
+    <tr
+      data-testid={`${prefix}-row-${row.id}`}
+      className="border-t border-[var(--table-border)] hover:bg-[var(--table-hover-bg)]"
+    >
+      <td className="px-4 py-2 text-slate-900 dark:text-white">
+        {row.name}
+        {row.subtitle && <span className="block text-xs text-slate-400 dark:text-slate-500">{row.subtitle}</span>}
+      </td>
+      <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
+        {isSip ? "Investments & SIPs" : "Debt & Loan Obligations"}
+      </td>
+      <td className="px-4 py-2">
+        {row.sourceId ? (
+          <Link href={sourceHref} className="text-blue-600 hover:underline dark:text-lime-400">
+            {sourceLabel}
+          </Link>
+        ) : (
+          <span className="text-slate-400 dark:text-slate-500">—</span>
+        )}
+      </td>
+      <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
+        {row.dueDay ? `${ordinal(row.dueDay)} of Month` : "—"}
+      </td>
+      <td className="px-4 py-2 text-right font-mono text-slate-900 [font-variant-numeric:tabular-nums] dark:text-white">
+        {formatCurrency(row.baseAmount, baseCurrency)}
+      </td>
+      <td className="px-4 py-2">
+        <span
+          data-testid={`${prefix}-row-badge-${row.id}`}
+          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${linkedBadgeTone(row.kind)}`}
+        >
+          {isSip ? "Active SIP" : "EMI"}
+        </span>
+        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">Synced</span>
+      </td>
+    </tr>
+  );
+}
+
+function EmptyRow({ label }: { label: string }) {
+  return (
+    <tr className="border-t border-[var(--table-border)]">
+      <td colSpan={6} className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+        {label}
+      </td>
+    </tr>
   );
 }
