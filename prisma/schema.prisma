@@ -86,6 +86,8 @@ model FamilyMember {
   dateOfBirth         DateTime?
   city                String?    // required for the "Self" member (the subscriber), optional for others
   address             String?    // required for the "Self" member (the subscriber), optional for others
+  state               String?    // required for the "Self" member, optional for others
+  postalCode          String?    // required for the "Self" member, optional for others
   isMinor             Boolean    @default(false)
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
