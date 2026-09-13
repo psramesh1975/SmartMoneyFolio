@@ -4,16 +4,25 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import SolvencyKPIRow from "@/components/SolvencyKPIRow";
 import UpcomingDebitsCard from "@/components/dashboard/UpcomingDebitsCard";
-import GoalVelocityCard from "@/components/dashboard/GoalVelocityCard";
 import EmergencyRunwayCard from "@/components/dashboard/EmergencyRunwayCard";
+import AssetDistributionDonut from "@/components/dashboard/AssetDistributionDonut";
+import GoalsProgressChart from "@/components/dashboard/GoalsProgressChart";
+import LiabilitiesDonut from "@/components/dashboard/LiabilitiesDonut";
+import IncomeOutflowTrendChart from "@/components/dashboard/IncomeOutflowTrendChart";
+import MemberAllocationStackedBar from "@/components/dashboard/MemberAllocationStackedBar";
+import CategoryBreakupDonut from "@/components/breakdown/CategoryBreakupDonut";
 import { assetClassLabel } from "@/lib/asset-classes";
 import { formatDashboardAmount } from "@/lib/dashboard-format";
+import { MACRO_ALLOCATION_GROUPS } from "@/lib/dashboard-macro-groups";
+import { getCurrentPeriod } from "@/lib/monthly-periods";
+import { getMonthBreakdown } from "@/lib/monthly-breakdown";
 import {
   getDashboardHeadlineKPIs,
   getUpcomingAutoDebits,
-  getPrimaryGoal,
+  getAllGoalsProgress,
+  getLiabilitiesByType,
+  getIncomeOutflowTrend,
   getCurrentMonthLabel,
-  getMonthlySipTotal,
 } from "@/lib/dashboard-data";
 
 // Pure decoration — cycles a small fixed palette per card index so family
@@ -28,32 +37,6 @@ const avatarPalette = [
   { bg: "bg-amber-100 dark:bg-amber-500/10", text: "text-amber-700 dark:text-amber-400", pill: "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400", bar: "bg-amber-500" },
 ];
 
-// Macro Allocation's exact 4 buckets + colors, per the approved mockup —
-// deliberately a THIRD asset categorization (distinct from
-// lib/asset-classes.ts's ASSET_GROUPS, still used by AssetsClient.tsx's own
-// grouped view on /assets, and lib/asset-categories.ts's 7-category /assets
-// accordion, final per the Phase 9 spec). "Other" isn't in the mockup — it's
-// a fallback for classes the mockup's 4 buckets don't name (SGB, Gold,
-// Retirement, Insurance, Government Scheme, Real Estate, Crypto), so a
-// household holding any of those doesn't have its total silently undercount
-// what these 4 segments + legend show.
-const MACRO_ALLOCATION_GROUPS: { label: string; classes: string[]; color: string }[] = [
-  { label: "Fixed Deposits", classes: ["FIXED_DEPOSIT"], color: "bg-purple-600" },
-  { label: "Equities & Stocks", classes: ["STOCKS"], color: "bg-blue-600" },
-  { label: "Mutual Funds", classes: ["MUTUAL_FUNDS"], color: "bg-pink-500" },
-  { label: "Liquid Cash & Bonds", classes: ["CASH", "BONDS"], color: "bg-amber-500" },
-  {
-    label: "Other",
-    classes: ["SGB", "GOLD", "RETIREMENT_SAVINGS", "INSURANCE_LINKED", "GOVERNMENT_SCHEME", "REAL_ESTATE", "CRYPTOCURRENCY", "OTHER"],
-    color: "bg-slate-400",
-  },
-];
-
-function formatMacroPercent(pct: number): string {
-  if (pct > 0 && pct < 0.1) return "<0.1%";
-  return `${pct.toFixed(1)}%`;
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -67,7 +50,7 @@ export default async function DashboardPage({
 
   const { member: memberParam } = await searchParams;
 
-  const [household, headlineKpisAll, currentMonthLabel, monthlySipTotal] = await Promise.all([
+  const [household, headlineKpisAll, currentMonthLabel, allGoalsProgress, incomeOutflowTrend] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       include: {
@@ -79,7 +62,8 @@ export default async function DashboardPage({
     }),
     getDashboardHeadlineKPIs(session.householdId),
     getCurrentMonthLabel(session.householdId),
-    getMonthlySipTotal(session.householdId),
+    getAllGoalsProgress(session.householdId), // household-wide — Goal has no familyMemberId
+    getIncomeOutflowTrend(session.householdId), // household-wide — Monthly Tracking entries have no familyMemberId
   ]);
 
   if (!household) redirect("/login");
@@ -94,10 +78,17 @@ export default async function DashboardPage({
   const selectedMember = memberParam ? household.familyMembers.find((m) => m.id === memberParam) : undefined;
   const selectedMemberId = selectedMember?.id;
 
-  const [headlineKpis, primaryGoal, upcomingDebitsAll] = await Promise.all([
+  // Current-month category spend, reusing the exact getMonthBreakdown() +
+  // CategoryBreakupDonut combo already proven on the Monthly Tracker
+  // breakdown panel. household.timeZone is already on hand from the fetch
+  // above, so this doesn't need its own getHouseholdTimeZone() round trip.
+  const { year: currentYear, month: currentMonth } = getCurrentPeriod(household.timeZone);
+
+  const [headlineKpis, liabilitiesByType, upcomingDebitsAll, monthBreakdown] = await Promise.all([
     selectedMemberId ? getDashboardHeadlineKPIs(session.householdId, selectedMemberId) : Promise.resolve(headlineKpisAll),
-    getPrimaryGoal(session.householdId),
+    getLiabilitiesByType(session.householdId, selectedMemberId),
     getUpcomingAutoDebits(session.householdId, 15, selectedMemberId),
+    getMonthBreakdown(session.householdId, currentYear, currentMonth, { periodKind: "current" }),
   ]);
   const upcomingDebits = upcomingDebitsAll;
 
@@ -213,7 +204,19 @@ export default async function DashboardPage({
           )}
         </div>
 
-        {/* 2. Workspace (left, 8/12) + Operational Context Rail (right, 4/12) */}
+        {/* 2. Income vs Outflow — full-width, household-wide trend that
+            doesn't belong to either column below */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Income vs. Outflow (Last 6 Months)
+            </h3>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Household-wide</span>
+          </div>
+          <IncomeOutflowTrendChart trend={incomeOutflowTrend} baseCurrency={baseCurrency} />
+        </div>
+
+        {/* 3. Workspace (left, 8/12) + Operational Context Rail (right, 4/12) */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-8">
             {/* By family member — bento grid, wrapped in one outer card per the mockup */}
@@ -229,6 +232,8 @@ export default async function DashboardPage({
                   Manage assets →
                 </Link>
               </div>
+
+              <MemberAllocationStackedBar memberBreakdowns={visibleMemberBreakdowns} baseCurrency={baseCurrency} />
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {visibleMemberBreakdowns.map((m) => {
@@ -313,38 +318,38 @@ export default async function DashboardPage({
                 <span className="text-xs text-slate-500 dark:text-slate-400">Target vs. Actual</span>
               </div>
 
-              {macroGroups.length === 0 ? (
-                <p className="text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
-              ) : (
-                <>
-                  <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
-                    {macroGroups.map((g) => (
-                      <div
-                        key={g.label}
-                        className={g.color}
-                        style={{ width: `${(g.total / macroTotal) * 100}%` }}
-                        title={`${g.label}: ${formatMacroPercent((g.total / macroTotal) * 100)}`}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-4 pt-1 text-xs font-semibold">
-                    {macroGroups.map((g) => (
-                      <span key={g.label} className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                        <span className={`h-2.5 w-2.5 rounded-full ${g.color}`} />
-                        {g.label}: {formatDashboardAmount(g.total, baseCurrency)} (
-                        {formatMacroPercent((g.total / macroTotal) * 100)})
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
+              <AssetDistributionDonut macroGroups={macroGroups} macroTotal={macroTotal} baseCurrency={baseCurrency} />
+            </div>
+
+            {/* Debt Composition — new, doesn't replace anything existing */}
+            <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  Debt Composition
+                </h3>
+                <span className="text-xs text-slate-500 dark:text-slate-400">By liability type</span>
+              </div>
+
+              <LiabilitiesDonut breakdown={liabilitiesByType} baseCurrency={baseCurrency} />
             </div>
           </div>
 
           {/* Operational Context Rail */}
           <div className="space-y-6 lg:col-span-4">
             <UpcomingDebitsCard debits={upcomingDebits} baseCurrency={baseCurrency} currentMonthLabel={currentMonthLabel} />
-            <GoalVelocityCard goal={primaryGoal} monthlySipTotal={monthlySipTotal} householdWideNote={Boolean(selectedMember)} />
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+              <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                Category Spend ({currentMonthLabel})
+              </h4>
+              <CategoryBreakupDonut
+                categoryBreakup={monthBreakdown.categoryBreakup}
+                totalSpend={monthBreakdown.totalSpend}
+                currency={baseCurrency}
+              />
+            </div>
+
+            <GoalsProgressChart goals={allGoalsProgress} householdWideNote={Boolean(selectedMember)} />
             <EmergencyRunwayCard financialRunway={headlineKpis.financialRunway} householdWideNote={Boolean(selectedMember)} />
           </div>
         </div>

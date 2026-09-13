@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getHouseholdTimeZone } from "@/lib/monthly-data";
 import { computeMonthlySummary, type MonthlySummaryInput } from "@/lib/monthly-summary";
-import { getCurrentPeriod, getPreviousPeriod, MONTH_LABELS, type Period } from "@/lib/monthly-periods";
+import { getCurrentPeriod, getPreviousPeriod, MONTH_LABELS, MONTH_LABELS_SHORT, type Period } from "@/lib/monthly-periods";
 
 export type DashboardCashFlow = {
   currentMonthLabel: string; // e.g. "March 2026"
@@ -584,4 +584,164 @@ export async function getMonthlySipTotal(householdId: string): Promise<number> {
   });
 
   return accounts.reduce((sum, a) => sum + Number(a.sipMonthlyAmount), 0);
+}
+
+export type GoalProgress = {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  currency: string;
+  pct: number; // 0-100, clamped
+  targetReached: boolean;
+  onTrack: boolean; // same projection logic as GoalVelocityCard's existing onTrack calc
+};
+
+// Powers the dashboard's Goals Progress chart — every goal, not just the
+// single "biggest target" one getPrimaryGoal() picks (getPrimaryGoal() stays
+// in place for whatever else still calls it). Same on-track projection math
+// as GoalVelocityCard.projectCompletion: the household's total active SIP
+// pace is the only pace signal available, since SIPs aren't scoped to a
+// specific goal in the schema.
+export async function getAllGoalsProgress(householdId: string): Promise<GoalProgress[]> {
+  const [goals, monthlySipTotal] = await Promise.all([
+    prisma.goal.findMany({ where: { householdId }, orderBy: { targetAmount: "desc" } }),
+    getMonthlySipTotal(householdId),
+  ]);
+
+  const now = new Date();
+  return goals.map((goal) => {
+    const targetAmount = Number(goal.targetAmount);
+    const currentAmount = Number(goal.currentAmount);
+    const remaining = Math.max(0, targetAmount - currentAmount);
+    const pct = Math.min(100, Math.round((currentAmount / (targetAmount || 1)) * 1000) / 10);
+    const targetReached = remaining <= 0;
+
+    let onTrack = targetReached || !goal.targetDate;
+    if (!targetReached && goal.targetDate && monthlySipTotal > 0 && remaining > 0) {
+      const monthsNeeded = Math.ceil(remaining / monthlySipTotal);
+      const projected = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthsNeeded, 1));
+      onTrack = projected.getTime() <= goal.targetDate.getTime();
+    }
+
+    return {
+      id: goal.id,
+      name: goal.name,
+      targetAmount,
+      currentAmount,
+      currency: goal.currency,
+      pct,
+      targetReached,
+      onTrack,
+    };
+  });
+}
+
+export type LiabilityTypeBreakdown = {
+  liabilityType: string;
+  total: number;
+}[];
+
+// Powers the dashboard's Debt Composition donut. Base-currency-only, same
+// no-FX-conversion convention as getSolvencySnapshot() and everywhere else
+// on this dashboard — an outstanding balance in another currency isn't
+// converted, just left out of this total.
+export async function getLiabilitiesByType(
+  householdId: string,
+  familyMemberId?: string
+): Promise<LiabilityTypeBreakdown> {
+  const household = await prisma.household.findUnique({
+    where: { id: householdId },
+    select: { baseCurrency: true },
+  });
+  if (!household) return [];
+
+  const liabilities = await prisma.liability.findMany({
+    where: {
+      householdId,
+      currency: household.baseCurrency,
+      ...(familyMemberId ? { familyMemberId } : {}),
+    },
+    select: { liabilityType: true, outstandingBalance: true },
+  });
+
+  const byType = new Map<string, number>();
+  for (const l of liabilities) {
+    byType.set(l.liabilityType, (byType.get(l.liabilityType) ?? 0) + Number(l.outstandingBalance));
+  }
+
+  return [...byType.entries()]
+    .map(([liabilityType, total]) => ({ liabilityType, total }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+export type MonthlyTrendPoint = {
+  year: number;
+  month: number; // 1-12
+  label: string; // e.g. "Apr 2026"
+  income: number;
+  outflow: number;
+  netSurplus: number;
+};
+
+// Powers the dashboard's Income vs Outflow trend chart — last `monthsBack`
+// calendar months, ending at the current one. Months with no MonthlyEntry
+// rows yet (e.g. an "Earlier Months" period nobody has ever opened) simply
+// come back as zero, not omitted, so the chart's x-axis stays a continuous
+// timeline instead of silently skipping gaps.
+export async function getIncomeOutflowTrend(
+  householdId: string,
+  monthsBack = 6
+): Promise<MonthlyTrendPoint[]> {
+  const timeZone = await getHouseholdTimeZone(householdId);
+  const { year: curYear, month: curMonth } = getCurrentPeriod(timeZone);
+
+  const periods: { year: number; month: number }[] = [];
+  let y = curYear;
+  let m = curMonth;
+  for (let i = 0; i < monthsBack; i++) {
+    periods.unshift({ year: y, month: m });
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+  }
+
+  const [categories, entries] = await Promise.all([
+    prisma.monthlyCategory.findMany({ where: { householdId }, select: { id: true, type: true } }),
+    prisma.monthlyEntry.findMany({
+      where: {
+        householdId,
+        OR: periods.map((p) => ({ year: p.year, month: p.month })),
+        isSkipped: false,
+      },
+      select: { categoryId: true, year: true, month: true, plannedAmount: true, actualAmount: true },
+    }),
+  ]);
+
+  const categoryType = new Map(categories.map((c) => [c.id, c.type]));
+  // Same "actual falls back to planned" convention as lib/monthly-breakdown.ts's actualFor()
+  const actualFor = (e: { plannedAmount: unknown; actualAmount: unknown }) =>
+    e.actualAmount == null ? Number(e.plannedAmount) : Number(e.actualAmount);
+
+  return periods.map(({ year, month }) => {
+    const monthEntries = entries.filter((e) => e.year === year && e.month === month);
+    let income = 0;
+    let outflow = 0;
+    for (const e of monthEntries) {
+      const amount = actualFor(e);
+      if (categoryType.get(e.categoryId) === "INCOME") income += amount;
+      else outflow += amount;
+    }
+    return {
+      year,
+      month,
+      label: `${MONTH_LABELS_SHORT[month - 1]} ${year}`,
+      income,
+      outflow,
+      netSurplus: income - outflow,
+    };
+  });
 }
