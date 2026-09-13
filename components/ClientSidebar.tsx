@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Landmark, CreditCard, CalendarDays, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, Target, Landmark, CreditCard, CalendarDays, ChevronDown, Settings as SettingsIcon } from "lucide-react";
 import { useMobileNav } from "@/components/MobileNavContext";
 import FutureMonthsSection, { type DraftMonth } from "@/components/FutureMonthsSection";
 import AddDraftMonthModal from "@/components/AddDraftMonthModal";
@@ -51,6 +51,41 @@ export default function ClientSidebar({
   const pathname = usePathname(); // still needed for per-link active highlighting
   const { isOpen, close } = useMobileNav();
   const [showAddMonthModal, setShowAddMonthModal] = useState(false);
+
+  const MONTHLY_TRACKING_STORAGE_KEY = "monthlyTrackingExpanded";
+
+  // Collapsed by default. Expanded once, automatically, the first time the
+  // household lands on a Monthly Tracking route — after that, the toggle is
+  // a free, persisted user choice with no route-based override (Phase 9.1:
+  // forcing it open while "on" a monthly route made manual collapse feel
+  // broken, since it silently re-opened on the next monthly page visit).
+  const isOnMonthlyRoute = pathname.startsWith("/monthly/") || pathname.startsWith("/tracking/");
+  const [monthlyExpanded, setMonthlyExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = window.localStorage.getItem(MONTHLY_TRACKING_STORAGE_KEY);
+    if (stored !== null) return stored === "true";
+    // No stored preference yet: expand on first arrival if already on a
+    // monthly route (e.g. a bookmarked link or page refresh), otherwise
+    // start collapsed.
+    return isOnMonthlyRoute;
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(MONTHLY_TRACKING_STORAGE_KEY, String(monthlyExpanded));
+  }, [monthlyExpanded]);
+
+  // One-time auto-expand on arrival: if the household navigates to a monthly
+  // route while the group is collapsed and there's no explicit stored
+  // preference yet, open it once. Never force it open on every monthly page
+  // visit — that's the exact bug being fixed here.
+  const hasStoredPreference =
+    typeof window !== "undefined" && window.localStorage.getItem(MONTHLY_TRACKING_STORAGE_KEY) !== null;
+  useEffect(() => {
+    if (isOnMonthlyRoute && !monthlyExpanded && !hasStoredPreference) {
+      setMonthlyExpanded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const futureMonthItems: DraftMonth[] = draftMonths.map((d) => {
     const href = `/tracking/${d.year}/${MONTH_LABELS[d.month - 1].toLowerCase()}`;
@@ -121,63 +156,70 @@ export default function ClientSidebar({
             Liabilities &amp; Loans
           </Link>
 
-          {/* Static uppercase section label — replaces the old expand/
-              collapse button. Every row underneath is always visible now;
-              Future Months keeps its own independent collapse (it's a
-              genuinely long, growable list), but the group itself no longer
-              needs one on top of that. */}
-          <div className="mt-4 flex items-center gap-2 px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            <CalendarDays size={12} className="shrink-0" />
-            Monthly Tracking
-          </div>
+          <button
+            onClick={() => setMonthlyExpanded((prev) => !prev)}
+            className="mt-4 flex w-full items-center justify-between gap-2 px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+            aria-expanded={monthlyExpanded}
+          >
+            <span className="flex items-center gap-2">
+              <CalendarDays size={12} className="shrink-0" />
+              Monthly Tracking
+            </span>
+            <ChevronDown
+              size={14}
+              className={`shrink-0 transition-transform ${monthlyExpanded ? "rotate-180" : ""}`}
+            />
+          </button>
 
-          <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
-            <Link href="/monthly/base" className={linkClass("/monthly/base")} onClick={onNavigate}>
-              Monthly Base
-            </Link>
-            <Link
-              href="/monthly/previous"
-              className={`${linkClass("/monthly/previous")} flex items-center justify-between`}
-              onClick={onNavigate}
-            >
-              {/* "Previous"/"Next" rather than "Previous Month"/"Next Month" —
-                  MONTHLY TRACKING already establishes the context above, and
-                  the full wording didn't leave room for the trailing month
-                  label without wrapping even at the sidebar's current
-                  256px (bumped from 208px after it still read as cramped). */}
-              <span>Previous</span>
-              <span className="text-xs opacity-70">{previousLabel}</span>
-            </Link>
-            {/* Current Month follows Future Months' own label+pill shape
-                (month on the left, status on the right) instead of
-                "Current Month" + a same-word pill, which said "Current"
-                twice. */}
-            <Link href="/monthly/current" className={currentMonthClass} onClick={onNavigate}>
-              <span>{currentLabel}</span>
-              <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-bold text-slate-900">Current</span>
-            </Link>
-            <Link
-              href="/monthly/next"
-              className={`${linkClass("/monthly/next")} flex items-center justify-between`}
-              onClick={onNavigate}
-            >
-              <span>Next</span>
-              <span className="text-xs opacity-70">{nextLabel}</span>
-            </Link>
-            <FutureMonthsSection draftMonths={futureMonthItems} onAddMonth={() => setShowAddMonthModal(true)} />
-            {/* Earlier Months/Years: the range label ("Jan – Jul 2026",
-                "2023 – 2025") runs too long to sit on the same line as the
-                label at this width — stacked underneath instead, same
-                pattern as the brand block's name + household subtitle. */}
-            <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")} onClick={onNavigate}>
-              <span className="block">Earlier Months</span>
-              {earlierMonthsRangeLabel && <span className="block text-xs opacity-70">{earlierMonthsRangeLabel}</span>}
-            </Link>
-            <Link href="/monthly/years" className={linkClass("/monthly/years")} onClick={onNavigate}>
-              <span className="block">Earlier Years</span>
-              {earlierYearsRangeLabel && <span className="block text-xs opacity-70">{earlierYearsRangeLabel}</span>}
-            </Link>
-          </div>
+          {monthlyExpanded && (
+            <div className="ml-4 space-y-1 border-l border-white/10 pl-3">
+              <Link href="/monthly/base" className={linkClass("/monthly/base")} onClick={onNavigate}>
+                Monthly Base
+              </Link>
+              <Link
+                href="/monthly/previous"
+                className={`${linkClass("/monthly/previous")} flex items-center justify-between`}
+                onClick={onNavigate}
+              >
+                {/* "Previous"/"Next" rather than "Previous Month"/"Next Month" —
+                    MONTHLY TRACKING already establishes the context above, and
+                    the full wording didn't leave room for the trailing month
+                    label without wrapping even at the sidebar's current
+                    256px (bumped from 208px after it still read as cramped). */}
+                <span>Previous</span>
+                <span className="text-xs opacity-70">{previousLabel}</span>
+              </Link>
+              {/* Current Month follows Future Months' own label+pill shape
+                  (month on the left, status on the right) instead of
+                  "Current Month" + a same-word pill, which said "Current"
+                  twice. */}
+              <Link href="/monthly/current" className={currentMonthClass} onClick={onNavigate}>
+                <span>{currentLabel}</span>
+                <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-bold text-slate-900">Current</span>
+              </Link>
+              <Link
+                href="/monthly/next"
+                className={`${linkClass("/monthly/next")} flex items-center justify-between`}
+                onClick={onNavigate}
+              >
+                <span>Next</span>
+                <span className="text-xs opacity-70">{nextLabel}</span>
+              </Link>
+              <FutureMonthsSection draftMonths={futureMonthItems} onAddMonth={() => setShowAddMonthModal(true)} />
+              {/* Earlier Months/Years: the range label ("Jan – Jul 2026",
+                  "2023 – 2025") runs too long to sit on the same line as the
+                  label at this width — stacked underneath instead, same
+                  pattern as the brand block's name + household subtitle. */}
+              <Link href="/monthly/earlier" className={linkClass("/monthly/earlier")} onClick={onNavigate}>
+                <span className="block">Earlier Months</span>
+                {earlierMonthsRangeLabel && <span className="block text-xs opacity-70">{earlierMonthsRangeLabel}</span>}
+              </Link>
+              <Link href="/monthly/years" className={linkClass("/monthly/years")} onClick={onNavigate}>
+                <span className="block">Earlier Years</span>
+                {earlierYearsRangeLabel && <span className="block text-xs opacity-70">{earlierYearsRangeLabel}</span>}
+              </Link>
+            </div>
+          )}
 
           {isPlatformOwner && (
             <Link href="/platform" className={`${linkClass("/platform")} mt-4`} onClick={onNavigate}>
