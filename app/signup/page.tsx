@@ -97,6 +97,22 @@ export default function SignupPage() {
     setStep(2);
   }
 
+  // Step 2's Continue button is a plain <button type="button">, not a form
+  // submit — the native `required` attribute on the DOB/City/Address inputs
+  // is never enforced without an actual form submission, so this validates
+  // the same fields explicitly before advancing. Mirrors the server-side
+  // check in app/api/auth/signup/route.ts, but surfaces immediately, on the
+  // step where the user can actually fix it, with no round trip needed.
+  function goToReview() {
+    setError(null);
+    const self = members.find((m) => m.relationship === "Self");
+    if (!self?.dateOfBirth || !self?.city?.trim() || !self?.address?.trim()) {
+      setError("Date of birth, place, and address are required for the primary account holder.");
+      return;
+    }
+    setStep(3);
+  }
+
   async function handleCreate() {
     setError(null);
     setLoading(true);
@@ -118,7 +134,11 @@ export default function SignupPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Couldn't create your household. Try again.");
-        setStep(1);
+        // Step 1 (Household) has no DOB/City/Address fields — those live on
+        // Step 2, so a rejected submission (this check duplicates the one in
+        // goToReview() server-side) needs to land the user somewhere they
+        // can actually act on the error, not the household-name screen.
+        setStep(2);
         return;
       }
       router.push("/dashboard");
@@ -278,20 +298,37 @@ export default function SignupPage() {
                       onChange={(e) => updateMember(i, { name: e.target.value })}
                       className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     />
-                    <select
-                      value={m.relationship}
-                      onChange={(e) => updateMember(i, { relationship: e.target.value })}
-                      className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
-                    >
-                      <option value="" disabled>
-                        Relationship
-                      </option>
-                      {RELATIONSHIPS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
+                    {i === 0 ? (
+                      // The first member is always the account holder — fixed
+                      // as "Self", not freely retypeable. A freely editable
+                      // relationship here could be changed away from "Self",
+                      // which would both hide the required DOB/City/Address
+                      // fields below and make the API's own selfDraft lookup
+                      // (app/api/auth/signup/route.ts) come up empty.
+                      <select
+                        value="Self"
+                        disabled
+                        aria-label="Relationship"
+                        className="border border-slate-200/80 bg-slate-100 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-white/5 dark:text-slate-400"
+                      >
+                        <option value="Self">Self</option>
+                      </select>
+                    ) : (
+                      <select
+                        value={m.relationship}
+                        onChange={(e) => updateMember(i, { relationship: e.target.value })}
+                        className="focus-ring border border-slate-200/80 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                      >
+                        <option value="" disabled>
+                          Relationship
                         </option>
-                      ))}
-                    </select>
+                        {RELATIONSHIPS.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <select
                       value={m.operationalCurrency}
                       onChange={(e) => updateMember(i, { operationalCurrency: e.target.value })}
@@ -385,7 +422,7 @@ export default function SignupPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setStep(3)}
+                onClick={goToReview}
                 className="focus-ring flex-1 bg-slate-900 px-4 py-2.5 text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 Continue
