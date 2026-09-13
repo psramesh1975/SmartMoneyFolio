@@ -14,6 +14,8 @@ const memberSchema = z.object({
   dateOfBirth: z.string().optional(),
   city: z.string().optional(),
   address: z.string().optional(),
+  state: z.string().optional(),
+  postalCode: z.string().optional(),
 });
 
 const schema = z.object({
@@ -42,9 +44,9 @@ export async function POST(req: NextRequest) {
   const normalizedEmail = email.toLowerCase();
 
   const selfDraft = members.find((m) => m.relationship.toLowerCase() === "self");
-  if (!selfDraft?.dateOfBirth || !selfDraft?.city || !selfDraft?.address) {
+  if (!selfDraft?.dateOfBirth || !selfDraft?.city || !selfDraft?.address || !selfDraft?.state || !selfDraft?.postalCode) {
     return NextResponse.json(
-      { error: "Date of birth, place, and address are required for the primary account holder." },
+      { error: "Date of birth, place, address, state, and PIN/postal code are required for the primary account holder." },
       { status: 400 }
     );
   }
@@ -91,6 +93,8 @@ export async function POST(req: NextRequest) {
         dateOfBirth: new Date(selfDraft.dateOfBirth!),
         city: selfDraft.city,
         address: selfDraft.address,
+        state: selfDraft.state,
+        postalCode: selfDraft.postalCode,
         isMinor: false,
       },
     });
