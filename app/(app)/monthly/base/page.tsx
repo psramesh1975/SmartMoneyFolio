@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getFlatBasePayload } from "@/lib/monthly-data";
 import { prisma } from "@/lib/db";
+import { getTableTheme } from "@/lib/table-themes";
 import MonthlyBaseClient from "@/components/MonthlyBaseClient";
+import TableThemeProvider from "@/components/TableThemeProvider";
+import TableThemeSwitcher from "@/components/TableThemeSwitcher";
 
 export default async function MonthlyBasePage() {
   const session = await getSession();
@@ -11,7 +14,10 @@ export default async function MonthlyBasePage() {
 
   const [payload, household] = await Promise.all([
     getFlatBasePayload(session.householdId),
-    prisma.household.findUnique({ where: { id: session.householdId }, select: { baseCurrency: true } }),
+    prisma.household.findUnique({
+      where: { id: session.householdId },
+      select: { baseCurrency: true, tableTheme: true },
+    }),
   ]);
 
   return (
@@ -20,7 +26,12 @@ export default async function MonthlyBasePage() {
         Debt EMIs and active SIPs sync in automatically from Liabilities and Assets — edit the amount
         there, not here. Add everything else below.
       </p>
-      <MonthlyBaseClient payload={payload} baseCurrency={household?.baseCurrency ?? "USD"} />
+      <TableThemeProvider theme={getTableTheme(household?.tableTheme ?? "orange")}>
+        <div className="mb-4 flex justify-end">
+          <TableThemeSwitcher currentTheme={household?.tableTheme ?? "orange"} />
+        </div>
+        <MonthlyBaseClient payload={payload} baseCurrency={household?.baseCurrency ?? "USD"} />
+      </TableThemeProvider>
     </section>
   );
 }

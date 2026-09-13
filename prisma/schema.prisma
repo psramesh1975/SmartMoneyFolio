@@ -31,6 +31,10 @@ model Household {
   isSuspended          Boolean       @default(false) // platform admin can suspend a client's access
   subscriptionStatus   String        @default("FREE") // FREE | TRIAL | PAID — plain data, no billing logic yet
   subscriptionExpiresAt DateTime?
+  // One of TABLE_THEME_KEYS in lib/table-themes.ts — plain string + app-level
+  // enum rather than a Prisma enum, same convention as subscriptionStatus
+  // above, so adding a 9th theme later doesn't require a migration.
+  tableTheme           String        @default("orange")
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

@@ -218,7 +218,7 @@ function SummaryBar({
 }) {
   const surplusColor = (n: number) => (n >= 0 ? "text-emerald-600 dark:text-cyan-400" : "text-rose-600 dark:text-rose-400");
   return (
-    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:shadow dark:border-slate-800 dark:bg-canvas-card dark:hover:border-cyan-500/40 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 rounded-2xl border border-[var(--table-border)] bg-white p-4 shadow-sm transition-all hover:shadow dark:bg-canvas-card sm:grid-cols-3">
       {[
         { label: "Total Income", planned: summary.plannedIncome, actual: summary.actualIncome },
         { label: "Total Outflow", planned: summary.plannedOutflow, actual: summary.actualOutflow },

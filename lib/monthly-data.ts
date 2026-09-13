@@ -107,12 +107,12 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
   const [debtItems, sipItems, generalItems, categories] = await Promise.all([
     prisma.monthlyLineItem.findMany({
       where: { householdId, isActive: true, categoryId: debtCategoryId },
-      include: { liability: { select: { accountReference: true } } },
+      include: { liability: { select: { id: true, accountReference: true, emiDueDay: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.monthlyLineItem.findMany({
       where: { householdId, isActive: true, categoryId: sipCategoryId },
-      include: { account: { select: { accountOrFolioNo: true } } },
+      include: { account: { select: { id: true, accountOrFolioNo: true, sipDueDay: true } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.monthlyLineItem.findMany({
@@ -135,6 +135,8 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
     baseAmount: li.baseAmount.toString(),
     subtitle: li.liability?.accountReference ?? null,
     kind: "EMI" as const,
+    sourceId: li.liability?.id ?? null,
+    dueDay: li.liability?.emiDueDay ?? null,
   }));
   const sipRows = sipItems.map((li) => ({
     id: li.id,
@@ -142,6 +144,8 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
     baseAmount: li.baseAmount.toString(),
     subtitle: li.account?.accountOrFolioNo ?? null,
     kind: "SIP" as const,
+    sourceId: li.account?.id ?? null,
+    dueDay: li.account?.sipDueDay ?? null,
   }));
 
   const generalGroups = categories.map((c) => ({

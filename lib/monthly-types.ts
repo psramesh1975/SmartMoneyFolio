@@ -56,6 +56,14 @@ export type MonthlyBaseAutoRowDTO = {
   // SIP rows: the account's accountOrFolioNo for the subtitle line.
   subtitle: string | null;
   kind: "EMI" | "SIP";
+  // The linked Liability.id (EMI) / Account.id (SIP) — powers the
+  // Source/Sync column's "Liabilities ↗" / "Assets ↗" link. Null if the
+  // linked record is somehow missing (line item survived a broken
+  // relation) — the Source/Sync column falls back to plain text then.
+  sourceId: string | null;
+  // Liability.emiDueDay / Account.sipDueDay — day-of-month (1-31), null if
+  // not set. Powers the Schedule column ("10th of Month").
+  dueDay: number | null;
 };
 
 export type MonthlyBaseGeneralRowDTO = {
