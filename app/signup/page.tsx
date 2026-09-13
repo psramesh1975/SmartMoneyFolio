@@ -94,6 +94,16 @@ export default function SignupPage() {
     }
   }, []);
 
+  // Manually picking a different Country (via the dropdown, not just the
+  // one-time browser-detection guess above) should keep Base Currency in
+  // sync too — otherwise switching Country away from the detected/default
+  // one leaves Base Currency stuck on whatever it was before, the same
+  // mismatch the auto-detect effect above was fixed for.
+  function handleCountryChange(next: string) {
+    setCountry(next);
+    setBaseCurrency(defaultCurrencyForCountry(next));
+  }
+
   // members[0] is always the primary account holder ("Self") — its whole
   // profile, KYC fields included, is captured directly in Step 1 below, not
   // via the mapped card loop. Step 2 only ever renders members.slice(1).
@@ -255,7 +265,7 @@ export default function SignupPage() {
                 <CountryTimeZoneFields
                   country={country}
                   timeZone={timeZone}
-                  onCountryChange={setCountry}
+                  onCountryChange={handleCountryChange}
                   onTimeZoneChange={setTimeZone}
                 />
                 <p className="-mt-3 text-sm text-slate-500 dark:text-slate-400">
