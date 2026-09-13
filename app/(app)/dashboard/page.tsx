@@ -234,22 +234,22 @@ export default async function DashboardPage({
                             {m.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-extrabold text-slate-900 dark:text-white">
+                            <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">
                               {m.name}{" "}
-                              <span className="text-[10px] font-normal font-semibold text-slate-400 dark:text-slate-500">
+                              <span className="text-xs font-normal font-semibold text-slate-400 dark:text-slate-500">
                                 ({m.relationship}
                                 {m.isMinor ? " • Minor" : ""})
                               </span>
                             </p>
                             {m.residencyStatus === "NRI" && (
-                              <span className="mt-0.5 inline-block rounded-full bg-amber-600/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
+                              <span className="mt-0.5 inline-block rounded-full bg-amber-600/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
                                 NRI
                               </span>
                             )}
                           </div>
                         </div>
                         {sharePct !== null && (
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${palette.pill}`}>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${palette.pill}`}>
                             {sharePct}% Share
                           </span>
                         )}
@@ -262,9 +262,9 @@ export default async function DashboardPage({
                       )}
 
                       {Object.keys(m.byClass).length === 0 && m.otherCurrencyHoldings.length === 0 ? (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">No assets added yet.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">No assets added yet.</p>
                       ) : (
-                        <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                        <div className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
                           {Object.entries(m.byClass).map(([cls, value]) => (
                             <div key={cls} className="flex justify-between">
                               <span>{assetClassLabel(cls)}</span>
@@ -283,7 +283,7 @@ export default async function DashboardPage({
                           ))}
                         </div>
                       )}
-                      <div className="mt-3 flex items-center justify-between border-t border-slate-200/60 pt-2.5 text-xs dark:border-slate-800/60">
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-200/60 pt-2.5 text-sm dark:border-slate-800/60">
                         <span className="font-semibold text-slate-400 dark:text-slate-500">Total</span>
                         <span className="font-mono font-extrabold text-slate-900 dark:text-white">
                           {formatDashboardAmount(m.total, baseCurrency)}
