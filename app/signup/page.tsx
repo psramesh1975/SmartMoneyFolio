@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CURRENCIES } from "@/lib/currencies";
+import { CURRENCIES, defaultCurrencyForCountry } from "@/lib/currencies";
 import { RELATIONSHIPS } from "@/lib/relationships";
 import { findCountryForTimeZone } from "@/lib/countries";
 import CountryTimeZoneFields from "@/components/CountryTimeZoneFields";
@@ -75,8 +75,11 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
 
   // Pre-fill (never auto-submit) from the browser's own timezone — only
-  // when it maps to a country we know, so Country and Timezone start in
-  // sync. If it doesn't match anything, the India/INR defaults above stand.
+  // when it maps to a country we know, so Country, Timezone, and Base
+  // Currency all start in sync (previously this left Base Currency stuck
+  // on INR even when Country changed, e.g. a UAE-based signup showing
+  // "United Arab Emirates" next to "INR"). If nothing matches, the
+  // India/INR defaults above stand.
   useEffect(() => {
     try {
       const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -84,6 +87,7 @@ export default function SignupPage() {
       if (detectedCountry) {
         setCountry(detectedCountry);
         setTimeZone(detected);
+        setBaseCurrency(defaultCurrencyForCountry(detectedCountry));
       }
     } catch {
       // Intl not available or detection failed — leave the India/INR defaults.
