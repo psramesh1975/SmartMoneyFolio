@@ -40,7 +40,7 @@ export default async function ArchivedYearPage({
       ) : (
         <div className="mt-8">
           <MonthlyHistoryStack
-            months={[...monthsWithData].reverse()}
+            months={monthsWithData}
             yearlySummary={yearlySummary}
             currency={household?.baseCurrency ?? "USD"}
           />

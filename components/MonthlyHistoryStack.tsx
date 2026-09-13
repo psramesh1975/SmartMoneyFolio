@@ -7,9 +7,9 @@ function fmt(n: number) {
 }
 
 // Used by both /monthly/earlier and /monthly/years/[year] — a stack of
-// expandable month cards, newest first (the pages pass months already
-// reversed into that order). Stays a server component; each card is its own
-// client island for the expand/collapse interaction.
+// expandable month cards, oldest first (January first) — the pages pass
+// months in their natural ascending order. Stays a server component; each
+// card is its own client island for the expand/collapse interaction.
 export default function MonthlyHistoryStack({
   months,
   yearlySummary,

@@ -33,7 +33,7 @@ export default async function EarlierMonthsPage() {
       ) : (
         <div className="mt-8">
           <MonthlyHistoryStack
-            months={[...months].reverse()}
+            months={months}
             currency={household?.baseCurrency ?? "USD"}
           />
         </div>
