@@ -204,19 +204,7 @@ export default async function DashboardPage({
           )}
         </div>
 
-        {/* 2. Income vs Outflow — full-width, household-wide trend that
-            doesn't belong to either column below */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Income vs. Outflow (Last 6 Months)
-            </h3>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Household-wide</span>
-          </div>
-          <IncomeOutflowTrendChart trend={incomeOutflowTrend} baseCurrency={baseCurrency} />
-        </div>
-
-        {/* 3. Workspace (left, 8/12) + Operational Context Rail (right, 4/12) */}
+        {/* 2. Workspace (left, 8/12) + Operational Context Rail (right, 4/12) */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-8">
             {/* By family member — bento grid, wrapped in one outer card per the mockup */}
@@ -232,8 +220,6 @@ export default async function DashboardPage({
                   Manage assets →
                 </Link>
               </div>
-
-              <MemberAllocationStackedBar memberBreakdowns={visibleMemberBreakdowns} baseCurrency={baseCurrency} />
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {visibleMemberBreakdowns.map((m) => {
@@ -307,6 +293,31 @@ export default async function DashboardPage({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Asset Allocation by Family Member — stacked bar, moved here (below
+                the individual member cards) per product owner's requested order:
+                KPI row → family member individual data → the six chart widgets. */}
+            <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  Asset Allocation by Family Member
+                </h3>
+              </div>
+              <MemberAllocationStackedBar memberBreakdowns={visibleMemberBreakdowns} baseCurrency={baseCurrency} />
+            </div>
+
+            {/* Income vs Outflow — moved here (below family member data) per
+                product owner's requested order; was previously full-width above
+                the family member section. */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-canvas-card">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  Income vs. Outflow (Last 6 Months)
+                </h3>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Household-wide</span>
+              </div>
+              <IncomeOutflowTrendChart trend={incomeOutflowTrend} baseCurrency={baseCurrency} />
             </div>
 
             {/* Macro Allocation — what we own */}
