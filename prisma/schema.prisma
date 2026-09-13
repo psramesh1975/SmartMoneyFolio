@@ -62,6 +62,11 @@ model User {
   passwordHash   String
   isPlatformOwner Boolean  @default(false)
   status         String    @default("active") // active | disabled
+  // Password reset — only a hash of the token is ever stored, mirroring
+  // passwordHash above; the plaintext token exists only in the emailed link
+  // and briefly in memory server-side to compute this hash for lookup.
+  resetTokenHash    String?
+  resetTokenExpires DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
