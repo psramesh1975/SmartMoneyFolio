@@ -13,6 +13,9 @@ const patchSchema = z.object({
   repeatMonths: z.array(repeatMonthSchema).optional(),
   isActive: z.boolean().optional(),
   notes: z.string().nullable().optional(),
+  // Manual rows only (Income + Expense) — see prisma/schema.prisma.
+  scheduleDay: z.coerce.number().int().min(1).max(31).nullable().optional(),
+  paymentMethod: z.string().trim().max(120).nullable().optional(),
   // liabilityId / accountId removed — auto-sync only, see lib/monthly-auto-sync.ts
 });
 

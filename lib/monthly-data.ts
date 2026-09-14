@@ -98,13 +98,15 @@ export async function getMonthPayload(
 
 // The Monthly Base setup page: Debt (EMI) and SIP rows are auto-linked and
 // read-only here (sourced from Liabilities/Assets — see
-// lib/monthly-auto-sync.ts), everything else is a general recurring expense,
-// grouped by category and freely editable. No entries, no Planned or
-// Actual — Base is the template, not a month.
+// lib/monthly-auto-sync.ts). Everything else is a manual recurring line,
+// split by its category's type into Income and Expense — previously this
+// split didn't exist and every non-system category (Income included) was
+// silently counted as outflow; see the Income KPIs below. No entries, no
+// Planned or Actual — Base is the template, not a month.
 export async function getFlatBasePayload(householdId: string): Promise<FlatBasePayload> {
   const { debtCategoryId, sipCategoryId } = await reconcileAutoLinkedLineItems(householdId);
 
-  const [debtItems, sipItems, generalItems, categories] = await Promise.all([
+  const [debtItems, sipItems, generalItems, allCategories] = await Promise.all([
     prisma.monthlyLineItem.findMany({
       where: { householdId, isActive: true, categoryId: debtCategoryId },
       include: { liability: { select: { id: true, accountReference: true, emiDueDay: true } } },
@@ -129,6 +131,22 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
     }),
   ]);
 
+  const incomeCategories = allCategories.filter((c) => c.type === "INCOME");
+  const expenseCategories = allCategories.filter((c) => c.type === "OUTFLOW");
+  const incomeCategoryIds = new Set(incomeCategories.map((c) => c.id));
+
+  const toFlatRow = (li: (typeof generalItems)[number]) => ({
+    id: li.id,
+    name: li.name,
+    baseAmount: li.baseAmount.toString(),
+    categoryId: li.categoryId,
+    scheduleDay: li.scheduleDay,
+    paymentMethod: li.paymentMethod,
+  });
+
+  const incomeRows = generalItems.filter((li) => incomeCategoryIds.has(li.categoryId)).map(toFlatRow);
+  const expenseRows = generalItems.filter((li) => !incomeCategoryIds.has(li.categoryId)).map(toFlatRow);
+
   const debtRows = debtItems.map((li) => ({
     id: li.id,
     name: li.name,
@@ -148,34 +166,34 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
     dueDay: li.account?.sipDueDay ?? null,
   }));
 
-  const generalGroups = categories.map((c) => ({
-    categoryId: c.id,
-    categoryName: c.name,
-    // Keep empty categories visible so "+ Add" has somewhere to go.
-    rows: generalItems
-      .filter((li) => li.categoryId === c.id)
-      .map((li) => ({ id: li.id, name: li.name, baseAmount: li.baseAmount.toString(), categoryId: c.id })),
-  }));
-
   const sum = (rows: { baseAmount: string }[]) => rows.reduce((s, r) => s + Number(r.baseAmount), 0);
+  const totalIncome = sum(incomeRows);
   const debtServicing = sum(debtRows);
   const sipContributions = sum(sipRows);
   const wealthBuilding = debtServicing + sipContributions;
-  const totalOutflow = wealthBuilding + generalItems.reduce((s, li) => s + Number(li.baseAmount), 0);
+  const generalExpenseTotal = sum(expenseRows);
+  const totalOutflow = wealthBuilding + generalExpenseTotal;
   const fixedLiving = totalOutflow - wealthBuilding;
+  const netBuffer = totalIncome - totalOutflow;
+
+  const toCategoryOption = (c: (typeof allCategories)[number]) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    spendKind: c.spendKind,
+    isSubscription: c.isSubscription,
+  });
 
   return {
+    incomeRows,
+    expenseRows,
     debtRows,
     sipRows,
-    generalGroups,
-    categories: categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      spendKind: c.spendKind,
-      isSubscription: c.isSubscription,
-    })),
+    incomeCategories: incomeCategories.map(toCategoryOption),
+    expenseCategories: expenseCategories.map(toCategoryOption),
+    categories: allCategories.map(toCategoryOption), // kept for ManageCategoriesPanel, which shows both types
     kpis: {
+      totalIncome: totalIncome.toFixed(2),
       totalOutflow: totalOutflow.toFixed(2),
       debtServicing: debtServicing.toFixed(2),
       sipContributions: sipContributions.toFixed(2),
@@ -183,6 +201,8 @@ export async function getFlatBasePayload(householdId: string): Promise<FlatBaseP
       wealthBuildingPercent: totalOutflow > 0 ? Math.round((wealthBuilding / totalOutflow) * 100) : 0,
       fixedLiving: fixedLiving.toFixed(2),
       fixedLivingPercent: totalOutflow > 0 ? Math.round((fixedLiving / totalOutflow) * 100) : 0,
+      netBuffer: netBuffer.toFixed(2),
+      netBufferPercent: totalIncome > 0 ? Math.round((netBuffer / totalIncome) * 100) : 0,
     },
   };
 }

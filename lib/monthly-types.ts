@@ -66,34 +66,40 @@ export type MonthlyBaseAutoRowDTO = {
   dueDay: number | null;
 };
 
+// Manual row — Income or Expense, both share this shape. `categoryId` is
+// fixed at creation (no category-switch-on-row, same as before); scheduleDay
+// / paymentMethod are nullable everywhere — an existing row with neither set
+// simply renders "—" in those columns.
 export type MonthlyBaseGeneralRowDTO = {
   id: string;
   name: string;
   baseAmount: string;
   categoryId: string;
-};
-
-export type MonthlyBaseCategoryGroupDTO = {
-  categoryId: string;
-  categoryName: string;
-  rows: MonthlyBaseGeneralRowDTO[];
+  scheduleDay: number | null;
+  paymentMethod: string | null;
 };
 
 export type MonthlyBaseKpisDTO = {
+  totalIncome: string;
   totalOutflow: string;
   debtServicing: string; // EMI rows total
   sipContributions: string; // SIP rows total
   wealthBuilding: string; // debtServicing + sipContributions
-  wealthBuildingPercent: number; // 0-100, 0 when totalOutflow is 0
+  wealthBuildingPercent: number; // 0-100 of totalOutflow, 0 when totalOutflow is 0
   fixedLiving: string; // totalOutflow - wealthBuilding
   fixedLivingPercent: number;
+  netBuffer: string; // totalIncome - totalOutflow — can be negative
+  netBufferPercent: number; // % of totalIncome — can be negative, 0 when totalIncome is 0
 };
 
 export type FlatBasePayload = {
+  incomeRows: MonthlyBaseGeneralRowDTO[];
+  expenseRows: MonthlyBaseGeneralRowDTO[];
   debtRows: MonthlyBaseAutoRowDTO[];
   sipRows: MonthlyBaseAutoRowDTO[];
-  generalGroups: MonthlyBaseCategoryGroupDTO[];
-  categories: MonthlyCategoryOptionDTO[]; // for the "add row" category picker — excludes the two system categories
+  incomeCategories: MonthlyCategoryOptionDTO[];
+  expenseCategories: MonthlyCategoryOptionDTO[];
+  categories: MonthlyCategoryOptionDTO[]; // both types combined — for ManageCategoriesPanel only
   kpis: MonthlyBaseKpisDTO;
 };
 

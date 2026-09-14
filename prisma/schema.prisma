@@ -369,6 +369,13 @@ model MonthlyLineItem {
   startMonth     Int             // i.e. whenever the line item was created.
   isActive       Boolean         @default(true) // "stopped" lines don't generate new entries but keep history
   notes          String?         // the "Remark" column on Monthly Base — not copied onto generated entries
+  // Manual rows only (Income + Expense) — auto-linked Debt/SIP rows keep
+  // sourcing their day-of-month from the linked Liability.emiDueDay /
+  // Account.sipDueDay instead. 1-31, day-of-month this recurring item is
+  // expected to post.
+  scheduleDay    Int?
+  // Manual rows only. Free text, e.g. "Bank Auto-Debit", "NEFT Transfer".
+  paymentMethod  String?
   liabilityId    String?         // opt-in: "this recurring expense is the EMI for that loan"
   liability      Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
   // opt-in: "this recurring expense is the SIP for that mutual fund holding"

@@ -14,6 +14,9 @@ const createSchema = z.object({
   // may genuinely be unknown yet), same as a freshly added spreadsheet row.
   baseAmount: z.coerce.number().nonnegative(),
   repeatMonths: z.array(repeatMonthSchema).default([]),
+  // Manual rows only (Income + Expense) — see prisma/schema.prisma.
+  scheduleDay: z.coerce.number().int().min(1).max(31).nullable().optional(),
+  paymentMethod: z.string().trim().max(120).nullable().optional(),
   // liabilityId / accountId removed — auto-sync only, see lib/monthly-auto-sync.ts
 });
 
@@ -62,6 +65,8 @@ export async function POST(req: NextRequest) {
       name: parsed.data.name,
       baseAmount: parsed.data.baseAmount,
       repeatMonths: parsed.data.repeatMonths,
+      scheduleDay: parsed.data.scheduleDay,
+      paymentMethod: parsed.data.paymentMethod,
       startYear: year,
       startMonth: month,
     },
