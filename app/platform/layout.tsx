@@ -9,10 +9,15 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   if (!session.isPlatformOwner) redirect("/dashboard");
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-canvas">
+    <div className="flex min-h-screen bg-canvas">
+      {/* Platform console is a fixed dark ops theme (no light/dark toggle,
+          unlike the client-facing app) — SectionThemeInit still forces the
+          html "dark" class so shared components that key off it (inputs,
+          icons, etc.) render correctly here regardless of what the client
+          app section was last set to. */}
       <SectionThemeInit defaultTheme="dark" />
-      <PlatformSidebar />
-      <main className="flex-1 px-8 py-10">{children}</main>
+      <PlatformSidebar adminEmail={session.email} />
+      <main className="max-w-7xl flex-1 space-y-6 overflow-y-auto p-6 lg:p-8">{children}</main>
     </div>
   );
 }
