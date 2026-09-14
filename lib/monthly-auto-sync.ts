@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { getCurrentPeriod } from "@/lib/monthly-periods";
 
 // Exported so callers that need to tell an auto-linked EMI/SIP row apart
 // from a general recurring line item (e.g. lib/tracking-data.ts's Forward
@@ -7,6 +8,31 @@ import { prisma } from "@/lib/db";
 // this file creates, instead of a second, driftable copy of the strings.
 export const DEBT_CATEGORY_NAME = "Loan EMIs";
 export const SIP_CATEGORY_NAME = "Investments & SIPs";
+
+// Whether a Mutual Fund account's SIP should currently count as active —
+// shared by reconcileAutoLinkedLineItems() (Monthly Base) and
+// getMonthlySipTotal() (Dashboard's Goal Velocity card) so the two never
+// drift: a SIP that's exhausted its installment count disappears from both
+// at the same time, not just one of them.
+//
+// sipStartDate's own calendar month counts as elapsed month 0 (the first
+// installment), so sipInstallments: 1 means "active only during the start
+// month, gone from the next month on." Read in UTC — sipStartDate is a
+// date-only value, and reading it in the server's local zone could shift
+// it across a month boundary depending on time-of-day.
+export function isSipCurrentlyActive(
+  account: { sipMonthlyAmount: unknown; sipStartDate: Date | null; sipInstallments: number | null },
+  currentPeriod: { year: number; month: number }
+): boolean {
+  if (!(Number(account.sipMonthlyAmount) > 0)) return false;
+  if (account.sipInstallments == null) return true; // Unlimited/Ongoing
+  if (!account.sipStartDate) return true; // no anchor recorded — defensive fallback, shouldn't occur once the form enforces this pairing
+
+  const startYear = account.sipStartDate.getUTCFullYear();
+  const startMonth = account.sipStartDate.getUTCMonth() + 1;
+  const elapsedMonths = (currentPeriod.year - startYear) * 12 + (currentPeriod.month - startMonth);
+  return elapsedMonths >= 0 && elapsedMonths < account.sipInstallments;
+}
 
 // reconcileAutoLinkedLineItems() runs on every /monthly/base load, so
 // concurrent requests for the same household (multiple tabs, or just two
@@ -101,8 +127,9 @@ async function upsertLinkedLineItem(params: {
 // rather than adding write-hooks to six different Liability/Account route
 // handlers.
 export async function reconcileAutoLinkedLineItems(householdId: string) {
-  const [debtCategory, sipCategory, liabilities, sipAccounts, linkedLineItems] =
+  const [household, debtCategory, sipCategory, liabilities, sipAccounts, linkedLineItems] =
     await Promise.all([
+      prisma.household.findUnique({ where: { id: householdId }, select: { timeZone: true } }),
       getOrCreateSystemCategory(householdId, DEBT_CATEGORY_NAME),
       getOrCreateSystemCategory(householdId, SIP_CATEGORY_NAME),
       prisma.liability.findMany({
@@ -118,12 +145,15 @@ export async function reconcileAutoLinkedLineItems(householdId: string) {
       }),
     ]);
 
+  const currentPeriod = getCurrentPeriod(household?.timeZone || "UTC");
+
   // Only Liabilities with a fixed emiAmount > 0 auto-populate a Debt row —
   // revolving lines with no fixed EMI (credit cards, isRevolving with no
   // emiAmount) have nothing steady to show. Only Accounts with a
-  // sipMonthlyAmount > 0 auto-populate a SIP row.
+  // sipMonthlyAmount > 0 (and, if a fixed installment count is set, still
+  // within it — see isSipCurrentlyActive) auto-populate a SIP row.
   const qualifyingLiabilities = liabilities.filter((l) => Number(l.emiAmount) > 0);
-  const qualifyingAccounts = sipAccounts.filter((a) => Number(a.sipMonthlyAmount) > 0);
+  const qualifyingAccounts = sipAccounts.filter((a) => isSipCurrentlyActive(a, currentPeriod));
 
   const byLiabilityId = new Map(linkedLineItems.filter((li) => li.liabilityId).map((li) => [li.liabilityId!, li]));
   const byAccountId = new Map(linkedLineItems.filter((li) => li.accountId).map((li) => [li.accountId!, li]));
