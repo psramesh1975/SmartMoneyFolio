@@ -55,6 +55,7 @@ export type AssetRow = {
   autoRenewalType: string | null;
   isTaxExempt: boolean | null;
   sipMonthlyAmount: string | null;
+  sipDueDay: number | null;
 };
 
 // The create/update routes respond with the full account row (familyMember
@@ -88,6 +89,7 @@ function mapAccountToRow(account: any): AssetRow {
     autoRenewalType: account.autoRenewalType ?? null,
     isTaxExempt: account.isTaxExempt ?? null,
     sipMonthlyAmount: account.sipMonthlyAmount != null ? String(account.sipMonthlyAmount) : null,
+    sipDueDay: account.sipDueDay ?? null,
   };
 }
 
@@ -153,6 +155,8 @@ type FormState = {
   compoundingFrequency: string;
   autoRenewalType: string;
   isTaxExempt: boolean;
+  sipMonthlyAmount: string;
+  sipDueDay: string;
 };
 
 function emptyForm(defaultMemberId: string): FormState {
@@ -173,6 +177,8 @@ function emptyForm(defaultMemberId: string): FormState {
     compoundingFrequency: "MONTHLY",
     autoRenewalType: "NONE",
     isTaxExempt: false,
+    sipMonthlyAmount: "",
+    sipDueDay: "",
   };
 }
 
@@ -250,6 +256,8 @@ export default function AssetsClient({
       compoundingFrequency: a.compoundingFrequency ?? "MONTHLY",
       autoRenewalType: a.autoRenewalType ?? "NONE",
       isTaxExempt: a.isTaxExempt ?? false,
+      sipMonthlyAmount: a.sipMonthlyAmount ?? "",
+      sipDueDay: a.sipDueDay != null ? String(a.sipDueDay) : "",
     });
     setError(null);
     setShowForm(true);
@@ -305,6 +313,10 @@ export default function AssetsClient({
       if (form.accountOrFolioNo) payload.accountOrFolioNo = form.accountOrFolioNo;
       if (form.unitsHeld) payload.unitsHeld = form.unitsHeld;
       if (form.avgBuyPrice) payload.avgBuyPrice = form.avgBuyPrice;
+      if (form.assetClass === "MUTUAL_FUNDS") {
+        if (form.sipMonthlyAmount) payload.sipMonthlyAmount = form.sipMonthlyAmount;
+        if (form.sipDueDay) payload.sipDueDay = form.sipDueDay;
+      }
     }
     if (isFd) {
       if (form.accountOrFolioNo) payload.accountOrFolioNo = form.accountOrFolioNo;
@@ -545,6 +557,39 @@ export default function AssetsClient({
                   className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                 />
               </div>
+              {form.assetClass === "MUTUAL_FUNDS" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                      SIP monthly amount (optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={form.sipMonthlyAmount}
+                      onChange={(e) => setForm((f) => ({ ...f, sipMonthlyAmount: e.target.value }))}
+                      placeholder="e.g. 10000"
+                      className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                    />
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      Set this to have the SIP appear automatically on Monthly Base.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                      SIP due day (optional)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={form.sipDueDay}
+                      onChange={(e) => setForm((f) => ({ ...f, sipDueDay: e.target.value }))}
+                      placeholder="e.g. 5"
+                      className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
 
