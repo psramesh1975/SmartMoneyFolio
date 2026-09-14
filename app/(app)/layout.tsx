@@ -13,7 +13,7 @@ import {
   getMostRecentArchivedYear,
   MONTH_LABELS_SHORT,
 } from "@/lib/monthly-periods";
-import { getPrimaryGoal, getLatestPriceSyncAt } from "@/lib/dashboard-data";
+import { getGoalsTargetSum, getLatestPriceSyncAt } from "@/lib/dashboard-data";
 import { getMarketTicker } from "@/lib/market-ticker";
 import { formatINRCompact } from "@/lib/format-indian-currency";
 import { getDraftMonths } from "@/lib/tracking-data";
@@ -52,10 +52,10 @@ function earlierYearsRangeLabel(years: number[]): string | null {
 // INR gets the mockup's "₹6 Cr" style; other currencies (this app is
 // multi-currency) fall back to a plain rounded-crore-less figure since
 // formatINRCompact's Lakh/Crore grouping is INR-specific.
-function goalTargetLabel(goal: { targetAmount: number; currency: string } | null): string | null {
-  if (!goal) return null;
-  if (goal.currency === "INR") return formatINRCompact(goal.targetAmount);
-  return `${goal.currency} ${Math.round(goal.targetAmount).toLocaleString()}`;
+function goalTargetLabel(sum: { total: number; currency: string } | null): string | null {
+  if (!sum) return null;
+  if (sum.currency === "INR") return formatINRCompact(sum.total);
+  return `${sum.currency} ${Math.round(sum.total).toLocaleString()}`;
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -65,7 +65,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect(session.isPlatformOwner ? "/platform" : "/login");
   }
 
-  const [household, familyMembers, primaryGoal, marketTicker, lastUpdatedAt] = await Promise.all([
+  const [household, familyMembers, goalsTargetSum, marketTicker, lastUpdatedAt] = await Promise.all([
     prisma.household.findUnique({
       where: { id: session.householdId },
       select: { name: true, timeZone: true, baseCurrency: true },
@@ -75,7 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, relationship: true },
     }),
-    getPrimaryGoal(session.householdId),
+    getGoalsTargetSum(session.householdId),
     getMarketTicker(),
     getLatestPriceSyncAt(),
   ]);
@@ -103,7 +103,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           previousLabel={periodLabel(getPreviousPeriod(timeZone))}
           currentLabel={periodLabel(getCurrentPeriod(timeZone))}
           nextLabel={periodLabel(getNextPeriod(timeZone))}
-          goalTargetLabel={goalTargetLabel(primaryGoal)}
+          goalTargetLabel={goalTargetLabel(goalsTargetSum)}
           baseCurrency={household?.baseCurrency ?? "USD"}
           draftMonths={draftMonths}
           nextPeriod={getNextPeriod(timeZone)}
