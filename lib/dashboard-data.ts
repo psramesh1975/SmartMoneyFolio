@@ -548,6 +548,31 @@ export async function getPrimaryGoal(householdId: string): Promise<PrimaryGoal |
   };
 }
 
+// Powers the sidebar's "Goals (... Target)" label — sums every goal's
+// target amount, restricted to the household's base currency, same
+// no-FX-conversion convention getSolvencySnapshot() already uses for Total
+// Assets/Liabilities (a goal in a different currency than the household's
+// base is excluded from the sum, not converted). Deliberately not built on
+// getPrimaryGoal(), which picks a single largest-target goal rather than
+// summing — that's still what GoalVelocityCard.tsx uses, unrelated to this.
+export async function getGoalsTargetSum(householdId: string): Promise<{ total: number; currency: string } | null> {
+  const household = await prisma.household.findUnique({
+    where: { id: householdId },
+    select: { baseCurrency: true },
+  });
+  if (!household) return null;
+
+  const goals = await prisma.goal.findMany({
+    where: { householdId, currency: household.baseCurrency },
+    select: { targetAmount: true },
+  });
+
+  if (goals.length === 0) return null;
+
+  const total = goals.reduce((sum, g) => sum + Number(g.targetAmount), 0);
+  return { total, currency: household.baseCurrency };
+}
+
 // "Current pace" for the Goal Velocity card's projected-completion line —
 // the household's total active SIP commitment (base-currency Mutual Fund
 // accounts only, same qualifying filter as reconcileAutoLinkedLineItems()).
