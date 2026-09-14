@@ -62,6 +62,7 @@ export default async function AssetsPage() {
           autoRenewalType: a.autoRenewalType,
           isTaxExempt: a.isTaxExempt,
           sipMonthlyAmount: a.sipMonthlyAmount?.toString() ?? null,
+          sipDueDay: a.sipDueDay ?? null,
         }))}
       />
     </section>
