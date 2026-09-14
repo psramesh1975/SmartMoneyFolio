@@ -173,8 +173,11 @@ model Account {
 
   // Mutual Fund specific
   sipMonthlyAmount Decimal?
-  sipDueDay        Int?     // day-of-month (1-31) the SIP is auto-debited — dashboard's
-                             // "Upcoming Debits" card only; null until set (no edit UI yet)
+  sipDueDay        Int?      // day-of-month (1-31) the SIP is auto-debited — powers the
+                              // dashboard's "Upcoming Debits" card; null until set
+  sipInstallments  Int?      // total number of monthly SIP payments planned; null = Unlimited/Ongoing
+  sipStartDate     DateTime? // first month this SIP counts from — required whenever sipInstallments
+                              // is set, otherwise there's no anchor to count elapsed months from
 
   lastUpdated    DateTime     @default(now())
   createdAt      DateTime     @default(now())

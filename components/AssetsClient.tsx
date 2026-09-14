@@ -56,6 +56,8 @@ export type AssetRow = {
   isTaxExempt: boolean | null;
   sipMonthlyAmount: string | null;
   sipDueDay: number | null;
+  sipInstallments: number | null;
+  sipStartDate: string | null;
 };
 
 // The create/update routes respond with the full account row (familyMember
@@ -90,6 +92,8 @@ function mapAccountToRow(account: any): AssetRow {
     isTaxExempt: account.isTaxExempt ?? null,
     sipMonthlyAmount: account.sipMonthlyAmount != null ? String(account.sipMonthlyAmount) : null,
     sipDueDay: account.sipDueDay ?? null,
+    sipInstallments: account.sipInstallments ?? null,
+    sipStartDate: account.sipStartDate ?? null,
   };
 }
 
@@ -157,6 +161,9 @@ type FormState = {
   isTaxExempt: boolean;
   sipMonthlyAmount: string;
   sipDueDay: string;
+  sipUnlimited: boolean; // true = "Unlimited / Ongoing" checkbox checked
+  sipInstallments: string;
+  sipStartDate: string;
 };
 
 function emptyForm(defaultMemberId: string): FormState {
@@ -179,6 +186,9 @@ function emptyForm(defaultMemberId: string): FormState {
     isTaxExempt: false,
     sipMonthlyAmount: "",
     sipDueDay: "",
+    sipUnlimited: true, // matches today's implicit behavior for every existing SIP
+    sipInstallments: "",
+    sipStartDate: "",
   };
 }
 
@@ -258,6 +268,9 @@ export default function AssetsClient({
       isTaxExempt: a.isTaxExempt ?? false,
       sipMonthlyAmount: a.sipMonthlyAmount ?? "",
       sipDueDay: a.sipDueDay != null ? String(a.sipDueDay) : "",
+      sipUnlimited: a.sipInstallments == null,
+      sipInstallments: a.sipInstallments != null ? String(a.sipInstallments) : "",
+      sipStartDate: a.sipStartDate ? a.sipStartDate.slice(0, 10) : "",
     });
     setError(null);
     setShowForm(true);
@@ -316,6 +329,13 @@ export default function AssetsClient({
       if (form.assetClass === "MUTUAL_FUNDS") {
         if (form.sipMonthlyAmount) payload.sipMonthlyAmount = form.sipMonthlyAmount;
         if (form.sipDueDay) payload.sipDueDay = form.sipDueDay;
+        if (form.sipUnlimited) {
+          payload.sipInstallments = null;
+          payload.sipStartDate = null;
+        } else if (form.sipInstallments) {
+          payload.sipInstallments = form.sipInstallments;
+          payload.sipStartDate = form.sipStartDate || new Date().toISOString().slice(0, 10);
+        }
       }
     }
     if (isFd) {
@@ -588,6 +608,48 @@ export default function AssetsClient({
                       className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
                     />
                   </div>
+                  <div className="sm:col-span-2 lg:col-span-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={form.sipUnlimited}
+                        onChange={(e) => setForm((f) => ({ ...f, sipUnlimited: e.target.checked }))}
+                        className="rounded border-slate-300"
+                      />
+                      Unlimited / Ongoing SIP
+                    </label>
+                  </div>
+                  {!form.sipUnlimited && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                          Number of SIPs
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={form.sipInstallments}
+                          onChange={(e) => setForm((f) => ({ ...f, sipInstallments: e.target.value }))}
+                          placeholder="e.g. 60"
+                          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
+                          SIP start date
+                        </label>
+                        <input
+                          type="date"
+                          value={form.sipStartDate}
+                          onChange={(e) => setForm((f) => ({ ...f, sipStartDate: e.target.value }))}
+                          className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                        />
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                          Defaults to today if left blank — set this to when the SIP actually began if it&apos;s already running.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </>

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getHouseholdTimeZone } from "@/lib/monthly-data";
 import { computeMonthlySummary, type MonthlySummaryInput } from "@/lib/monthly-summary";
 import { getCurrentPeriod, getPreviousPeriod, MONTH_LABELS, MONTH_LABELS_SHORT, type Period } from "@/lib/monthly-periods";
+import { isSipCurrentlyActive } from "@/lib/monthly-auto-sync";
 
 export type DashboardCashFlow = {
   currentMonthLabel: string; // e.g. "March 2026"
@@ -594,7 +595,7 @@ export async function getLatestPriceSyncAt(): Promise<Date | null> {
 export async function getMonthlySipTotal(householdId: string): Promise<number> {
   const household = await prisma.household.findUnique({
     where: { id: householdId },
-    select: { baseCurrency: true },
+    select: { baseCurrency: true, timeZone: true },
   });
   if (!household) return 0;
 
@@ -605,10 +606,13 @@ export async function getMonthlySipTotal(householdId: string): Promise<number> {
       assetClass: "MUTUAL_FUNDS",
       sipMonthlyAmount: { not: null },
     },
-    select: { sipMonthlyAmount: true },
+    select: { sipMonthlyAmount: true, sipStartDate: true, sipInstallments: true },
   });
 
-  return accounts.reduce((sum, a) => sum + Number(a.sipMonthlyAmount), 0);
+  const currentPeriod = getCurrentPeriod(household.timeZone || "UTC");
+  return accounts
+    .filter((a) => isSipCurrentlyActive(a, currentPeriod))
+    .reduce((sum, a) => sum + Number(a.sipMonthlyAmount), 0);
 }
 
 export type GoalProgress = {

@@ -63,6 +63,8 @@ export default async function AssetsPage() {
           isTaxExempt: a.isTaxExempt,
           sipMonthlyAmount: a.sipMonthlyAmount?.toString() ?? null,
           sipDueDay: a.sipDueDay ?? null,
+          sipInstallments: a.sipInstallments ?? null,
+          sipStartDate: a.sipStartDate?.toISOString() ?? null,
         }))}
       />
     </section>

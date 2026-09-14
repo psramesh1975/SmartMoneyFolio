@@ -30,6 +30,8 @@ const updateSchema = z.object({
 
   sipMonthlyAmount: z.coerce.number().nonnegative().optional(),
   sipDueDay: z.coerce.number().int().min(1).max(31).optional(),
+  sipInstallments: z.coerce.number().int().positive().nullable().optional(),
+  sipStartDate: z.coerce.date().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
