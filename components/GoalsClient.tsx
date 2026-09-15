@@ -18,8 +18,10 @@ type GoalRow = {
 
 export default function GoalsClient({
   initialGoals,
+  baseCurrency,
 }: {
   initialGoals: GoalRow[];
+  baseCurrency: string;
 }) {
   const router = useRouter();
   const [goals, setGoals] = useState(initialGoals);
@@ -31,7 +33,7 @@ export default function GoalsClient({
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [currentAmount, setCurrentAmount] = useState("0");
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState(baseCurrency);
   const [targetDate, setTargetDate] = useState("");
 
   function resetForm() {
@@ -39,7 +41,7 @@ export default function GoalsClient({
     setName("");
     setTargetAmount("");
     setCurrentAmount("0");
-    setCurrency("USD");
+    setCurrency(baseCurrency);
     setTargetDate("");
     setError(null);
   }
