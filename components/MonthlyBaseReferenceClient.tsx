@@ -22,7 +22,10 @@ function amount(rows: { baseAmount: string }[]) {
 
 function instrument(row: MonthlyBaseAutoRowDTO) {
   if (row.kind === "SIP") return "Mutual Fund SIP";
-  return ({ HOME_LOAN: "Home EMI", CAR_LOAN: "Car EMI", PERSONAL_LOAN: "Personal Loan EMI", CREDIT_CARD: "Card EMI", DEVICE_EMI: "Device EMI" } as Record<string, string>)[row.liabilityType ?? ""] ?? "Loan EMI";
+  // Keep this component compatible with the committed MonthlyBaseAutoRowDTO.
+  // The richer liability type is available in Claude's in-progress work,
+  // but is not part of the shipped DTO yet.
+  return "Loan EMI";
 }
 
 export default function MonthlyBaseReferenceClient({ payload, baseCurrency }: { payload: FlatBasePayload; baseCurrency: string }) {
