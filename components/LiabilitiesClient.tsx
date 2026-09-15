@@ -62,12 +62,12 @@ type FormState = {
   statementDueDay: string;
 };
 
-function emptyForm(defaultMemberId: string): FormState {
+function emptyForm(defaultMemberId: string, defaultCurrency: string): FormState {
   return {
     familyMemberId: defaultMemberId,
     liabilityType: "HOME_LOAN",
     name: "",
-    currency: "USD",
+    currency: defaultCurrency,
     outstandingBalance: "",
     originalAmount: "",
     interestRate: "",
@@ -95,7 +95,7 @@ export default function LiabilitiesClient({
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm(familyMembers[0]?.id ?? ""));
+  const [form, setForm] = useState<FormState>(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
 
   const [selectedOwner, setSelectedOwner] = useState<string>("ALL");
   // Mortgages expanded by default, matching the approved mockup; rest collapsed.
@@ -110,14 +110,14 @@ export default function LiabilitiesClient({
 
   function resetForm() {
     setEditingId(null);
-    setForm(emptyForm(familyMembers[0]?.id ?? ""));
+    setForm(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
     setError(null);
     setShowForm(false);
   }
 
   function startAdd() {
     setEditingId(null);
-    setForm(emptyForm(familyMembers[0]?.id ?? ""));
+    setForm(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
     setError(null);
     setShowForm(true);
   }

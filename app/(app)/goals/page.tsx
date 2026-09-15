@@ -8,10 +8,16 @@ export default async function GoalsPage() {
   if (!session) redirect("/login");
   if (!session.householdId) redirect(session.isPlatformOwner ? "/platform" : "/login");
 
-  const goals = await prisma.goal.findMany({
-    where: { householdId: session.householdId },
-    orderBy: { createdAt: "asc" },
-  });
+  const [goals, household] = await Promise.all([
+    prisma.goal.findMany({
+      where: { householdId: session.householdId },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.household.findUnique({
+      where: { id: session.householdId },
+      select: { baseCurrency: true },
+    }),
+  ]);
 
   return (
     <section className="max-w-4xl px-6 py-10">
@@ -30,6 +36,7 @@ export default async function GoalsPage() {
           currency: g.currency,
           targetDate: g.targetDate ? g.targetDate.toISOString() : null,
         }))}
+        baseCurrency={household?.baseCurrency ?? "USD"}
       />
     </section>
   );

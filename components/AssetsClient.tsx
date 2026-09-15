@@ -17,7 +17,6 @@ import { CURRENCIES } from "@/lib/currencies";
 import { ASSET_CLASSES, assetClassLabel, type AssetClassValue } from "@/lib/asset-classes";
 import { ASSET_CATEGORIES } from "@/lib/asset-categories";
 import { computeFdCurrentValue, daysUntilMaturity } from "@/lib/fd-accrual";
-import AssetAutocomplete, { type SecurityResult } from "@/components/AssetAutocomplete";
 import ImportExcelModal from "@/components/ImportExcelModal";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -155,12 +154,12 @@ type FormState = {
   isTaxExempt: boolean;
 };
 
-function emptyForm(defaultMemberId: string): FormState {
+function emptyForm(defaultMemberId: string, defaultCurrency: string): FormState {
   return {
     familyMemberId: defaultMemberId,
     assetClass: "CASH",
     holdingName: "",
-    currency: "USD",
+    currency: defaultCurrency,
     currentValue: "",
     purchaseValue: "",
     accountOrFolioNo: "",
@@ -192,7 +191,7 @@ export default function AssetsClient({
   const [showImport, setShowImport] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm(familyMembers[0]?.id ?? ""));
+  const [form, setForm] = useState<FormState>(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
 
   const [selectedOwner, setSelectedOwner] = useState<string>("ALL");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({ "fixed-deposits": true });
@@ -219,14 +218,14 @@ export default function AssetsClient({
 
   function resetForm() {
     setEditingId(null);
-    setForm(emptyForm(familyMembers[0]?.id ?? ""));
+    setForm(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
     setError(null);
     setShowForm(false);
   }
 
   function startAdd() {
     setEditingId(null);
-    setForm(emptyForm(familyMembers[0]?.id ?? ""));
+    setForm(emptyForm(familyMembers[0]?.id ?? "", baseCurrency));
     setError(null);
     setShowForm(true);
   }
@@ -253,16 +252,6 @@ export default function AssetsClient({
     });
     setError(null);
     setShowForm(true);
-  }
-
-  function handleSecuritySelect(security: SecurityResult) {
-    setForm((f) => ({
-      ...f,
-      holdingName: security.name,
-      securityId: security.id,
-      accountOrFolioNo: f.accountOrFolioNo || security.tickerOrCode,
-      avgBuyPrice: f.avgBuyPrice || (security.lastPrice ? String(Number(security.lastPrice)) : f.avgBuyPrice),
-    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -492,18 +481,12 @@ export default function AssetsClient({
                 <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">
                   {form.assetClass === "MUTUAL_FUNDS" ? "Scheme name" : "Company / ticker"}
                 </label>
-                {editingId && form.securityId ? (
-                  <input
-                    value={form.holdingName}
-                    onChange={(e) => setForm((f) => ({ ...f, holdingName: e.target.value }))}
-                    className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
-                  />
-                ) : (
-                  <AssetAutocomplete
-                    type={form.assetClass === "MUTUAL_FUNDS" ? "MUTUAL_FUND" : "STOCK"}
-                    onSelect={handleSecuritySelect}
-                  />
-                )}
+                <input
+                  value={form.holdingName}
+                  onChange={(e) => setForm((f) => ({ ...f, holdingName: e.target.value }))}
+                  placeholder="Type the name..."
+                  className="focus-ring mt-1 w-full border border-slate-200/80 bg-white px-2 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-canvas-card dark:text-white"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-500 dark:text-slate-400">Folio / Ticker</label>
