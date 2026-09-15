@@ -112,6 +112,7 @@ export default function MonthlyBaseClient({
     ...payload.expenseRows.map((r) => ({ ...r, persisted: true })),
   ]);
   const [showManageCategories, setShowManageCategories] = useState(false);
+  const [addRowNotice, setAddRowNotice] = useState<string | null>(null);
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Derived from `categories` (not `payload`) so renaming a category's type
@@ -134,6 +135,7 @@ export default function MonthlyBaseClient({
   function handleAddRow(kind: RowKind) {
     const list = kind === "income" ? incomeCategories : expenseCategories;
     if (list.length === 0) return; // "+ Add Row" is hidden in that case — see ManualCardTable
+    setAddRowNotice(null);
     const tempId = makeTempId();
     setRows((prev) => [
       ...prev,
@@ -148,6 +150,25 @@ export default function MonthlyBaseClient({
       },
     ]);
     requestAnimationFrame(() => nameInputRefs.current[tempId]?.focus());
+  }
+
+  // The mockup's top-right button opens a modal letting the user pick a
+  // target table; this app adds inline instead, so the header button needs
+  // its own target. Expense is the common case, so it's tried first; if the
+  // household has no Expense categories yet it falls back to Income; if
+  // there are no categories at all in either list, clicking silently did
+  // nothing before — this shows an actual message instead of failing quiet.
+  function handleQuickAddRow() {
+    if (expenseCategories.length > 0) {
+      handleAddRow("expense");
+      return;
+    }
+    if (incomeCategories.length > 0) {
+      handleAddRow("income");
+      return;
+    }
+    setAddRowNotice("Add a category first — use Manage Categories below, then try again.");
+    setShowManageCategories(true);
   }
 
   // Not created server-side until the user actually types a name — a click
@@ -317,23 +338,28 @@ export default function MonthlyBaseClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setShowManageCategories((s) => !s)}
-            className="rounded-xl border-2 bg-white px-3.5 py-2 text-xs font-bold shadow-sm transition active:scale-95 dark:bg-canvas-card"
-            style={{ borderColor: "var(--table-primary)", color: "var(--table-primary)" }}
-          >
-            {showManageCategories ? "Hide Categories" : "Manage Categories"}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAddRow("expense")}
-            className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
-            style={{ backgroundColor: "var(--table-primary)" }}
-          >
-            <span>+ Add Recurring Row</span>
-          </button>
+        <div className="flex flex-col items-end gap-1.5 self-start sm:self-auto">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowManageCategories((s) => !s)}
+              className="rounded-xl border-2 bg-white px-3.5 py-2 text-xs font-bold shadow-sm transition active:scale-95 dark:bg-canvas-card"
+              style={{ borderColor: "var(--table-primary)", color: "var(--table-primary)" }}
+            >
+              {showManageCategories ? "Hide Categories" : "Manage Categories"}
+            </button>
+            <button
+              type="button"
+              onClick={handleQuickAddRow}
+              className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition active:scale-95"
+              style={{ backgroundColor: "var(--table-primary)" }}
+            >
+              <span>+ Add Recurring Row</span>
+            </button>
+          </div>
+          {addRowNotice && (
+            <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{addRowNotice}</p>
+          )}
         </div>
       </div>
 

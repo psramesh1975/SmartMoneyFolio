@@ -41,6 +41,9 @@ async function patchJSON(url: string, body: unknown) {
   return { ok: res.ok, data };
 }
 
+// Click-to-edit, same pattern as MonthlyBaseClient's ScheduleDayCell: shows
+// as a flat, static pill by default — matching the mockup exactly, no
+// dropdown chevron — and only becomes a <select> once clicked.
 function DirectionBadge({
   type,
   onChange,
@@ -48,19 +51,38 @@ function DirectionBadge({
   type: MonthlyCategoryTypeValue;
   onChange: (type: MonthlyCategoryTypeValue) => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const tone =
     type === "INCOME"
       ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
       : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300";
+
+  if (editing) {
+    return (
+      <select
+        autoFocus
+        value={type}
+        onChange={(e) => {
+          onChange(e.target.value as MonthlyCategoryTypeValue);
+          setEditing(false);
+        }}
+        onBlur={() => setEditing(false)}
+        className={`rounded px-2.5 py-0.5 text-[11px] font-bold focus:outline-2 focus:outline-[var(--table-primary)] ${tone}`}
+      >
+        <option value="INCOME">🟢 Money In (Inflow)</option>
+        <option value="OUTFLOW">🔴 Money Out (Expense)</option>
+      </select>
+    );
+  }
+
   return (
-    <select
-      value={type}
-      onChange={(e) => onChange(e.target.value as MonthlyCategoryTypeValue)}
-      className={`rounded px-2.5 py-0.5 text-[11px] font-bold focus:outline-2 focus:outline-[var(--table-primary)] ${tone}`}
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className={`rounded border px-2.5 py-0.5 text-[11px] font-bold ${tone}`}
     >
-      <option value="INCOME">🟢 Money In (Inflow)</option>
-      <option value="OUTFLOW">🔴 Money Out (Expense)</option>
-    </select>
+      {type === "INCOME" ? "🟢 Money In (Inflow)" : "🔴 Money Out (Expense)"}
+    </button>
   );
 }
 
