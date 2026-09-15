@@ -54,12 +54,20 @@ export default function MonthlyBaseReferenceClient({ payload, baseCurrency }: { 
       setError("Enter an item name and a valid non-negative amount.");
       return;
     }
+    // The deployed line-item route currently requires an existing category.
+    // Claude's pending API work will also accept `kind` for a brand-new
+    // household, but this page must remain functional until that work lands.
+    const categoryId = (bucket === "income" ? payload.incomeCategories : payload.expenseCategories)[0]?.id;
+    if (!categoryId) {
+      setError(`Create an ${bucket === "income" ? "income" : "expense"} category first, then add this item.`);
+      return;
+    }
     setError(null);
     try {
       const data = await request("/api/monthly/line-items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: bucket, name, baseAmount }),
+        body: JSON.stringify({ categoryId, name, baseAmount }),
       });
       const row: ManualRow = { id: data.lineItem.id, name, baseAmount: String(baseAmount), categoryId: data.lineItem.categoryId, scheduleDay: null, paymentMethod: null };
       if (bucket === "income") setIncomeRows((rows) => [...rows, row]);
